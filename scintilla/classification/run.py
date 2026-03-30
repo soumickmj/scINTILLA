@@ -1,0 +1,180 @@
+"""Supervised analysis dispatcher with decision logic."""
+
+from __future__ import annotations
+
+from typing import Optional, Union
+
+import anndata as ad
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+from scintilla.config import RANDOM_SEED, DEFAULT_TEST_SIZE, DEFAULT_CV_FOLDS
+from scintilla.io.loaders import ensure_anndata
+from scintilla.classification.models import (
+    lda_classification,
+    qda_classification,
+    random_forest_classification,
+    knn_classification,
+    logistic_regression_classification,
+    svm_classification,
+    mlp_classification,
+    gradient_boosting_classification,
+    naive_bayes_classification,
+    stacking_ensemble_classification,
+)
+from scintilla.classification.diagnostics import (
+    check_normality_for_classifier,
+    covariance_homogeneity_test,
+)
+from scintilla.classification.feature_importance import shap_analysis
+
+
+def supervised_analysis(
+    data: Union[pd.DataFrame, ad.AnnData],
+    target_col: str = "target",
+    normality: Optional[bool] = None,
+    test_size: float = DEFAULT_TEST_SIZE,
+    include_shap: bool = True,
+    models: Optional[list] = None,
+    verbose: bool = True,
+    config=None,
+) -> dict:
+    """Full supervised analysis pipeline with decision logic.
+
+    Checks normality of the data; if the data are not normal an attempt is
+    made to achieve normality via a Box-Cox transform.  All available
+    classifiers (LogReg, RF, SVM, MLP, LDA, QDA, kNN) are then trained and
+    evaluated; the one with the highest macro-F1 score is returned as the
+    best model.  Optionally, SHAP feature importances are computed for the
+    best model.
+
+    Parameters
+    ----------
+    models:
+        Optional list of model names to run.  Valid names:
+        LogReg, RF, SVM, MLP, LDA, QDA, kNN, GradientBoosting,
+        NaiveBayes, StackingEnsemble, XGBoost, LightGBM.
+        When *None*, all available models are executed.
+    config:
+        Optional :class:`~scintilla.analysis_config.AnalysisConfig`.
+        If provided, *config.classifiers* is used (unless *models*
+        is explicitly given).
+
+    Returns
+    -------
+    dict: best_model, best_model_name, all_results, feature_importances
+    """
+    from scintilla.preprocessing.normality import check_normality  # noqa: PLC0415
+    from scintilla.preprocessing.transformations import box_cox_transform  # noqa: PLC0415
+
+    adata = ensure_anndata(data, target_col=target_col)
+    if target_col not in adata.obs.columns:
+        raise KeyError(f"Column '{target_col}' not found in obs.")
+
+    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = X.astype(np.float64)
+    y = adata.obs[target_col].values
+
+    # Determine normality
+    if normality is None:
+        if verbose:
+            print("Checking normality...")
+        normality, _ = check_normality(adata)
+
+    if not normality:
+        if verbose:
+            print("Data not normal. Attempting Box-Cox transform...")
+        try:
+            adata_bc = box_cox_transform(adata)
+            X_bc = adata_bc.X if not hasattr(adata_bc.X, "toarray") else adata_bc.X.toarray()
+            X_bc = X_bc.astype(np.float64)
+            adata_test = adata.copy()
+            adata_test.X = X_bc
+            normality, _ = check_normality(adata_test)
+            if normality:
+                X = X_bc
+                if verbose:
+                    print("Box-Cox achieved normality.")
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+            pass
+
+    X_tr, X_te, y_tr, y_te = train_test_split(
+        X, y, test_size=test_size, random_state=RANDOM_SEED, stratify=y
+    )
+
+    all_model_fns = {
+        "LogReg": logistic_regression_classification,
+        "RF": random_forest_classification,
+        "SVM": svm_classification,
+        "MLP": mlp_classification,
+        "LDA": lda_classification,
+        "QDA": qda_classification,
+        "kNN": knn_classification,
+        "GradientBoosting": gradient_boosting_classification,
+        "NaiveBayes": naive_bayes_classification,
+        "StackingEnsemble": stacking_ensemble_classification,
+    }
+
+    # Optional models
+    try:
+        from scintilla.classification.models import xgboost_classification  # noqa: PLC0415
+        all_model_fns["XGBoost"] = xgboost_classification
+    except Exception:
+        pass
+    try:
+        from scintilla.classification.models import lightgbm_classification  # noqa: PLC0415
+        all_model_fns["LightGBM"] = lightgbm_classification
+    except Exception:
+        pass
+
+    # Resolve which models to run: explicit param > config > all
+    _selected_models = models
+    if _selected_models is None and config is not None:
+        _selected_models = getattr(config, "classifiers", None)
+    if _selected_models is not None:
+        all_model_fns = {k: v for k, v in all_model_fns.items() if k in _selected_models}
+
+    # Resolve include_shap from config when not explicitly overridden
+    if config is not None and not include_shap:
+        include_shap = getattr(config, "include_shap", include_shap)
+
+    all_results = {}
+    for name, fn in all_model_fns.items():
+        try:
+            model, metrics = fn(X_tr, X_te, y_tr, y_te)
+            all_results[name] = {"model": model, "metrics": metrics}
+            if verbose:
+                print(f"  {name}: accuracy={metrics.get('accuracy', 'N/A'):.3f}")
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
+            if verbose:
+                print(f"  {name} failed: {e}")
+
+    # Pick best model by F1
+    best_name = None
+    best_f1 = -1.0
+    for name, res in all_results.items():
+        f1 = res["metrics"].get("f1", 0.0) or 0.0
+        if f1 > best_f1:
+            best_f1 = f1
+            best_name = name
+
+    best_model = all_results[best_name]["model"] if best_name else None
+
+    # SHAP / feature importance for best model
+    feature_importances = None
+    if include_shap and best_model is not None:
+        try:
+            feat_names = list(adata.var_names) if adata.var_names is not None else None
+            _, feature_importances = shap_analysis(best_model, X_tr, X_te, y_te, feature_names=feat_names)
+        except Exception as e:
+            if verbose:
+                print(f"  Feature importance failed: {e}")
+
+    return {
+        "best_model": best_model,
+        "best_model_name": best_name,
+        "all_results": all_results,
+        "feature_importances": feature_importances,
+        "normality": normality,
+    }

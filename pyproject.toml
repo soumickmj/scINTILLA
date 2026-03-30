@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scintilla"
+version = "0.1.0"
+description = "Single-Cell INTegrated Inference, Labelling, and Landscape Analysis pipeline"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "anndata",
+    "scanpy",
+    "tqdm",
+    "statsmodels",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "scikit-posthocs",
+    "pingouin",
+]
+
+[project.optional-dependencies]
+full = [
+    "shap",
+    "mudata",
+    "leidenalg",
+    "python-igraph",
+    "harmonypy",
+    "bbknn",
+    "scanorama",
+    "hdbscan",
+    "xgboost",
+    "lightgbm",
+    "Boruta",
+    "mrmr-selection",
+    "umap-learn",
+    "psutil",
+    "kneed",
+]
+
+[project.scripts]
+scintilla = "scintilla.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["scintilla*"]
