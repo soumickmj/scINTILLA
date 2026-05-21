@@ -10,7 +10,7 @@ import anndata as ad
 
 def pca_2d_plot(
     adata: ad.AnnData,
-    color_col=None,
+    colour_col=None,
     title: str = "PCA 2D",
 ) -> plt.Figure:
     """2D scatter plot of the first two PCs."""
@@ -18,8 +18,8 @@ def pca_2d_plot(
         raise ValueError("Run PCA first (X_pca not in obsm).")
     X = adata.obsm["X_pca"]
     fig, ax = plt.subplots(figsize=(7, 6))
-    if color_col and color_col in adata.obs.columns:
-        cats = adata.obs[color_col].values
+    if colour_col and colour_col in adata.obs.columns:
+        cats = adata.obs[colour_col].values
         unique = np.unique(cats)
         cmap = plt.cm.get_cmap("tab20", len(unique))
         for i, cat in enumerate(unique):
@@ -37,7 +37,7 @@ def pca_2d_plot(
 
 def pca_3d_multiview(
     adata: ad.AnnData,
-    color_col=None,
+    colour_col=None,
 ) -> plt.Figure:
     """Three viewing angles of PC1-2-3 space."""
     if "X_pca" not in adata.obsm:
@@ -45,7 +45,7 @@ def pca_3d_multiview(
     X = adata.obsm["X_pca"]
     angles = [(30, 30), (10, 90), (60, 120)]
     fig = plt.figure(figsize=(15, 5))
-    cats = adata.obs[color_col].values if color_col and color_col in adata.obs.columns else None
+    cats = adata.obs[colour_col].values if colour_col and colour_col in adata.obs.columns else None
     unique = np.unique(cats) if cats is not None else None
     cmap = plt.cm.get_cmap("tab20", len(unique)) if unique is not None else None
     for k, (elev, azim) in enumerate(angles):

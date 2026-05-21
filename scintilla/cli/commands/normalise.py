@@ -1,4 +1,4 @@
-"""CLI normalize (benchmark) subcommand."""
+"""CLI normalise (benchmark) subcommand."""
 
 
 def add_args(parser):

@@ -23,9 +23,9 @@ def main():
     print("Loading data...")
     adata = auto_detect_format(args.input)
 
-    print("Benchmarking normalizations...")
+    print("Benchmarking normalisations...")
     results_norm, best_transform, adata_t = benchmark_transformations(adata, verbose=args.verbose)
-    save_results_csv(results_norm, os.path.join(args.output_dir, "normalization_benchmark.csv"))
+    save_results_csv(results_norm, os.path.join(args.output_dir, "normalisation_benchmark.csv"))
     print(f"  Best transform: {best_transform}")
 
     print("Running PCA...")

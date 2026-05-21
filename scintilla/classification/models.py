@@ -10,7 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 
 from scintilla.config import RANDOM_SEED
 from scintilla.evaluation.classification_metrics import calculate_metrics
@@ -38,11 +38,11 @@ def qda_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
 
 
 def svm_classification(
-    X_train, X_test, y_train, y_test, kernel: str = "rbf"
+    X_train, X_test, y_train, y_test
 ) -> Tuple[object, Dict]:
-    """Support Vector Machine classifier."""
+    """Linear Support Vector Machine classifier."""
     return _fit_and_eval(
-        SVC(kernel=kernel, probability=True, random_state=RANDOM_SEED),
+        LinearSVC(random_state=RANDOM_SEED, max_iter=2000),
         X_train, X_test, y_train, y_test,
     )
 
@@ -146,7 +146,7 @@ def stacking_ensemble_classification(X_train, X_test, y_train, y_test) -> Tuple[
     estimators = [
         ("lr", LogisticRegression(max_iter=500, random_state=RANDOM_SEED, solver="lbfgs")),
         ("rf", RandomForestClassifier(n_estimators=30, random_state=RANDOM_SEED)),
-        ("svm", SVC(probability=True, random_state=RANDOM_SEED)),
+        ("svm", LinearSVC(random_state=RANDOM_SEED, max_iter=2000)),
     ]
     final_estimator = LogisticRegression(max_iter=500, random_state=RANDOM_SEED, solver="lbfgs")
     model = StackingClassifier(estimators=estimators, final_estimator=final_estimator, cv=5)

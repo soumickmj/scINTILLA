@@ -26,11 +26,12 @@ from scintilla.config import (
 
 _DEFAULT_CLUSTERING_METHODS: List[str] = [
     "kmeans", "hierarchical", "dbscan", "leiden",
-    "louvain", "hdbscan", "spectral", "consensus",
+    "louvain", "hdbscan",
 ]
 _DEFAULT_CLASSIFIERS: List[str] = [
     "LogReg", "RF", "SVM", "MLP", "LDA", "QDA",
-    "kNN", "GradientBoosting", "NaiveBayes", "StackingEnsemble",
+    "kNN", "XGBoost", "LightGBM",
+    "GradientBoosting", "NaiveBayes", "StackingEnsemble",
 ]
 _DEFAULT_FEATURE_SELECTION_METHODS: List[str] = [
     "pca_loadings", "mutual_information",

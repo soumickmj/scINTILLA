@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import Optional, Union
 
 import anndata as ad
+import numpy as np
 import pandas as pd
+from sklearn.neighbors import NearestNeighbors
 
 from scintilla.io.loaders import ensure_anndata
 from scintilla.preprocessing.pca import run_pca
@@ -20,6 +22,7 @@ def unsupervised_analysis(
     run_pca_first: bool = True,
     n_pca_comps: int = 30,
     store_labels: bool = True,
+    n_jobs: int = 1,
     verbose: bool = True,
     config=None,
 ) -> dict:
@@ -62,11 +65,20 @@ def unsupervised_analysis(
     else:
         rep = use_rep or "X_pca"
 
+    _auto_eps = False
+    _adaptive_resolution = False
+    if config is not None:
+        _auto_eps = getattr(config, "auto_eps", False)
+        _adaptive_resolution = getattr(config, "adaptive_resolution", False)
+
     results_df, labels_dict, fig = benchmark_clustering_methods(
         adata,
         cell_type_col=cell_type_col,
         use_rep=rep,
         n_clusters=n_clusters,
+        adaptive_resolution=_adaptive_resolution,
+        auto_eps=_auto_eps,
+        n_jobs=n_jobs,
         verbose=verbose,
         config=config,
     )
@@ -74,18 +86,45 @@ def unsupervised_analysis(
     valid = results_df.dropna(subset=["ari"])
     best_method = valid.sort_values("ari", ascending=False).iloc[0]["method"] if not valid.empty else None
 
-    # Store best labels in adata.obs for easy downstream use
-    if store_labels and best_method is not None:
-        best_key = valid.sort_values("ari", ascending=False).iloc[0]
-        full_key = f"{best_key['method']}_{best_key['params']}"
-        if full_key in labels_dict:
-            adata.obs["scintilla_cluster"] = labels_dict[full_key]
-        elif labels_dict:
-            # fallback: first matching key
-            for k, v in labels_dict.items():
-                if k.startswith(best_method):
-                    adata.obs["scintilla_cluster"] = v
-                    break
+    # Store labels in adata.obs for easy downstream use
+    if store_labels and not valid.empty:
+        true_labels = adata.obs[cell_type_col].values
+
+        # Build kNN index for confusion scoring
+        if rep in adata.obsm:
+            X_rep = adata.obsm[rep]
+        else:
+            X_rep = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        nn = NearestNeighbors(n_neighbors=50)
+        nn.fit(X_rep)
+        nn_indices = nn.kneighbors(return_distance=False)
+
+        top = valid.sort_values("ari", ascending=False).head(6)
+        for rank, (_, row) in enumerate(top.iterrows(), start=1):
+            full_key = f"{row['method']}_{row['params']}"
+            if full_key not in labels_dict:
+                continue
+            method_name = f"{row['method']}|{row['params']}"
+            # Store cluster labels with method name in column
+            col = f"scintilla_top{rank}_{method_name}"
+            adata.obs[col] = pd.Categorical(labels_dict[full_key].astype(str))
+
+            # Compute per-cell confusion score vs cell type labels
+            clusters = labels_dict[full_key].astype(str)
+            celltypes = true_labels.astype(str)
+            k = nn_indices.shape[1]
+            scores = np.empty(len(clusters), dtype=np.float64)
+            for i, neighbors in enumerate(nn_indices):
+                same_cluster = clusters[neighbors] == clusters[i]
+                same_type = celltypes[neighbors] == celltypes[i]
+                scores[i] = np.sum(same_cluster & ~same_type) / k
+            adata.obs[f"scintilla_top{rank}_confusion"] = scores
+
+        # Also keep the overall best as the default column
+        best_row = top.iloc[0]
+        best_full_key = f"{best_row['method']}_{best_row['params']}"
+        if best_full_key in labels_dict:
+            adata.obs["scintilla_cluster"] = pd.Categorical(labels_dict[best_full_key].astype(str))
 
     return {
         "adata": adata,

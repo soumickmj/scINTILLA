@@ -7,11 +7,13 @@ from typing import Dict, Optional, Tuple, Union
 import anndata as ad
 import numpy as np
 import pandas as pd
-from sklearn.metrics import adjusted_rand_score
+from sklearn.metrics import adjusted_mutual_info_score, adjusted_rand_score
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+from tqdm.auto import tqdm
 
 from scintilla.config import (
     RANDOM_SEED,
@@ -35,6 +37,7 @@ def benchmark_clustering_methods(
     adaptive_resolution: bool = False,
     resolution_selection: str = "best_ari",
     auto_eps: bool = False,
+    n_jobs: int = 1,
     verbose: bool = True,
     config=None,
 ) -> Tuple[pd.DataFrame, Dict[str, np.ndarray], plt.Figure]:
@@ -99,70 +102,71 @@ def benchmark_clustering_methods(
     def _skip(method_key: str) -> bool:
         return _enabled is not None and method_key not in _enabled
 
-    def _record(method, params, labels):
+    def _score(method, params, labels):
         n_found = len(np.unique(labels[labels != -1]))
         valid = labels[labels != -1]
         true_valid = true_labels[labels != -1]
         noise_frac = np.mean(labels == -1) if len(labels) > 0 else 0.0
         if noise_frac > 0.5:
             ari = np.nan
+            ami = np.nan
         else:
             ari = adjusted_rand_score(true_valid, valid) if len(valid) > 0 else np.nan
-        records.append({
-            "method": method, "params": params, "ari": ari,
+            ami = adjusted_mutual_info_score(true_valid, valid) if len(valid) > 0 else np.nan
+        return {
+            "method": method, "params": params, "ari": ari, "ami": ami,
             "n_clusters": n_found, "noise_fraction": round(noise_frac, 4),
-        })
-        labels_dict[f"{method}_{params}"] = labels
+        }, labels
 
-    # K-Means variants
-    if not _skip("kmeans"):
+    # ── Define each method group as a callable ──────────────────────
+    def _run_kmeans():
+        recs, lbls = [], {}
         for init in ["k-means++", "random"]:
             try:
                 lbl, _, _ = kmeans_clustering(X, n_clusters, init=init)
-                _record("KMeans", f"init={init}", lbl)
+                rec, lbl = _score("KMeans", f"init={init}", lbl)
+                recs.append(rec); lbls[f"KMeans_init={init}"] = lbl
             except MemoryError:
                 raise
-            except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-                if verbose:
-                    print(f"KMeans {init} failed: {e}")
-
+            except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+                pass
         try:
             lbl, _, _ = kmeans_clustering(X, n_clusters, spherical=True)
-            _record("KMeans_spherical", "spherical=True", lbl)
+            rec, lbl = _score("KMeans_spherical", "spherical=True", lbl)
+            recs.append(rec); lbls["KMeans_spherical_spherical=True"] = lbl
         except MemoryError:
             raise
-        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-            if verbose:
-                print(f"KMeans spherical failed: {e}")
-
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+            pass
         try:
             lbl, _, _ = kmeans_clustering(X, n_clusters, bisecting=True)
-            _record("KMeans_bisecting", "bisecting=True", lbl)
+            rec, lbl = _score("KMeans_bisecting", "bisecting=True", lbl)
+            recs.append(rec); lbls["KMeans_bisecting_bisecting=True"] = lbl
         except MemoryError:
             raise
-        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-            if verbose:
-                print(f"KMeans bisecting failed: {e}")
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+            pass
+        return recs, lbls
 
-    # Hierarchical: metric x linkage grid
-    if not _skip("hierarchical"):
+    def _run_hierarchical():
+        recs, lbls = [], {}
         for metric in DISTANCE_METRICS:
             for lnk in LINKAGE_METHODS:
                 if lnk == "ward" and metric != "euclidean":
-                    records.append({"method": "Hierarchical", "params": f"{metric}/{lnk}", "ari": np.nan, "n_clusters": np.nan})
+                    recs.append({"method": "Hierarchical", "params": f"{metric}/{lnk}", "ari": np.nan, "ami": np.nan, "n_clusters": np.nan})
                     continue
                 try:
                     lbl = hierarchical_sklearn(X, n_clusters, metric=metric, linkage_method=lnk)
-                    _record("Hierarchical", f"{metric}/{lnk}", lbl)
+                    rec, lbl = _score("Hierarchical", f"{metric}/{lnk}", lbl)
+                    recs.append(rec); lbls[f"Hierarchical_{metric}/{lnk}"] = lbl
                 except MemoryError:
                     raise
-                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-                    if verbose:
-                        print(f"Hierarchical {metric}/{lnk} failed: {e}")
-                    records.append({"method": "Hierarchical", "params": f"{metric}/{lnk}", "ari": np.nan, "n_clusters": np.nan})
+                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+                    recs.append({"method": "Hierarchical", "params": f"{metric}/{lnk}", "ari": np.nan, "ami": np.nan, "n_clusters": np.nan})
+        return recs, lbls
 
-    # DBSCAN grid (or data-driven eps)
-    if not _skip("dbscan"):
+    def _run_dbscan():
+        recs, lbls = [], {}
         if auto_eps:
             from scintilla.clustering.dbscan import estimate_eps  # noqa: PLC0415
             est_eps = estimate_eps(X, min_samples=DBSCAN_MIN_SAMPLES_RANGE[0])
@@ -173,15 +177,16 @@ def benchmark_clustering_methods(
             for minsamp in DBSCAN_MIN_SAMPLES_RANGE:
                 try:
                     lbl, _, _, _ = dbscan_clustering(X, eps=eps, min_samples=minsamp)
-                    _record("DBSCAN", f"eps={eps},min_samples={minsamp}", lbl)
+                    rec, lbl = _score("DBSCAN", f"eps={eps},min_samples={minsamp}", lbl)
+                    recs.append(rec); lbls[f"DBSCAN_eps={eps},min_samples={minsamp}"] = lbl
                 except MemoryError:
                     raise
-                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-                    if verbose:
-                        print(f"DBSCAN eps={eps} ms={minsamp} failed: {e}")
+                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+                    pass
+        return recs, lbls
 
-    # Leiden
-    if not _skip("leiden"):
+    def _run_leiden():
+        recs, lbls = [], {}
         try:
             from scintilla.clustering.leiden import leiden_clustering  # noqa: PLC0415
             _leiden_res = LEIDEN_RESOLUTIONS
@@ -190,52 +195,42 @@ def benchmark_clustering_methods(
 
             if adaptive_resolution:
                 from scintilla.statistical_tests.adaptive import adaptive_resolution_search  # noqa: PLC0415
-
-                def _run_leiden(res):
+                def _rl(res):
                     return leiden_clustering(adata, resolution=res, use_rep=use_rep)
-
-                def _metric_leiden(labels):
+                def _ml(labels):
                     valid = labels[labels != -1]
                     tv = true_labels[labels != -1]
                     return adjusted_rand_score(tv, valid) if len(valid) > 0 else 0.0
-
-                search_result = adaptive_resolution_search(
-                    _run_leiden, _metric_leiden, _leiden_res, refine_steps=5,
-                )
+                search_result = adaptive_resolution_search(_rl, _ml, _leiden_res, refine_steps=5)
                 for res, score in search_result["all_scores"]:
-                    lbl = _run_leiden(res)
-                    _record("Leiden", f"resolution={res:.4f}", lbl)
+                    lbl = _rl(res)
+                    rec, lbl = _score("Leiden", f"resolution={res:.4f}", lbl)
+                    recs.append(rec); lbls[f"Leiden_resolution={res:.4f}"] = lbl
             elif resolution_selection == "nvi_stability":
                 from scintilla.statistical_tests.adaptive import nvi_stability  # noqa: PLC0415
-                labels_at_res = []
                 for res in _leiden_res:
                     try:
                         lbl = leiden_clustering(adata, resolution=res, use_rep=use_rep)
-                        labels_at_res.append((res, lbl))
-                        _record("Leiden", f"resolution={res}", lbl)
+                        rec, lbl = _score("Leiden", f"resolution={res}", lbl)
+                        recs.append(rec); lbls[f"Leiden_resolution={res}"] = lbl
                     except Exception:
                         pass
-                if labels_at_res:
-                    stab = nvi_stability(labels_at_res)
-                    # Mark the stable resolution
-                    for _, row_lbl in labels_at_res:
-                        pass  # already recorded above
             else:
                 for res in _leiden_res:
                     try:
                         lbl = leiden_clustering(adata, resolution=res, use_rep=use_rep)
-                        _record("Leiden", f"resolution={res}", lbl)
+                        rec, lbl = _score("Leiden", f"resolution={res}", lbl)
+                        recs.append(rec); lbls[f"Leiden_resolution={res}"] = lbl
                     except MemoryError:
                         raise
-                    except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-                        if verbose:
-                            print(f"Leiden res={res} failed: {e}")
+                    except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+                        pass
         except ImportError:
-            if verbose:
-                print("Leiden skipped (leidenalg not installed).")
+            pass
+        return recs, lbls
 
-    # HDBSCAN
-    if not _skip("hdbscan"):
+    def _run_hdbscan():
+        recs, lbls = [], {}
         try:
             from scintilla.clustering.hdbscan import hdbscan_clustering  # noqa: PLC0415
             from scintilla.config import HDBSCAN_MIN_CLUSTER_SIZE_RANGE, HDBSCAN_MIN_SAMPLES_RANGE  # noqa: PLC0415
@@ -246,17 +241,17 @@ def benchmark_clustering_methods(
                     _hdb_sizes = config.hdbscan_min_cluster_sizes
                 if hasattr(config, "hdbscan_min_samples") and config.hdbscan_min_samples:
                     _hdb_samples = config.hdbscan_min_samples
-            _, lbl = hdbscan_clustering(X, min_cluster_size_range=_hdb_sizes,
-                                         min_samples_range=_hdb_samples)
-            _record("HDBSCAN", "best", lbl)
+            _, lbl = hdbscan_clustering(X, min_cluster_size_range=_hdb_sizes, min_samples_range=_hdb_samples)
+            rec, lbl = _score("HDBSCAN", "best", lbl)
+            recs.append(rec); lbls["HDBSCAN_best"] = lbl
         except MemoryError:
             raise
-        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-            if verbose:
-                print(f"HDBSCAN failed: {e}")
+        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+            pass
+        return recs, lbls
 
-    # Louvain
-    if not _skip("louvain"):
+    def _run_louvain():
+        recs, lbls = [], {}
         try:
             from scintilla.clustering.louvain import louvain_clustering  # noqa: PLC0415
             from scintilla.config import LOUVAIN_RESOLUTIONS  # noqa: PLC0415
@@ -266,18 +261,18 @@ def benchmark_clustering_methods(
             for res in _louv_res:
                 try:
                     lbl = louvain_clustering(adata, resolution=res, use_rep=use_rep)
-                    _record("Louvain", f"resolution={res}", lbl)
+                    rec, lbl = _score("Louvain", f"resolution={res}", lbl)
+                    recs.append(rec); lbls[f"Louvain_resolution={res}"] = lbl
                 except MemoryError:
                     raise
-                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-                    if verbose:
-                        print(f"Louvain res={res} failed: {e}")
+                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+                    pass
         except ImportError:
-            if verbose:
-                print("Louvain skipped (louvain not installed).")
+            pass
+        return recs, lbls
 
-    # Spectral
-    if not _skip("spectral"):
+    def _run_spectral():
+        recs, lbls = [], {}
         try:
             from scintilla.clustering.spectral import spectral_clustering  # noqa: PLC0415
             from scintilla.config import SPECTRAL_N_CLUSTERS_RANGE  # noqa: PLC0415
@@ -287,42 +282,88 @@ def benchmark_clustering_methods(
             for nc in nc_vals:
                 try:
                     lbl, _, _ = spectral_clustering(X, n_clusters=nc)
-                    _record("Spectral", f"n_clusters={nc}", lbl)
+                    rec, lbl = _score("Spectral", f"n_clusters={nc}", lbl)
+                    recs.append(rec); lbls[f"Spectral_n_clusters={nc}"] = lbl
                 except MemoryError:
                     raise
-                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-                    if verbose:
-                        print(f"Spectral n_clusters={nc} failed: {e}")
+                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+                    pass
         except MemoryError:
             raise
-        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-            if verbose:
-                print(f"Spectral failed: {e}")
+        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+            pass
+        return recs, lbls
 
-    # Consensus
-    if not _skip("consensus"):
+    def _run_consensus():
+        recs, lbls = [], {}
         try:
             from scintilla.clustering.consensus import consensus_clustering  # noqa: PLC0415
             _, lbl, _ = consensus_clustering(adata, methods=["kmeans"], n_runs_per_method=3)
-            _record("Consensus", "kmeans", lbl)
+            rec, lbl = _score("Consensus", "kmeans", lbl)
+            recs.append(rec); lbls["Consensus_kmeans"] = lbl
         except MemoryError:
             raise
-        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-            if verbose:
-                print(f"Consensus failed: {e}")
+        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
+            pass
+        return recs, lbls
+
+    # ── Build task list and execute ─────────────────────────────────
+    _method_runners = {
+        "kmeans": _run_kmeans,
+        "hierarchical": _run_hierarchical,
+        "dbscan": _run_dbscan,
+        "leiden": _run_leiden,
+        "hdbscan": _run_hdbscan,
+        "louvain": _run_louvain,
+        "spectral": _run_spectral,
+        "consensus": _run_consensus,
+    }
+    _methods_to_run = {k: v for k, v in _method_runners.items() if not _skip(k)}
+
+    if n_jobs == 1:
+        pbar = tqdm(total=len(_methods_to_run), desc="Clustering benchmark",
+                    disable=not verbose)
+        for name, runner in _methods_to_run.items():
+            pbar.set_postfix_str(name)
+            recs, lbls = runner()
+            records.extend(recs)
+            labels_dict.update(lbls)
+            pbar.update(1)
+        pbar.set_postfix_str("done")
+        pbar.close()
+    else:
+        from joblib import Parallel, delayed  # noqa: PLC0415
+        if verbose:
+            print(f"Running {len(_methods_to_run)} clustering methods in parallel (n_jobs={n_jobs})...")
+        results = Parallel(n_jobs=n_jobs, prefer="threads")(
+            delayed(runner)() for runner in _methods_to_run.values()
+        )
+        for recs, lbls in results:
+            records.extend(recs)
+            labels_dict.update(lbls)
 
     results_df = pd.DataFrame(records)
 
     # Visualise
-    fig, ax = plt.subplots(figsize=(12, max(4, len(records) * 0.25)))
     valid_df = results_df.dropna(subset=["ari"]).sort_values("ari", ascending=True)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, max(4, len(records) * 0.25)))
     if not valid_df.empty:
         y_labels = valid_df["method"] + " | " + valid_df["params"].astype(str)
-        ax.barh(range(len(valid_df)), valid_df["ari"].values, color="steelblue")
-        ax.set_yticks(range(len(valid_df)))
-        ax.set_yticklabels(y_labels, fontsize=6)
-        ax.set_xlabel("ARI")
-        ax.set_title("Clustering Benchmark (ARI)")
+        y_pos = range(len(valid_df))
+        ax1.barh(y_pos, valid_df["ari"].values, color="steelblue")
+        ax1.set_yticks(y_pos)
+        ax1.set_yticklabels(y_labels, fontsize=6)
+        ax1.set_xlabel("ARI")
+        ax1.set_title("Clustering Benchmark (ARI)")
+
+        ami_sorted = valid_df.sort_values("ami", ascending=True)
+        y_labels_ami = ami_sorted["method"] + " | " + ami_sorted["params"].astype(str)
+        y_pos_ami = range(len(ami_sorted))
+        ax2.barh(y_pos_ami, ami_sorted["ami"].values, color="darkorange")
+        ax2.set_yticks(y_pos_ami)
+        ax2.set_yticklabels(y_labels_ami, fontsize=6)
+        ax2.set_xlabel("AMI")
+        ax2.set_title("Clustering Benchmark (AMI)")
     plt.tight_layout()
 
     return results_df, labels_dict, fig

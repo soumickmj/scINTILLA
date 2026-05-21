@@ -8,6 +8,8 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tqdm.auto import tqdm
 
 from scintilla.config import RANDOM_SEED, DEFAULT_TEST_SIZE, DEFAULT_CV_FOLDS
 from scintilla.io.loaders import ensure_anndata
@@ -33,10 +35,14 @@ from scintilla.classification.feature_importance import shap_analysis
 def supervised_analysis(
     data: Union[pd.DataFrame, ad.AnnData],
     target_col: str = "target",
+    use_rep: Optional[str] = None,
+    scale: bool = False,
     normality: Optional[bool] = None,
     test_size: float = DEFAULT_TEST_SIZE,
     include_shap: bool = True,
+    check_consistency: bool = False,
     models: Optional[list] = None,
+    n_jobs: int = 1,
     verbose: bool = True,
     config=None,
 ) -> dict:
@@ -72,8 +78,11 @@ def supervised_analysis(
     if target_col not in adata.obs.columns:
         raise KeyError(f"Column '{target_col}' not found in obs.")
 
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
-    X = X.astype(np.float64)
+    if use_rep is not None and use_rep in adata.obsm:
+        X = adata.obsm[use_rep].astype(np.float64)
+    else:
+        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        X = X.astype(np.float64)
     y = adata.obs[target_col].values
 
     # Determine normality
@@ -102,6 +111,11 @@ def supervised_analysis(
     X_tr, X_te, y_tr, y_te = train_test_split(
         X, y, test_size=test_size, random_state=RANDOM_SEED, stratify=y
     )
+
+    if scale:
+        scaler = StandardScaler()
+        X_tr = scaler.fit_transform(X_tr)
+        X_te = scaler.transform(X_te)
 
     all_model_fns = {
         "LogReg": logistic_regression_classification,
@@ -139,16 +153,42 @@ def supervised_analysis(
     if config is not None and not include_shap:
         include_shap = getattr(config, "include_shap", include_shap)
 
-    all_results = {}
-    for name, fn in all_model_fns.items():
+    def _run_one(name, fn, X_tr, X_te, y_tr, y_te):
         try:
             model, metrics = fn(X_tr, X_te, y_tr, y_te)
-            all_results[name] = {"model": model, "metrics": metrics}
-            if verbose:
-                print(f"  {name}: accuracy={metrics.get('accuracy', 'N/A'):.3f}")
+            return name, {"model": model, "metrics": metrics}, None
         except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
-            if verbose:
-                print(f"  {name} failed: {e}")
+            return name, None, str(e)
+
+    all_results = {}
+    if n_jobs == 1:
+        pbar = tqdm(all_model_fns.items(), total=len(all_model_fns),
+                    desc="Classification benchmark", disable=not verbose)
+        for name, fn in pbar:
+            pbar.set_postfix_str(name)
+            name, result, err = _run_one(name, fn, X_tr, X_te, y_tr, y_te)
+            if result is not None:
+                all_results[name] = result
+                if verbose:
+                    print(f"  {name}: accuracy={result['metrics'].get('accuracy', 'N/A'):.3f}")
+            elif verbose:
+                print(f"  {name} failed: {err}")
+        pbar.close()
+    else:
+        from joblib import Parallel, delayed  # noqa: PLC0415
+        if verbose:
+            print(f"Running {len(all_model_fns)} classifiers in parallel (n_jobs={n_jobs})...")
+        outputs = Parallel(n_jobs=n_jobs, prefer="threads")(
+            delayed(_run_one)(name, fn, X_tr, X_te, y_tr, y_te)
+            for name, fn in all_model_fns.items()
+        )
+        for name, result, err in outputs:
+            if result is not None:
+                all_results[name] = result
+                if verbose:
+                    print(f"  {name}: accuracy={result['metrics'].get('accuracy', 'N/A'):.3f}")
+            elif verbose:
+                print(f"  {name} failed: {err}")
 
     # Pick best model by F1
     best_name = None
@@ -171,7 +211,81 @@ def supervised_analysis(
             if verbose:
                 print(f"  Feature importance failed: {e}")
 
+    # ── Per-cell consistency check across all models ────────────────
+    if check_consistency and all_results:
+        if verbose:
+            print("Computing per-cell prediction consistency...")
+        X_all = X if not scale else StandardScaler().fit(X).transform(X)
+
+        # Collect predictions & probabilities from each model on all cells
+        from sklearn.preprocessing import LabelEncoder  # noqa: PLC0415
+        le = LabelEncoder()
+        le.fit(y)
+        all_classes = le.classes_
+
+        pred_matrix = []  # list of label arrays, one per model
+        prob_dict = {}    # model_name -> (n_cells, n_classes) prob array
+
+        for name, res in all_results.items():
+            model = res["model"]
+            try:
+                # Some models (XGBoost/LightGBM) use encoded labels internally
+                raw_pred = model.predict(X_all)
+                # If predictions are integers and classes are strings, decode
+                if hasattr(raw_pred, 'dtype') and np.issubdtype(raw_pred.dtype, np.integer) and not np.issubdtype(all_classes.dtype, np.integer):
+                    raw_pred = le.inverse_transform(raw_pred)
+                adata.obs[f"pred_{name}"] = pd.Categorical(
+                    np.asarray(raw_pred).astype(str), categories=[str(c) for c in all_classes]
+                )
+                pred_matrix.append(np.asarray(raw_pred).astype(str))
+
+                if hasattr(model, "predict_proba"):
+                    probs = model.predict_proba(X_all)
+                    prob_dict[name] = probs
+                    # Store max probability as confidence
+                    adata.obs[f"pred_{name}_confidence"] = probs.max(axis=1)
+            except Exception as e:
+                if verbose:
+                    print(f"  Prediction for {name} failed: {e}")
+
+        if pred_matrix:
+            pred_arr = np.array(pred_matrix)  # (n_models, n_cells)
+            n_models_ok = pred_arr.shape[0]
+            n_cells = pred_arr.shape[1]
+
+            # Per-cell: fraction of models agreeing with the mode prediction
+            agreement = np.empty(n_cells, dtype=np.float64)
+            mode_labels = np.empty(n_cells, dtype=object)
+            for i in range(n_cells):
+                labels_i = pred_arr[:, i]
+                unique, counts = np.unique(labels_i, return_counts=True)
+                best_idx = np.argmax(counts)
+                mode_labels[i] = unique[best_idx]
+                agreement[i] = counts[best_idx] / n_models_ok
+
+            adata.obs["pred_consensus"] = pd.Categorical(
+                mode_labels.astype(str), categories=[str(c) for c in all_classes]
+            )
+            adata.obs["pred_agreement"] = agreement
+
+            # Entropy of label distribution across models (higher = less consistent)
+            entropy = np.empty(n_cells, dtype=np.float64)
+            for i in range(n_cells):
+                labels_i = pred_arr[:, i]
+                _, counts = np.unique(labels_i, return_counts=True)
+                probs_i = counts / counts.sum()
+                entropy[i] = -np.sum(probs_i * np.log2(probs_i + 1e-12))
+            adata.obs["pred_entropy"] = entropy
+
+            # Average max-probability across models that support predict_proba
+            if prob_dict:
+                avg_confidence = np.mean(
+                    [p.max(axis=1) for p in prob_dict.values()], axis=0
+                )
+                adata.obs["pred_avg_confidence"] = avg_confidence
+
     return {
+        "adata": adata,
         "best_model": best_model,
         "best_model_name": best_name,
         "all_results": all_results,

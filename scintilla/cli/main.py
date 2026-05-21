@@ -15,7 +15,7 @@ def main(argv=None):
     # Import command modules
     from scintilla.cli.commands import eda  # noqa: PLC0415
     from scintilla.cli.commands import preprocess  # noqa: PLC0415
-    from scintilla.cli.commands import normalize  # noqa: PLC0415
+    from scintilla.cli.commands import normalise  # noqa: PLC0415
     from scintilla.cli.commands import cluster  # noqa: PLC0415
     from scintilla.cli.commands import classify  # noqa: PLC0415
     from scintilla.cli.commands import feature_select  # noqa: PLC0415
@@ -31,7 +31,7 @@ def main(argv=None):
     # Register subcommands
     eda.add_args(subparsers.add_parser("eda", help="Exploratory data analysis"))
     preprocess.add_args(subparsers.add_parser("preprocess", help="Preprocessing"))
-    normalize.add_args(subparsers.add_parser("normalize", help="Normalization benchmark"))
+    normalise.add_args(subparsers.add_parser("normalise", help="Normalisation benchmark"))
     cluster.add_args(subparsers.add_parser("cluster", help="Clustering"))
     classify.add_args(subparsers.add_parser("classify", help="Classification"))
     feature_select.add_args(subparsers.add_parser("feature-select", help="Feature selection"))
@@ -53,7 +53,7 @@ def main(argv=None):
     dispatch = {
         "eda": eda.run,
         "preprocess": preprocess.run,
-        "normalize": normalize.run,
+        "normalise": normalise.run,
         "cluster": cluster.run,
         "classify": classify.run,
         "feature-select": feature_select.run,

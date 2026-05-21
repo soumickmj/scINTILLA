@@ -39,7 +39,7 @@ def ttest_de(
         Added to group means before computing log2FC to avoid division by zero
         and inflated fold changes.  Default 1e-2.  A small value is used
         instead of the conventional 1.0 (as in DESeq2) because single-cell
-        expression means after normalization are typically in the 0–5 range;
+        expression means after normalisation are typically in the 0–5 range;
         adding 1.0 would compress true fold-change differences for lowly-
         expressed genes.
 

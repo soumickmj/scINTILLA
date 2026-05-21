@@ -1,4 +1,4 @@
-"""Script: run normalization benchmark on an input file."""
+"""Script: run normalisation benchmark on an input file."""
 
 import argparse
 from scintilla.io.loaders import auto_detect_format
@@ -7,9 +7,9 @@ from scintilla.io.exporters import save_results_csv
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run normalization benchmark")
+    parser = argparse.ArgumentParser(description="Run normalisation benchmark")
     parser.add_argument("input", help="Input file path")
-    parser.add_argument("--output", default="normalization_benchmark.csv")
+    parser.add_argument("--output", default="normalisation_benchmark.csv")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 

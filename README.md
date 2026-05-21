@@ -2,7 +2,7 @@
 
 **scINTILLA** - *Single-Cell INTegrated Inference, Labelling, and Landscape Analysis*
 
-scINTILLA is an end-to-end single-cell RNA-seq analysis pipeline that automates data ingestion, preprocessing, normalization benchmarking, feature selection, dimensionality reduction, unsupervised clustering, supervised classification, differential expression, cell-type annotation, batch correction, and comprehensive benchmarking - all through a unified Python API and a rich command-line interface (CLI).
+scINTILLA is an end-to-end single-cell RNA-seq analysis pipeline that automates data ingestion, preprocessing, normalisation benchmarking, feature selection, dimensionality reduction, unsupervised clustering, supervised classification, differential expression, cell-type annotation, batch correction, and comprehensive benchmarking - all through a unified Python API and a rich command-line interface (CLI).
 
 ---
 
@@ -12,7 +12,7 @@ scINTILLA is an end-to-end single-cell RNA-seq analysis pipeline that automates 
 2. [Quick Start](#quick-start)
 3. [Data I/O](#data-io)
 4. [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-eda)
-5. [Preprocessing & Normalization](#preprocessing--normalization)
+5. [Preprocessing & Normalisation](#preprocessing--normalisation)
 6. [Feature Selection](#feature-selection)
 7. [Dimensionality Reduction](#dimensionality-reduction)
 8. [Clustering](#clustering)
@@ -218,7 +218,7 @@ scintilla eda data/pbmc3k.h5ad --group-col cell_type --output results/eda_summar
 
 ---
 
-## Preprocessing & Normalization
+## Preprocessing & Normalisation
 
 scINTILLA provides 14 built-in data transformations plus an automated benchmarking framework that selects the best one for your dataset.
 
@@ -226,16 +226,16 @@ scINTILLA provides 14 built-in data transformations plus an automated benchmarki
 
 | Key | Description |
 |---|---|
-| `log_shift_size_factor` | log(x / size_factor + 1); standard scRNA-seq normalization |
+| `log_shift_size_factor` | log(x / size_factor + 1); standard scRNA-seq normalisation |
 | `arcsinh_transform` | arcsinh(α·x), default α=0.05; common for CyTOF/CITE-seq |
 | `log_alpha_transform` | log(α·x + 1), default α=0.05 |
-| `log_cpm_transform` | log(CPM + 1); counts per million normalization |
+| `log_cpm_transform` | log(CPM + 1); counts per million normalisation |
 | `log_shift_scale_by_std` | log1p then divide each gene by its standard deviation |
 | `log_shift_size_factor_hvg` | `log_shift_size_factor` then top 35% most variable genes |
 | `log_shift_size_factor_z` | `log_shift_size_factor` then z-score per gene |
 | `log_shift_hvg_z` | log-shift + HVG selection + z-score |
 | `normalize_scran` | Scran-style geometric mean deconvolution |
-| `normalize_tmm` | TMM normalization (Robinson & Oshlack, 2010) |
+| `normalize_tmm` | TMM normalisation (Robinson & Oshlack, 2010) |
 | `box_cox_transform` | Box-Cox per gene |
 | `pearson_residuals_transform` | Analytic Pearson residuals (uses scanpy if available) |
 | `glm_pca_transform` | Poisson GLM-PCA approximation via TruncatedSVD |
@@ -266,7 +266,7 @@ from scintilla.preprocessing.transformations import glm_pca_transform
 adata_pca = glm_pca_transform(adata, n_components=30)
 ```
 
-### Normalization benchmarking
+### Normalisation benchmarking
 
 Automatically rank all transforms for your dataset using a composite score of kNN overlap, silhouette score, normality, and PCA variance preservation:
 
@@ -1107,8 +1107,8 @@ scintilla <subcommand> [options]
 | Subcommand | Description |
 |---|---|
 | `eda` | Exploratory data analysis & summary statistics |
-| `preprocess` | Apply a normalization transform |
-| `normalize` | Benchmark all normalization transforms |
+| `preprocess` | Apply a normalisation transform |
+| `normalize` | Benchmark all normalisation transforms |
 | `feature-select` | PCA-loadings feature selection |
 | `reduce` | Dimensionality reduction (UMAP / t-SNE / Diffusion Map) |
 | `cluster` | Benchmark unsupervised clustering methods |
@@ -1297,13 +1297,13 @@ summary = dataset_summary(adata)
 print(json.dumps({k: v for k, v in summary.items() if not isinstance(v, list)}, indent=2))
 ```
 
-### 3. Benchmark and apply the best normalization
+### 3. Benchmark and apply the best normalisation
 
 ```python
 from scintilla.preprocessing.benchmark import benchmark_transformations
 
 results_df, best_name, adata_norm = benchmark_transformations(adata, verbose=True)
-print(f"Best normalization: {best_name}")
+print(f"Best normalisation: {best_name}")
 print(results_df[["transform", "composite_score"]].head(5).to_string(index=False))
 ```
 

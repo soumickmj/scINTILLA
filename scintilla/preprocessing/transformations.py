@@ -154,11 +154,11 @@ def log_shift_hvg_z(
     return _wrap(adata_hvg, X_t)
 
 
-@register_transform("normalize_scran")
-def normalize_scran(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
-    """Scran-style normalization using median-ratio / pooling approximation.
+@register_transform("normalise_scran")
+def normalise_scran(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+    """Scran-style normalisation using median-ratio / pooling approximation.
 
-    Implementation: normalize each cell by its library size, then scale by
+    Implementation: normalise each cell by its library size, then scale by
     the geometric mean of library sizes across cells (median-based deconvolution
     approximation).
     """
@@ -173,9 +173,9 @@ def normalize_scran(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     return _wrap(adata, X_t)
 
 
-@register_transform("normalize_tmm")
-def normalize_tmm(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
-    """TMM normalization (Robinson & Oshlack 2010).
+@register_transform("normalise_tmm")
+def normalise_tmm(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+    """TMM normalisation (Robinson & Oshlack 2010).
 
     Compute M-values and A-values relative to a reference sample,
     trim 30% from both tails of M and A, compute weighted mean of

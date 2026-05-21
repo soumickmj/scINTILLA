@@ -50,6 +50,6 @@ def leiden_clustering(
         use_rep = "X_pca"
 
     sc.pp.neighbors(adata, use_rep=use_rep, random_state=RANDOM_SEED)
-    sc.tl.leiden(adata, resolution=resolution, random_state=RANDOM_SEED)
+    sc.tl.leiden(adata, resolution=resolution, random_state=RANDOM_SEED,flavor="igraph")
     labels = adata.obs["leiden"].astype(int).values
     return labels

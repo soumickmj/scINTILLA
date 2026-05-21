@@ -21,7 +21,7 @@ def permutation_de(
     n_permutations: int = 1000,
     correction: str = "fdr_bh",
     pseudocount: float = 1e-2,
-    standardize: bool = False,
+    standardise: bool = False,
 ) -> pd.DataFrame:
     """Permutation test for differential expression.
 
@@ -43,10 +43,10 @@ def permutation_de(
         Added to group means before computing log2FC to avoid division by zero
         and inflated fold changes.  Default 1e-2.  A small value is used
         instead of the conventional 1.0 (as in DESeq2) because single-cell
-        expression means after normalization are typically in the 0–5 range;
+        expression means after normalisation are typically in the 0–5 range;
         adding 1.0 would compress true fold-change differences for lowly-
         expressed genes.
-    standardize:
+    standardise:
         When True, use a Welch-like standardised test statistic
         ``(mean1 - mean2) / sqrt(var1/n1 + var2/n2)`` instead of the raw
         mean difference.  This is more appropriate for data with
@@ -75,7 +75,7 @@ def permutation_de(
 
     # Observed statistics (mean difference)
     obs_stat = X1.mean(axis=0) - X2.mean(axis=0)
-    if standardize:
+    if standardise:
         se = np.sqrt(X1.var(axis=0, ddof=1) / n1 + X2.var(axis=0, ddof=1) / n2)
         se = np.where(se == 0, 1.0, se)  # avoid division by zero for constant genes
         obs_stat = obs_stat / se
@@ -99,7 +99,7 @@ def permutation_de(
         grp2 = X_combined[idx[:, n1:]]   # (n_chunk, n2, n_genes)
         perm_stats[start:end] = grp1.mean(axis=1) - grp2.mean(axis=1)
 
-    if standardize:
+    if standardise:
         # Compute pooled SE for each permutation chunk would be expensive;
         # instead use the observed SE (stable under permutation of group labels
         # for the variance structure).

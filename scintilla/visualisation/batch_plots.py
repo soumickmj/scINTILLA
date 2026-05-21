@@ -53,14 +53,14 @@ def plot_batch_correction_comparison(
     fig, axes = plt.subplots(1, n_cols, figsize=(5 * n_cols, 5))
 
     datasets = [("Before", adata_before), ("After", adata_after)]
-    color_keys = [batch_key]
+    colour_keys = [batch_key]
     if cell_type_key:
-        color_keys.append(cell_type_key)
+        colour_keys.append(cell_type_key)
 
     ax_idx = 0
     for label, adata in datasets:
         coords = _get_coords(adata, batch_key)
-        for col_key in color_keys:
+        for col_key in colour_keys:
             if ax_idx >= len(axes):
                 break
             ax = axes[ax_idx]

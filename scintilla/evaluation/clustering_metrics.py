@@ -86,8 +86,8 @@ from sklearn.metrics import (
 )
 
 
-def normalized_mutual_info(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
-    """Normalized Mutual Information."""
+def normalised_mutual_info(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
+    """Normalised Mutual Information."""
     return float(_nmi(true_labels, pred_labels))
 
 
@@ -167,7 +167,7 @@ def comprehensive_clustering_metrics(
     """
     metrics = {
         "ari": adjusted_rand_index(true_labels, pred_labels),
-        "nmi": normalized_mutual_info(true_labels, pred_labels),
+        "nmi": normalised_mutual_info(true_labels, pred_labels),
         "ami": adjusted_mutual_info(true_labels, pred_labels),
         "v_measure": v_measure(true_labels, pred_labels),
         "homogeneity": homogeneity(true_labels, pred_labels),
