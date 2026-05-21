@@ -10,7 +10,7 @@ This guide covers every module in scINTILLA in depth: what it does, when to use 
 2. [Installation & Environments](#installation--environments)
 3. [Data I/O](#data-io)
 4. [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-eda)
-5. [Preprocessing & Normalization](#preprocessing--normalization)
+5. [Preprocessing & Normalisation](#preprocessing--normalisation)
 6. [Feature Selection](#feature-selection)
 7. [Dimensionality Reduction](#dimensionality-reduction)
 8. [Unsupervised Clustering](#unsupervised-clustering)
@@ -29,7 +29,7 @@ This guide covers every module in scINTILLA in depth: what it does, when to use 
 
 ## Overview
 
-scINTILLA (*Single-Cell INTegrated Inference, Labelling, and Landscape Analysis*) is an end-to-end Python pipeline for single-cell RNA-seq (scRNA-seq) analysis built on top of AnnData. It wraps the most common analysis steps — normalization, feature selection, clustering, classification, differential expression, annotation, and batch correction — under a unified API and CLI.
+scINTILLA (*Single-Cell INTegrated Inference, Labelling, and Landscape Analysis*) is an end-to-end Python pipeline for single-cell RNA-seq (scRNA-seq) analysis built on top of AnnData. It wraps the most common analysis steps — normalisation, feature selection, clustering, classification, differential expression, annotation, and batch correction — under a unified API and CLI.
 
 **Key design principles:**
 
@@ -154,11 +154,11 @@ scintilla eda data/pbmc3k.h5ad --group-col cell_type --output results/eda.json
 
 ---
 
-## Preprocessing & Normalization
+## Preprocessing & Normalisation
 
 ### Available Transforms
 
-scINTILLA ships 14 normalization strategies accessible via `TRANSFORM_REGISTRY`:
+scINTILLA ships 14 normalisation strategies accessible via `TRANSFORM_REGISTRY`:
 
 | Key | Description |
 |---|---|
@@ -170,8 +170,8 @@ scINTILLA ships 14 normalization strategies accessible via `TRANSFORM_REGISTRY`:
 | `log_shift_size_factor_hvg` | log-shift then top 35% most-variable genes |
 | `log_shift_size_factor_z` | log-shift then z-score per gene |
 | `log_shift_hvg_z` | log-shift + HVG + z-score |
-| `normalize_scran` | Scran-style geometric-mean deconvolution |
-| `normalize_tmm` | TMM normalization (Robinson & Oshlack 2010) |
+| `normalise_scran` | Scran-style geometric-mean deconvolution |
+| `normalise_tmm` | TMM normalisation (Robinson & Oshlack 2010) |
 | `box_cox_transform` | Box-Cox per gene (parallelised over genes) |
 | `pearson_residuals_transform` | Analytic Pearson residuals |
 | `glm_pca_transform` | Poisson GLM-PCA via TruncatedSVD |
@@ -199,7 +199,7 @@ adata_norm = arcsinh_transform(adata, alpha=0.1)
 | `glm_pca_transform` | `n_components` | `50` | Latent dimensions |
 | `box_cox_transform` | `lambda_val` | `None` | Box-Cox λ (estimated per gene if `None`) |
 
-### Benchmarking normalization
+### Benchmarking normalisation
 
 Automatically ranks all transforms using a composite score of kNN overlap, PCA variance preservation, silhouette score, and normality.
 
@@ -1566,8 +1566,8 @@ scintilla <subcommand> --help
 | Subcommand | Description |
 |---|---|
 | `eda` | Dataset summary statistics |
-| `preprocess` | Apply a single normalization transform |
-| `normalize` | Benchmark all normalization transforms |
+| `preprocess` | Apply a single normalisation transform |
+| `normalise` | Benchmark all normalisation transforms |
 | `feature-select` | PCA-loadings feature selection |
 | `reduce` | Dimensionality reduction |
 | `cluster` | Benchmark clustering algorithms |
@@ -1656,10 +1656,10 @@ print(f"Dataset: {adata.n_obs} cells × {adata.n_vars} genes")
 summary = dataset_summary(adata)
 print(f"Sparsity: {summary['sparsity']:.1%}")
 
-# ── 3. Normalize (benchmark + apply best) ───────────────────────────
+# ── 3. Normalise (benchmark + apply best) ───────────────────────────
 from scintilla.preprocessing.benchmark import benchmark_transformations
 results_df, best_name, adata_norm = benchmark_transformations(adata, verbose=True)
-print(f"Best normalization: {best_name}")
+print(f"Best normalisation: {best_name}")
 
 # ── 4. PCA + UMAP ────────────────────────────────────────────────────
 adata_pca = run_pca(adata_norm, n_comps=30)

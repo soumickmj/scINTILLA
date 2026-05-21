@@ -24,7 +24,7 @@ scINTILLA is an end-to-end single-cell RNA-seq analysis pipeline that automates 
 14. [Robust Statistics](#robust-statistics)
 15. [CLI Reference](#cli-reference)
 16. [Configuration & AnalysisConfig](#configuration--analysisconfig)
-16. [Full Pipeline Walkthrough](#full-pipeline-walkthrough)
+17. [Full Pipeline Walkthrough](#full-pipeline-walkthrough)
 
 ---
 
@@ -77,7 +77,7 @@ import scintilla as sc
 # 1. Load data
 adata = sc.load_h5ad("data/pbmc3k.h5ad")
 
-# 2. Preprocess: normalize with the best-performing transform
+# 2. Preprocess: normalise with the best-performing transform
 adata_norm = sc.TRANSFORM_REGISTRY["log_shift_size_factor"](adata)
 
 # 3. Dimensionality reduction
@@ -234,8 +234,8 @@ scINTILLA provides 14 built-in data transformations plus an automated benchmarki
 | `log_shift_size_factor_hvg` | `log_shift_size_factor` then top 35% most variable genes |
 | `log_shift_size_factor_z` | `log_shift_size_factor` then z-score per gene |
 | `log_shift_hvg_z` | log-shift + HVG selection + z-score |
-| `normalize_scran` | Scran-style geometric mean deconvolution |
-| `normalize_tmm` | TMM normalisation (Robinson & Oshlack, 2010) |
+| `normalise_scran` | Scran-style geometric mean deconvolution |
+| `normalise_tmm` | TMM normalisation (Robinson & Oshlack, 2010) |
 | `box_cox_transform` | Box-Cox per gene |
 | `pearson_residuals_transform` | Analytic Pearson residuals (uses scanpy if available) |
 | `glm_pca_transform` | Poisson GLM-PCA approximation via TruncatedSVD |
@@ -292,16 +292,16 @@ print(results_df[["transform", "composite_score"]].head(10))
 
 ```bash
 # Benchmark all transforms and show composite scores
-scintilla normalize data/pbmc3k.h5ad
+scintilla normalise data/pbmc3k.h5ad
 
 # Save leaderboard to CSV
-scintilla normalize data/pbmc3k.h5ad --output results/norm_benchmark.csv --verbose
+scintilla normalise data/pbmc3k.h5ad --output results/norm_benchmark.csv --verbose
 
 # Apply a specific transform and save output
 scintilla preprocess data/pbmc3k.h5ad --transform log_cpm_transform --output preprocessed.h5ad
 ```
 
-**`normalize` options**
+**`normalise` options**
 
 | Option | Default | Description |
 |---|---|---|
@@ -513,15 +513,14 @@ scINTILLA benchmarks multiple unsupervised clustering algorithms against known c
 
 | Algorithm | Notes |
 |---|---|
-| K-Means | Grid search over `init` strategies |
-| Spherical K-Means | L2-normalised K-Means (cosine similarity) |
-| Bisecting K-Means | Hierarchical divisive K-Means |
+| K-Means | Grid search over `init` strategies; includes spherical and bisecting variants |
 | Agglomerative / Hierarchical | Grid over distance metrics × linkage methods |
 | DBSCAN | Grid over `eps` values × distance metrics |
 | HDBSCAN | Grid over `min_cluster_size` × `min_samples` |
 | Leiden | Resolution sweep (0.1–3.0) |
 | Louvain | Resolution sweep (0.1–3.0) |
 | Spectral | Grid over number of clusters |
+| Consensus | Ensemble of the above algorithms |
 
 ### Python API
 
@@ -612,7 +611,7 @@ scintilla cluster data/pbmc3k.h5ad \
 
 ## Classification
 
-scINTILLA trains and evaluates up to 13 classifiers and returns the one with the highest macro-F1 score, optionally with SHAP feature importances.
+scINTILLA trains and evaluates up to 12 classifiers and returns the one with the highest macro-F1 score, optionally with SHAP feature importances.
 
 ### Classifiers
 
@@ -1108,7 +1107,7 @@ scintilla <subcommand> [options]
 |---|---|
 | `eda` | Exploratory data analysis & summary statistics |
 | `preprocess` | Apply a normalisation transform |
-| `normalize` | Benchmark all normalisation transforms |
+| `normalise` | Benchmark all normalisation transforms |
 | `feature-select` | PCA-loadings feature selection |
 | `reduce` | Dimensionality reduction (UMAP / t-SNE / Diffusion Map) |
 | `cluster` | Benchmark unsupervised clustering methods |
