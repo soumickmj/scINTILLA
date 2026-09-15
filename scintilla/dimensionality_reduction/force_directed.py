@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import anndata as ad
 
+from scintilla.config import RANDOM_SEED
+
 
 def run_force_directed(
     adata: ad.AnnData,
     use_rep: str = "X_pca",
+    random_state: int = RANDOM_SEED,
 ) -> ad.AnnData:
     """Run force-directed graph layout (ForceAtlas2) via scanpy.
 
@@ -29,9 +32,9 @@ def run_force_directed(
 
     adata = adata.copy()
     if use_rep not in adata.obsm:
-        sc.tl.pca(adata)
+        sc.tl.pca(adata, random_state=random_state)
         use_rep = "X_pca"
 
-    sc.pp.neighbors(adata, use_rep=use_rep)
-    sc.tl.draw_graph(adata, layout="fa")
+    sc.pp.neighbors(adata, use_rep=use_rep, random_state=random_state)
+    sc.tl.draw_graph(adata, layout="fa", random_state=random_state)
     return adata

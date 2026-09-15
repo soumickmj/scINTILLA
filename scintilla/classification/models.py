@@ -38,39 +38,42 @@ def qda_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
 
 
 def svm_classification(
-    X_train, X_test, y_train, y_test
+    X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
     """Linear Support Vector Machine classifier."""
     return _fit_and_eval(
-        LinearSVC(random_state=RANDOM_SEED, max_iter=2000),
+        LinearSVC(random_state=random_state, max_iter=2000),
         X_train, X_test, y_train, y_test,
     )
 
 
 def random_forest_classification(
-    X_train, X_test, y_train, y_test, n_estimators: int = 100
+    X_train, X_test, y_train, y_test, n_estimators: int = 100,
+    random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
     """Random Forest classifier."""
     return _fit_and_eval(
-        RandomForestClassifier(n_estimators=n_estimators, random_state=RANDOM_SEED),
+        RandomForestClassifier(n_estimators=n_estimators, random_state=random_state),
         X_train, X_test, y_train, y_test,
     )
 
 
 def logistic_regression_classification(
-    X_train, X_test, y_train, y_test
+    X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
     """Logistic Regression classifier."""
     return _fit_and_eval(
-        LogisticRegression(max_iter=500, random_state=RANDOM_SEED, solver="lbfgs"),
+        LogisticRegression(max_iter=500, random_state=random_state, solver="lbfgs"),
         X_train, X_test, y_train, y_test,
     )
 
 
-def mlp_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
+def mlp_classification(
+    X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
+) -> Tuple[object, Dict]:
     """Multi-Layer Perceptron classifier."""
     return _fit_and_eval(
-        MLPClassifier(max_iter=500, random_state=RANDOM_SEED, hidden_layer_sizes=(100, 50)),
+        MLPClassifier(max_iter=500, random_state=random_state, hidden_layer_sizes=(100, 50)),
         X_train, X_test, y_train, y_test,
     )
 
@@ -85,7 +88,9 @@ def knn_classification(
     )
 
 
-def xgboost_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
+def xgboost_classification(
+    X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
+) -> Tuple[object, Dict]:
     """XGBoost classifier."""
     try:
         from xgboost import XGBClassifier  # noqa: PLC0415
@@ -97,7 +102,7 @@ def xgboost_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Di
     le = LabelEncoder()
     y_tr_enc = le.fit_transform(y_train)
     y_te_enc = le.transform(y_test)
-    model = XGBClassifier(random_state=RANDOM_SEED, eval_metric="mlogloss", verbosity=0)
+    model = XGBClassifier(random_state=random_state, eval_metric="mlogloss", verbosity=0)
     model.fit(X_train, y_tr_enc)
     y_pred_enc = model.predict(X_test)
     y_prob = model.predict_proba(X_test) if hasattr(model, "predict_proba") else None
@@ -108,7 +113,9 @@ def xgboost_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Di
     return model, metrics
 
 
-def lightgbm_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
+def lightgbm_classification(
+    X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
+) -> Tuple[object, Dict]:
     """LightGBM classifier."""
     try:
         from lightgbm import LGBMClassifier  # noqa: PLC0415
@@ -116,11 +123,13 @@ def lightgbm_classification(X_train, X_test, y_train, y_test) -> Tuple[object, D
         raise ImportError(
             "lightgbm is required. Install with: pip install lightgbm"
         ) from exc
-    model = LGBMClassifier(random_state=RANDOM_SEED, verbosity=-1)
+    model = LGBMClassifier(random_state=random_state, verbosity=-1)
     return _fit_and_eval(model, X_train, X_test, y_train, y_test)
 
 
-def gradient_boosting_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
+def gradient_boosting_classification(
+    X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
+) -> Tuple[object, Dict]:
     """Histogram-based Gradient Boosting classifier (sklearn).
 
     Uses ``HistGradientBoostingClassifier`` which is orders of magnitude
@@ -129,7 +138,7 @@ def gradient_boosting_classification(X_train, X_test, y_train, y_test) -> Tuple[
     """
     from sklearn.ensemble import HistGradientBoostingClassifier  # noqa: PLC0415
     return _fit_and_eval(
-        HistGradientBoostingClassifier(random_state=RANDOM_SEED),
+        HistGradientBoostingClassifier(random_state=random_state),
         X_train, X_test, y_train, y_test,
     )
 
@@ -140,14 +149,16 @@ def naive_bayes_classification(X_train, X_test, y_train, y_test) -> Tuple[object
     return _fit_and_eval(GaussianNB(), X_train, X_test, y_train, y_test)
 
 
-def stacking_ensemble_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
+def stacking_ensemble_classification(
+    X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
+) -> Tuple[object, Dict]:
     """Stacking ensemble classifier (LogReg + RF + SVM base, LogReg final)."""
     from sklearn.ensemble import StackingClassifier  # noqa: PLC0415
     estimators = [
-        ("lr", LogisticRegression(max_iter=500, random_state=RANDOM_SEED, solver="lbfgs")),
-        ("rf", RandomForestClassifier(n_estimators=30, random_state=RANDOM_SEED)),
-        ("svm", LinearSVC(random_state=RANDOM_SEED, max_iter=2000)),
+        ("lr", LogisticRegression(max_iter=500, random_state=random_state, solver="lbfgs")),
+        ("rf", RandomForestClassifier(n_estimators=30, random_state=random_state)),
+        ("svm", LinearSVC(random_state=random_state, max_iter=2000)),
     ]
-    final_estimator = LogisticRegression(max_iter=500, random_state=RANDOM_SEED, solver="lbfgs")
+    final_estimator = LogisticRegression(max_iter=500, random_state=random_state, solver="lbfgs")
     model = StackingClassifier(estimators=estimators, final_estimator=final_estimator, cv=5)
     return _fit_and_eval(model, X_train, X_test, y_train, y_test)

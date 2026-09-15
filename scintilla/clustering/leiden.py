@@ -16,6 +16,7 @@ def leiden_clustering(
     data: Union[pd.DataFrame, ad.AnnData],
     resolution: float = 1.0,
     use_rep: str = "X_pca",
+    random_state: int = RANDOM_SEED,
 ) -> np.ndarray:
     """Run Leiden clustering via scanpy.
 
@@ -46,10 +47,10 @@ def leiden_clustering(
     if use_rep not in adata.obsm:
         # Run PCA if representation not available
         import scintilla.preprocessing.pca as pca_mod  # noqa: PLC0415
-        adata = pca_mod.run_pca(adata)
+        adata = pca_mod.run_pca(adata, random_state=random_state)
         use_rep = "X_pca"
 
-    sc.pp.neighbors(adata, use_rep=use_rep, random_state=RANDOM_SEED)
-    sc.tl.leiden(adata, resolution=resolution, random_state=RANDOM_SEED,flavor="igraph")
+    sc.pp.neighbors(adata, use_rep=use_rep, random_state=random_state)
+    sc.tl.leiden(adata, resolution=resolution, random_state=random_state, flavor="igraph")
     labels = adata.obs["leiden"].astype(int).values
     return labels

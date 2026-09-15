@@ -7,6 +7,8 @@ from typing import Callable, Dict
 import numpy as np
 from scipy import stats as sp_stats
 
+from scintilla.config import RANDOM_SEED
+
 
 def permutation_test_methods(
     y_true: np.ndarray,
@@ -14,7 +16,7 @@ def permutation_test_methods(
     pred_b: np.ndarray,
     metric_fn: Callable[[np.ndarray, np.ndarray], float],
     n_permutations: int = 1000,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> Dict[str, float]:
     """Permutation test for comparing two prediction vectors.
 

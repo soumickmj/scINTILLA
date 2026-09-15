@@ -9,9 +9,12 @@ import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 
+from scintilla.config import RANDOM_SEED, DEFAULT_N_PCA_COMPS
 from scintilla.io.loaders import ensure_anndata
 from scintilla.preprocessing.pca import run_pca
 from scintilla.clustering.benchmark import benchmark_clustering_methods
+
+_OMITTED = object()
 
 
 def unsupervised_analysis(
@@ -20,11 +23,14 @@ def unsupervised_analysis(
     use_rep: Optional[str] = None,
     n_clusters: Optional[int] = None,
     run_pca_first: bool = True,
-    n_pca_comps: int = 30,
+    n_pca_comps: Optional[int] = None,
     store_labels: bool = True,
     n_jobs: int = 1,
-    verbose: bool = True,
+    verbose: Optional[bool] = None,
     config=None,
+    auto_pca_components=_OMITTED,
+    mp_sigma_method=_OMITTED,
+    random_state: Optional[int] = None,
 ) -> dict:
     """Run a full unsupervised (clustering) analysis pipeline.
 
@@ -59,8 +65,25 @@ def unsupervised_analysis(
     """
     adata = ensure_anndata(data)
 
+    if n_pca_comps is None:
+        n_pca_comps = getattr(config, "n_pca_comps", DEFAULT_N_PCA_COMPS) if config is not None else DEFAULT_N_PCA_COMPS
+    if verbose is None:
+        verbose = getattr(config, "verbose", True) if config is not None else True
+    if random_state is None:
+        random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
+    if auto_pca_components is _OMITTED:
+        auto_pca_components = getattr(config, "auto_pca_components", None) if config is not None else None
+    if mp_sigma_method is _OMITTED:
+        mp_sigma_method = getattr(config, "mp_sigma_method", "median") if config is not None else "median"
+
     if run_pca_first:
-        adata = run_pca(adata, n_comps=n_pca_comps)
+        adata = run_pca(
+            adata,
+            n_comps=n_pca_comps,
+            auto_components=auto_pca_components,
+            mp_sigma_method=mp_sigma_method,
+            random_state=random_state,
+        )
         rep = "X_pca"
     else:
         rep = use_rep or "X_pca"
@@ -81,6 +104,7 @@ def unsupervised_analysis(
         n_jobs=n_jobs,
         verbose=verbose,
         config=config,
+        random_state=random_state,
     )
 
     valid = results_df.dropna(subset=["ari"])

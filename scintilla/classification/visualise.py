@@ -8,17 +8,21 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from scintilla.config import RANDOM_SEED
 
-def _save_and_close(fig: plt.Figure, save: Optional[str]) -> plt.Figure:
+
+def _finalise_figure(fig: plt.Figure, save: Optional[str]) -> plt.Figure:
+    """Lay out *fig*, optionally save it, and return it still open.
+
+    The figure is deliberately not closed: closing a figure the caller is
+    about to display is the caller's decision, not this module's.
+    """
     fig.tight_layout()
     if save is not None:
         fig.savefig(save, dpi=300, bbox_inches="tight")
-    plt.close(fig)
     return fig
 
 
@@ -75,7 +79,7 @@ def plot_classifier_comparison(
     ax1.legend(loc="lower right", fontsize=8)
     ax1.tick_params(axis="x", rotation=45)
     _save_path = f"{save}_core_metrics_bar.png" if save else None
-    figs["core_metrics_bar"] = _save_and_close(fig1, _save_path)
+    figs["core_metrics_bar"] = _finalise_figure(fig1, _save_path)
 
     # ── 3. Heatmap: all scalar metrics ──────────────────────────────
     fig2, ax2 = plt.subplots(figsize=figsize or (max(8, len(scalar_keys) * 0.9), max(4, n_models * 0.6)))
@@ -84,7 +88,7 @@ def plot_classifier_comparison(
         cmap=cmap, vmin=0, vmax=1, linewidths=0.5, ax=ax2,
     )
     _save_path = f"{save}_metrics_heatmap.png" if save else None
-    figs["metrics_heatmap"] = _save_and_close(fig2, _save_path)
+    figs["metrics_heatmap"] = _finalise_figure(fig2, _save_path)
 
     # ── 4. Radar / spider chart of core metrics ─────────────────────
     categories = core
@@ -102,7 +106,7 @@ def plot_classifier_comparison(
     ax3.set_ylim(0, 1.05)
     ax3.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1), fontsize=7)
     _save_path = f"{save}_radar.png" if save else None
-    figs["radar"] = _save_and_close(fig3, _save_path)
+    figs["radar"] = _finalise_figure(fig3, _save_path)
 
     # ── 5. Error-rate bar chart (FDR & FNR) ─────────────────────────
     err_df = df[["fdr", "fnr"]]
@@ -113,7 +117,7 @@ def plot_classifier_comparison(
     ax4.legend(["FDR", "FNR"], fontsize=9)
     ax4.tick_params(axis="x", rotation=45)
     _save_path = f"{save}_error_rates.png" if save else None
-    figs["error_rates"] = _save_and_close(fig4, _save_path)
+    figs["error_rates"] = _finalise_figure(fig4, _save_path)
 
     # ── 6. Ranked bar chart by F1 ──────────────────────────────────
     ranked = df["f1"].sort_values(ascending=True)
@@ -125,7 +129,7 @@ def plot_classifier_comparison(
     ax5.set_xlabel("Macro F1")
     ax5.set_xlim(0, 1.05)
     _save_path = f"{save}_f1_ranking.png" if save else None
-    figs["f1_ranking"] = _save_and_close(fig5, _save_path)
+    figs["f1_ranking"] = _finalise_figure(fig5, _save_path)
 
     # ── 7. Confusion matrices ──────────────────────────────────────
     n_cols = min(3, n_models)
@@ -146,7 +150,7 @@ def plot_classifier_comparison(
         r, c = divmod(idx, n_cols)
         axes[r, c].set_visible(False)
     _save_path = f"{save}_confusion_matrices.png" if save else None
-    figs["confusion_matrices"] = _save_and_close(fig6, _save_path)
+    figs["confusion_matrices"] = _finalise_figure(fig6, _save_path)
 
     # ── 8. MCC & Cohen's Kappa comparison ──────────────────────────
     mk_df = df[["mcc", "cohen_kappa"]].dropna()
@@ -157,14 +161,14 @@ def plot_classifier_comparison(
         ax7.legend(fontsize=9)
         ax7.tick_params(axis="x", rotation=45)
         _save_path = f"{save}_mcc_kappa.png" if save else None
-        figs["mcc_kappa"] = _save_and_close(fig7, _save_path)
+        figs["mcc_kappa"] = _finalise_figure(fig7, _save_path)
 
     return figs
 
 
 def compute_label_quality_score(
     adata: ad.AnnData,
-    cell_type_col: str = "CellType",
+    cell_type_col: str = "cell_type",
     confusion_cols: Optional[List[str]] = None,
     obs_key: str = "scintilla_label_quality",
     supervised_weight: float = 2.0,
@@ -265,7 +269,7 @@ def compute_label_quality_score(
 
 def plot_celltype_label_quality(
     adata: ad.AnnData,
-    cell_type_col: str = "CellType",
+    cell_type_col: str = "cell_type",
     confusion_cols: Optional[List[str]] = None,
     cmap: str = "coolwarm",
     save: Optional[str] = None,
@@ -323,14 +327,14 @@ def plot_celltype_label_quality(
     )
     ax2.set_ylabel("")
 
-    return _save_and_close(fig, save)
+    return _finalise_figure(fig, save)
 
 
 def plot_metric_correlation(
     adata: ad.AnnData,
     metric_x: str,
     metric_y: str,
-    cell_type_col: str = "CellType",
+    cell_type_col: str = "cell_type",
     label_dots: bool = True,
     cmap: str = "tab20",
     save: Optional[str] = None,
@@ -391,12 +395,12 @@ def plot_metric_correlation(
     ax.legend(fontsize=7, markerscale=0.8, bbox_to_anchor=(1.02, 1),
               loc="upper left", borderaxespad=0, framealpha=0.8)
 
-    return _save_and_close(fig, save)
+    return _finalise_figure(fig, save)
 
 
 def plot_celltype_confusion(
     adata: ad.AnnData,
-    cell_type_col: str = "CellType",
+    cell_type_col: str = "cell_type",
     cell_types: Optional[List[str]] = None,
     min_count: int = 0,
     normalise: bool = True,
@@ -462,7 +466,7 @@ def plot_celltype_confusion(
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, "No confusion detected", ha="center", va="center", fontsize=14)
         ax.set_axis_off()
-        return _save_and_close(fig, save)
+        return _finalise_figure(fig, save)
 
     n_r, n_c = conf.shape
     fig, ax = plt.subplots(figsize=figsize or (max(8, n_c * 0.8), max(6, n_r * 0.6)))
@@ -475,17 +479,18 @@ def plot_celltype_confusion(
     ax.set_xlabel("Predicted Cell Type")
     ax.set_ylabel("True Cell Type")
 
-    return _save_and_close(fig, save)
+    return _finalise_figure(fig, save)
 
 
 def plot_celltype_confusion_network(
     adata: ad.AnnData,
-    cell_type_col: str = "CellType",
+    cell_type_col: str = "cell_type",
     cell_types: Optional[List[str]] = None,
     min_confusion: int = 1,
     cmap: str = "tab20",
     save: Optional[str] = None,
     figsize: Optional[tuple] = None,
+    random_state: int = RANDOM_SEED,
 ) -> plt.Figure:
     """Network graph of cell-type confusion from classifier predictions.
 
@@ -602,10 +607,12 @@ def plot_celltype_confusion_network(
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.text(0.5, 0.5, "No confusion above threshold", ha="center", va="center", fontsize=14)
         ax.set_axis_off()
-        return _save_and_close(fig, save)
+        return _finalise_figure(fig, save)
 
     # Layout
-    pos = nx.spring_layout(G, k=2.0 / max(np.sqrt(G.number_of_nodes()), 1), seed=42)
+    pos = nx.spring_layout(
+        G, k=2.0 / max(np.sqrt(G.number_of_nodes()), 1), seed=random_state,
+    )
 
     # Node sizes: proportional to total confusion involving that node
     node_confusion = {n: sum(d["weight"] for _, _, d in G.edges(n, data=True)) for n in G.nodes()}
@@ -636,4 +643,4 @@ def plot_celltype_confusion_network(
     ax.set_axis_off()
     ax.set_title("Cell-Type Confusion Network", fontsize=13, fontweight="bold")
 
-    return _save_and_close(fig, save)
+    return _finalise_figure(fig, save)

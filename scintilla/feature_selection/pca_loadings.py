@@ -19,6 +19,7 @@ def extract_top_genes_per_pc(
     data: Union[pd.DataFrame, ad.AnnData],
     n_per_pc: int = 9,
     n_pcs: Optional[int] = None,
+    random_state: int = RANDOM_SEED,
 ) -> List[str]:
     """Extract top genes (by absolute loading) for each PC and deduplicate.
 
@@ -45,7 +46,7 @@ def extract_top_genes_per_pc(
         X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
         X = X.astype(np.float64)
         n_c = min(50, X.shape[0] - 1, X.shape[1] - 1)
-        pca = PCA(n_components=n_c, random_state=RANDOM_SEED)
+        pca = PCA(n_components=n_c, random_state=random_state)
         pca.fit(X)
         loadings = pca.components_.T  # (n_genes, n_pcs)
 
@@ -83,6 +84,7 @@ def validate_reduced_set(
     target_col: str,
     classifier: str = "qda",
     test_size: float = DEFAULT_TEST_SIZE,
+    random_state: int = RANDOM_SEED,
 ) -> Dict:
     """Compare classification accuracy on full vs reduced gene set.
 
@@ -103,13 +105,13 @@ def validate_reduced_set(
     clf_map = {
         "qda": QuadraticDiscriminantAnalysis(reg_param=0.01),
         "lda": LinearDiscriminantAnalysis(),
-        "rf": RandomForestClassifier(n_estimators=100, random_state=RANDOM_SEED),
+        "rf": RandomForestClassifier(n_estimators=100, random_state=random_state),
     }
     clf_cls = clf_map.get(classifier, QuadraticDiscriminantAnalysis(reg_param=0.01))
 
     def _eval(X):
         X_tr, X_te, y_tr, y_te = train_test_split(
-            X, y, test_size=test_size, random_state=RANDOM_SEED, stratify=y
+            X, y, test_size=test_size, random_state=random_state, stratify=y
         )
         m = copy.deepcopy(clf_cls)
         m.fit(X_tr, y_tr)

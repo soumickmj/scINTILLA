@@ -18,6 +18,7 @@ def run_pca(
     variance_threshold: Optional[float] = None,
     auto_components: Optional[str] = None,
     mp_sigma_method: str = "median",
+    random_state: int = RANDOM_SEED,
 ) -> ad.AnnData:
     """Run PCA using scanpy and store results in adata.obsm['X_pca'].
 
@@ -58,7 +59,7 @@ def run_pca(
         )
         # Run PCA with maximum feasible components first
         max_fit = min(max_comps, 100)
-        sc.pp.pca(adata, n_comps=max_fit, random_state=RANDOM_SEED)
+        sc.pp.pca(adata, n_comps=max_fit, random_state=random_state)
         svd_solver_key = adata.uns.get("pca", {})
         # Retrieve singular values; scanpy stores variance, convert back
         var_ratio = adata.uns["pca"]["variance_ratio"]
@@ -85,7 +86,7 @@ def run_pca(
         return adata
 
     n_comps = min(n_comps, max_comps)
-    sc.pp.pca(adata, n_comps=n_comps, random_state=RANDOM_SEED)
+    sc.pp.pca(adata, n_comps=n_comps, random_state=random_state)
 
     if variance_threshold is not None:
         cum_var = cumulative_variance_explained(adata)

@@ -21,29 +21,10 @@ TRANSFORMATION_BENCHMARK_WEIGHTS = {
     'anderson': 0.05,
     'pca_preservation': 0.30,
 }
-CELL_TYPE_WEIGHTS = {
-    'Early GMP': 3.0,
-    'GMP': 3.0,
-    'LMPP': 3.0,
-    'MEP_prog': 3.0,
-    'MPP': 3.0,
-    'ProMono': 3.0,
-    'Monocyte': 2.0,
-    'Pre-cDC': 2.0,
-    'Pre-pDC': 2.0,
-}
-
 HDBSCAN_MIN_CLUSTER_SIZE_RANGE = [10, 20, 50]
 HDBSCAN_MIN_SAMPLES_RANGE = [None, 5]
 LOUVAIN_RESOLUTIONS = [0.1, 0.3, 0.5, 0.8, 1.0, 1.5, 2.0, 3.0]
 SPECTRAL_N_CLUSTERS_RANGE = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-BATCH_CORRECTION_WEIGHTS = {'batch_mixing': 0.40, 'bio_conservation': 0.60}
-CLASSIFIER_SUITE = [
-    'logistic_regression', 'random_forest', 'svm_rbf', 'svm_linear', 'mlp',
-    'lda', 'qda', 'xgboost', 'lightgbm', 'knn', 'gradient_boosting',
-    'naive_bayes', 'stacking_ensemble',
-]
-DE_METHODS = ['wilcoxon', 'ttest', 'logreg', 'pseudobulk_deseq2', 'permutation']
 FEATURE_SELECTION_METHODS = [
     'pca_loadings', 'hvg_seurat_v3', 'hvg_pearson_residuals',
     'mutual_information', 'boruta', 'mrmr',

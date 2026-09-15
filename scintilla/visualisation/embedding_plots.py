@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 

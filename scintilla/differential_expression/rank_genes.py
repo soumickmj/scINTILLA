@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from scintilla.io.loaders import ensure_anndata
+from scintilla.config import RANDOM_SEED
 
 
 def rank_genes_groups(
@@ -16,6 +17,7 @@ def rank_genes_groups(
     groupby: str,
     method: str = "wilcoxon",
     n_genes: int = 50,
+    random_state: int = RANDOM_SEED,
 ) -> pd.DataFrame:
     """Wrapper around scanpy.tl.rank_genes_groups.
 
@@ -29,10 +31,15 @@ def rank_genes_groups(
         DE method for scanpy ('wilcoxon', 't-test', 'logreg', etc.).
     n_genes:
         Number of top genes to return per group.
+    random_state:
+        Random seed used when ``method="logreg"``.
 
     Returns
     -------
-    pd.DataFrame with columns [group, gene, score, pval, pval_adj, logfoldchange]
+    pd.DataFrame with columns [group, gene, score, pval, pval_adj, logfoldchange].
+    Scanpy's logistic-regression method ranks genes by model coefficient and
+    does not calculate p-values or log-fold changes; those columns are ``NaN``
+    when ``method="logreg"``.
     """
     try:
         import scanpy as sc  # noqa: PLC0415
@@ -40,22 +47,34 @@ def rank_genes_groups(
         raise ImportError("scanpy is required. Install with: pip install scanpy") from exc
 
     adata = ensure_anndata(adata)
-    sc.tl.rank_genes_groups(adata, groupby=groupby, method=method, n_genes=n_genes)
+    kwargs = {"random_state": random_state} if method == "logreg" else {}
+    sc.tl.rank_genes_groups(
+        adata,
+        groupby=groupby,
+        method=method,
+        n_genes=n_genes,
+        **kwargs,
+    )
 
     records = []
-    groups = adata.uns["rank_genes_groups"]["names"].dtype.names
+    result = adata.uns["rank_genes_groups"]
+    groups = result["names"].dtype.names
     for group in groups:
-        for i in range(n_genes):
-            try:
-                records.append({
-                    "group": group,
-                    "gene": adata.uns["rank_genes_groups"]["names"][group][i],
-                    "score": adata.uns["rank_genes_groups"]["scores"][group][i],
-                    "pval": adata.uns["rank_genes_groups"]["pvals"][group][i],
-                    "pval_adj": adata.uns["rank_genes_groups"]["pvals_adj"][group][i],
-                    "logfoldchange": adata.uns["rank_genes_groups"]["logfoldchanges"][group][i],
-                })
-            except (IndexError, KeyError):
-                break
+        n_available = min(n_genes, len(result["names"][group]))
+        for i in range(n_available):
+            records.append({
+                "group": group,
+                "gene": result["names"][group][i],
+                "score": result["scores"][group][i],
+                "pval": np.nan if method == "logreg" else result["pvals"][group][i],
+                "pval_adj": np.nan if method == "logreg" else result["pvals_adj"][group][i],
+                "logfoldchange": (
+                    np.nan
+                    if method == "logreg"
+                    else result["logfoldchanges"][group][i]
+                ),
+            })
 
-    return pd.DataFrame(records)
+    return pd.DataFrame(records, columns=[
+        "group", "gene", "score", "pval", "pval_adj", "logfoldchange",
+    ])

@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from scintilla.config import RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -20,6 +21,7 @@ def check_normality(
     threshold: float = 0.3,
     n_replicates: int = 1,
     correction: Optional[str] = None,
+    random_state: int = RANDOM_SEED,
 ) -> Tuple[bool, dict]:
     """Test normality of each feature using Shapiro-Wilk and Anderson-Darling.
 
@@ -64,11 +66,10 @@ def check_normality(
     X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
     X = X.astype(np.float64)
 
-    from scintilla.config import RANDOM_SEED  # noqa: PLC0415
-
     n_features = X.shape[1]
     anderson_stats = np.zeros(n_features)
     anderson_pass = np.zeros(n_features, dtype=bool)
+    anderson_error = None
 
     # Anderson-Darling (full data, no subsampling needed)
     for j in range(n_features):
@@ -81,10 +82,16 @@ def check_normality(
                 ad_result = stats.anderson(col, dist="norm")
             ad_stat = ad_result.statistic
             ad_p = bool(ad_stat < ad_result.critical_values[2])
-        except Exception:
-            pass
+        except ValueError as exc:
+            anderson_error = anderson_error or exc
         anderson_stats[j] = ad_stat
         anderson_pass[j] = ad_p
+
+    if anderson_error is not None:
+        warnings.warn(
+            f"Anderson-Darling normality probe failed: {anderson_error}",
+            stacklevel=2,
+        )
 
     frac_anderson = float(np.mean(anderson_pass))
 
@@ -93,9 +100,12 @@ def check_normality(
     replicate_fracs = []
     shapiro_pvals = np.zeros(n_features)
     shapiro_stats = np.zeros(n_features)
+    shapiro_failed_indices = set()
+    shapiro_failure_events = 0
+    first_shapiro_error = None
 
     for rep in range(n_reps):
-        rng = np.random.default_rng(RANDOM_SEED + rep)
+        rng = np.random.default_rng(random_state + rep)
         sw_pvals = np.full(n_features, np.nan)
         sw_stats = np.full(n_features, np.nan)
         for j in range(n_features):
@@ -106,19 +116,31 @@ def check_normality(
                 col_sw = col
             try:
                 sw_stat, sw_p = stats.shapiro(col_sw)
-            except Exception:
+            except (ValueError, TypeError, FloatingPointError) as exc:
                 sw_stat, sw_p = np.nan, np.nan
+                shapiro_failed_indices.add(j)
+                shapiro_failure_events += 1
+                first_shapiro_error = first_shapiro_error or exc
             sw_stats[j] = sw_stat
             sw_pvals[j] = sw_p
 
-        sw_pass = sw_pvals > alpha
-        frac = float(np.mean(sw_pass[~np.isnan(sw_pvals)]))
+        sw_pass = np.isfinite(sw_pvals) & (sw_pvals > alpha)
+        frac = float(np.mean(sw_pass))
         replicate_fracs.append(frac)
         if rep == 0:
             shapiro_pvals = sw_pvals
             shapiro_stats = sw_stats
 
     frac_shapiro = float(np.median(replicate_fracs))
+
+    if shapiro_failed_indices:
+        warnings.warn(
+            "Shapiro-Wilk failed for "
+            f"{len(shapiro_failed_indices)} of {n_features} features "
+            f"({shapiro_failure_events} failure events): {first_shapiro_error}",
+            UserWarning,
+            stacklevel=2,
+        )
 
     # Compute pass fractions at multiple alpha levels for richer reporting
     valid_pvals = shapiro_pvals[~np.isnan(shapiro_pvals)]
@@ -141,6 +163,11 @@ def check_normality(
         "anderson_pass_fraction": frac_anderson,
         "median_shapiro_pvalue": median_shapiro_pvalue,
         "shapiro_pass_fractions_at_alphas": pass_fractions_at_alphas,
+        "shapiro_failure_count": len(shapiro_failed_indices),
+        "shapiro_failure_events": shapiro_failure_events,
+        "shapiro_failed_features": [
+            str(adata.var_names[j]) for j in sorted(shapiro_failed_indices)
+        ],
         "alpha": alpha,
         "diagnostics": (
             f"Shapiro-Wilk: {frac_shapiro:.1%} features pass (alpha={alpha}). "

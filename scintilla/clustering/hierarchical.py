@@ -14,8 +14,6 @@ from sklearn.cluster import AgglomerativeClustering
 from scintilla.io.loaders import ensure_anndata
 from scintilla.clustering.utils import cophenetic_correlation
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 

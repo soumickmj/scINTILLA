@@ -22,6 +22,7 @@ def permutation_de(
     correction: str = "fdr_bh",
     pseudocount: float = 1e-2,
     standardise: bool = False,
+    random_state: int = RANDOM_SEED,
 ) -> pd.DataFrame:
     """Permutation test for differential expression.
 
@@ -81,7 +82,7 @@ def permutation_de(
         obs_stat = obs_stat / se
     log2fc = np.log2((X1.mean(axis=0) + pseudocount) / (X2.mean(axis=0) + pseudocount))
 
-    rng = np.random.default_rng(RANDOM_SEED)
+    rng = np.random.default_rng(random_state)
     n_total = n1 + n2
 
     # Vectorised permutation: build (n_permutations, n_total) index matrix

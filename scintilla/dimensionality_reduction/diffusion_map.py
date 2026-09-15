@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import anndata as ad
 
+from scintilla.config import RANDOM_SEED
+
 
 def run_diffusion_map(
     adata: ad.AnnData,
     n_comps: int = 10,
     use_rep: str = "X_pca",
+    random_state: int = RANDOM_SEED,
 ) -> ad.AnnData:
     """Run diffusion map embedding via scanpy.
 
@@ -32,9 +35,9 @@ def run_diffusion_map(
 
     adata = adata.copy()
     if use_rep not in adata.obsm:
-        sc.tl.pca(adata)
+        sc.tl.pca(adata, random_state=random_state)
         use_rep = "X_pca"
 
-    sc.pp.neighbors(adata, use_rep=use_rep)
-    sc.tl.diffmap(adata, n_comps=n_comps)
+    sc.pp.neighbors(adata, use_rep=use_rep, random_state=random_state)
+    sc.tl.diffmap(adata, n_comps=n_comps, random_state=random_state)
     return adata

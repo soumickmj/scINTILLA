@@ -33,6 +33,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from scintilla.config import RANDOM_SEED
+
 try:
     import anndata as ad
 except ImportError:  # pragma: no cover
@@ -243,7 +245,7 @@ _SHAP_SPEC = _MethodSpec("SHAP", "classification", _complexity_shap, "O(n*d^2)")
 
 # ── Calibration helpers ─────────────────────────────────────────────────
 
-def _subsample(adata, n_cells: int, seed: int = 42):
+def _subsample(adata, n_cells: int, seed: int = RANDOM_SEED):
     """Return a subsampled copy of *adata* with at most *n_cells* cells."""
     rng = np.random.default_rng(seed)
     n = min(n_cells, adata.n_obs)
@@ -281,12 +283,12 @@ def _timed_call(fn: Callable, *args, **kwargs) -> Tuple[float, float]:
 # setting on the given subsample, or raises an exception if the method
 # is unavailable.
 
-def _calibrate_kmeans(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_kmeans(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.cluster import KMeans
-    return _timed_call(KMeans(n_clusters=k, n_init=1, max_iter=50, random_state=42).fit, X)
+    return _timed_call(KMeans(n_clusters=k, n_init=1, max_iter=50, random_state=random_state).fit, X)
 
 
-def _calibrate_hierarchical(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_hierarchical(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from scipy.cluster.hierarchy import linkage, fcluster
     from scipy.spatial.distance import pdist
 
@@ -298,54 +300,54 @@ def _calibrate_hierarchical(X: np.ndarray, k: int) -> Tuple[float, float]:
     return _timed_call(_run)
 
 
-def _calibrate_dbscan(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_dbscan(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.cluster import DBSCAN
     return _timed_call(DBSCAN(eps=0.5).fit, X)
 
 
-def _calibrate_leiden(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_leiden(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     import scanpy as sc
 
     def _run():
         _adata = ad.AnnData(X=X.astype(np.float32))
-        sc.pp.neighbors(_adata, use_rep="X")
-        sc.tl.leiden(_adata, resolution=1.0)
+        sc.pp.neighbors(_adata, use_rep="X", random_state=random_state)
+        sc.tl.leiden(_adata, resolution=1.0, random_state=random_state)
 
     return _timed_call(_run)
 
 
-def _calibrate_louvain(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_louvain(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     import scanpy as sc
 
     def _run():
         _adata = ad.AnnData(X=X.astype(np.float32))
-        sc.pp.neighbors(_adata, use_rep="X")
-        sc.tl.louvain(_adata, resolution=1.0)
+        sc.pp.neighbors(_adata, use_rep="X", random_state=random_state)
+        sc.tl.louvain(_adata, resolution=1.0, random_state=random_state)
 
     return _timed_call(_run)
 
 
-def _calibrate_hdbscan(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_hdbscan(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     import hdbscan as _hdb
 
     return _timed_call(_hdb.HDBSCAN(min_cluster_size=20).fit, X)
 
 
-def _calibrate_spectral(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_spectral(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.cluster import SpectralClustering
 
     return _timed_call(
-        SpectralClustering(n_clusters=k, affinity="nearest_neighbors", random_state=42).fit, X,
+        SpectralClustering(n_clusters=k, affinity="nearest_neighbors", random_state=random_state).fit, X,
     )
 
 
-def _calibrate_consensus(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_consensus(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     # Consensus is built on top of KMeans, approximate with repeated KMeans
     from sklearn.cluster import KMeans
 
     def _run():
         for _ in range(5):
-            KMeans(n_clusters=k, n_init=1, max_iter=50, random_state=42).fit(X)
+            KMeans(n_clusters=k, n_init=1, max_iter=50, random_state=random_state).fit(X)
 
     return _timed_call(_run)
 
@@ -358,87 +360,87 @@ def _make_classification_data(X: np.ndarray, k: int):
     return X, labels
 
 
-def _calibrate_logreg(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_logreg(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.linear_model import LogisticRegression
 
     X_c, y = _make_classification_data(X, k)
-    return _timed_call(LogisticRegression(max_iter=200, random_state=42).fit, X_c, y)
+    return _timed_call(LogisticRegression(max_iter=200, random_state=random_state).fit, X_c, y)
 
 
-def _calibrate_rf(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_rf(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.ensemble import RandomForestClassifier
 
     X_c, y = _make_classification_data(X, k)
-    return _timed_call(RandomForestClassifier(n_estimators=100, random_state=42).fit, X_c, y)
+    return _timed_call(RandomForestClassifier(n_estimators=100, random_state=random_state).fit, X_c, y)
 
 
-def _calibrate_svm(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_svm(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.svm import SVC
 
     X_c, y = _make_classification_data(X, k)
-    return _timed_call(SVC(kernel="rbf", random_state=42).fit, X_c, y)
+    return _timed_call(SVC(kernel="rbf", random_state=random_state).fit, X_c, y)
 
 
-def _calibrate_mlp(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_mlp(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.neural_network import MLPClassifier
 
     X_c, y = _make_classification_data(X, k)
     return _timed_call(
-        MLPClassifier(max_iter=50, random_state=42).fit, X_c, y,
+        MLPClassifier(max_iter=50, random_state=random_state).fit, X_c, y,
     )
 
 
-def _calibrate_lda(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_lda(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
     X_c, y = _make_classification_data(X, k)
     return _timed_call(LinearDiscriminantAnalysis().fit, X_c, y)
 
 
-def _calibrate_qda(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_qda(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
     X_c, y = _make_classification_data(X, k)
     return _timed_call(QuadraticDiscriminantAnalysis().fit, X_c, y)
 
 
-def _calibrate_knn(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_knn(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.neighbors import KNeighborsClassifier
 
     X_c, y = _make_classification_data(X, k)
     return _timed_call(KNeighborsClassifier().fit, X_c, y)
 
 
-def _calibrate_gb(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_gb(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.ensemble import HistGradientBoostingClassifier
 
     X_c, y = _make_classification_data(X, k)
     return _timed_call(
-        HistGradientBoostingClassifier(max_iter=50, random_state=42).fit, X_c, y,
+        HistGradientBoostingClassifier(max_iter=50, random_state=random_state).fit, X_c, y,
     )
 
 
-def _calibrate_nb(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_nb(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.naive_bayes import GaussianNB
 
     X_c, y = _make_classification_data(X, k)
     return _timed_call(GaussianNB().fit, X_c, y)
 
 
-def _calibrate_stacking(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_stacking(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from sklearn.ensemble import RandomForestClassifier, StackingClassifier
     from sklearn.linear_model import LogisticRegression
 
     X_c, y = _make_classification_data(X, k)
     clf = StackingClassifier(
-        estimators=[("rf", RandomForestClassifier(n_estimators=50, random_state=42))],
-        final_estimator=LogisticRegression(max_iter=200, random_state=42),
+        estimators=[("rf", RandomForestClassifier(n_estimators=50, random_state=random_state))],
+        final_estimator=LogisticRegression(max_iter=200, random_state=random_state),
         cv=2,
     )
     return _timed_call(clf.fit, X_c, y)
 
 
-def _calibrate_xgboost(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_xgboost(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from xgboost import XGBClassifier
 
     X_c, y = _make_classification_data(X, k)
@@ -447,16 +449,16 @@ def _calibrate_xgboost(X: np.ndarray, k: int) -> Tuple[float, float]:
     le = LabelEncoder()
     y_enc = le.fit_transform(y)
     return _timed_call(
-        XGBClassifier(n_estimators=100, max_depth=6, random_state=42, verbosity=0).fit, X_c, y_enc,
+        XGBClassifier(n_estimators=100, max_depth=6, random_state=random_state, verbosity=0).fit, X_c, y_enc,
     )
 
 
-def _calibrate_lightgbm(X: np.ndarray, k: int) -> Tuple[float, float]:
+def _calibrate_lightgbm(X: np.ndarray, k: int, random_state: int = RANDOM_SEED) -> Tuple[float, float]:
     from lightgbm import LGBMClassifier
 
     X_c, y = _make_classification_data(X, k)
     return _timed_call(
-        LGBMClassifier(n_estimators=100, random_state=42, verbose=-1).fit, X_c, y,
+        LGBMClassifier(n_estimators=100, random_state=random_state, verbose=-1).fit, X_c, y,
     )
 
 
@@ -566,7 +568,8 @@ def estimate_benchmark_time(
     calibration_cells: int = 500,
     cv_folds: Optional[int] = None,
     batch_methods: Optional[List[str]] = None,
-    verbose: bool = True,
+    verbose: Optional[bool] = None,
+    random_state: Optional[int] = None,
 ) -> pd.DataFrame:
     """Estimate wall-clock time for each benchmarking method.
 
@@ -654,8 +657,15 @@ def estimate_benchmark_time(
                 cv_folds = 5
                 classification_estimator = "cv"
                 feature_selection_methods = ["pca_loadings", "mutual_information"]
+                random_seed = RANDOM_SEED
+                verbose = True
 
             config = _FallbackConfig()
+
+    if verbose is None:
+        verbose = getattr(config, "verbose", True)
+    if random_state is None:
+        random_state = getattr(config, "random_seed", RANDOM_SEED)
 
     if stages is None:
         stages = ["clustering", "classification"]
@@ -681,7 +691,7 @@ def estimate_benchmark_time(
 
     # Prepare calibration subsample
     n_calib = min(calibration_cells, n_full)
-    adata_calib = _subsample(adata, n_calib, seed=42)
+    adata_calib = _subsample(adata, n_calib, seed=random_state)
     X_calib = _get_X(adata_calib, use_rep)
 
     if verbose:
@@ -712,7 +722,7 @@ def estimate_benchmark_time(
 
             if calib_fn is not None:
                 try:
-                    t_calib, _ = calib_fn(X_calib, k)
+                    t_calib, _ = calib_fn(X_calib, k, random_state)
                     t_est = _extrapolate(
                         t_calib, spec.complexity_fn, n_calib, d, k, n_full, grid_size,
                     )
@@ -760,7 +770,7 @@ def estimate_benchmark_time(
 
             if calib_fn is not None:
                 try:
-                    t_calib, _ = calib_fn(X_calib, k)
+                    t_calib, _ = calib_fn(X_calib, k, random_state)
                     t_est = _extrapolate(
                         t_calib, spec.complexity_fn, n_calib, d, k, n_full, grid_size,
                     )
@@ -796,7 +806,7 @@ def estimate_benchmark_time(
                 # Use RF calibration time as a proxy base
                 rf_fn = _CALIBRATION_FNS.get("RF")
                 if rf_fn is not None:
-                    t_rf, _ = rf_fn(X_calib, k)
+                    t_rf, _ = rf_fn(X_calib, k, random_state)
                     t_shap = t_rf * cost_ratio * 2.0  # SHAP ~ 2x model fit
                 else:
                     t_shap = np.nan

@@ -3,7 +3,7 @@
 
 def add_args(parser):
     parser.add_argument("input", help="Path to input .h5ad file")
-    parser.add_argument("--cell-type-col", required=True, help="Cell type column in obs")
+    parser.add_argument("--cell-type-col", default="cell_type", help="Cell type column in obs")
     parser.add_argument("--n-clusters", type=int, default=None)
     parser.add_argument("--output", default=None, help="Output CSV for results")
     parser.add_argument("--config", default=None, help="Path to a scintilla YAML config file")

@@ -73,10 +73,6 @@ def _run_ttest(adata, condition_col, group1, group2):
 
 def _run_pseudobulk(adata, condition_col, group1, group2):
     from scintilla.differential_expression.pseudobulk import pseudobulk_de  # noqa: PLC0415
-    # Need a sample_col - create dummy if not available
     if "sample" not in adata.obs.columns:
-        import anndata as ad  # noqa: PLC0415
-        adata = adata.copy()
-        groups = adata.obs[condition_col].values
-        adata.obs["sample"] = groups + "_s1"
+        raise ValueError("pseudobulk requires a 'sample' column")
     return pseudobulk_de(adata, condition_col, "sample")

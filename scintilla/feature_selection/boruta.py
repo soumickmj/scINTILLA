@@ -6,13 +6,15 @@ from typing import Tuple
 
 import numpy as np
 
+from scintilla.config import RANDOM_SEED
+
 
 def boruta_selection(
     X: np.ndarray,
     y: np.ndarray,
     n_estimators: int = 50,
     max_iter: int = 20,
-    random_state: int = 42,
+    random_state: int = RANDOM_SEED,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Feature selection using Boruta algorithm.
 
@@ -57,7 +59,7 @@ def _shadow_feature_fallback(
     X: np.ndarray,
     y: np.ndarray,
     n_estimators: int = 100,
-    random_state: int = 42,
+    random_state: int = RANDOM_SEED,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Permutation-based shadow feature selection."""
     from sklearn.ensemble import RandomForestClassifier  # noqa: PLC0415

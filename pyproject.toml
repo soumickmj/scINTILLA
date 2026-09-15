@@ -48,3 +48,9 @@ scintilla = "scintilla.cli.main:main"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["scintilla*"]
+
+[tool.pytest.ini_options]
+# Let a bare `pytest` find the package from a git checkout, without requiring
+# an editable install or a manually exported PYTHONPATH.
+pythonpath = ["."]
+testpaths = ["tests"]

@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Optional
 
 import numpy as np
 import pandas as pd
 
 from scintilla.benchmarking.profiler import profile_method
+from scintilla.config import RANDOM_SEED
 
 
 def seed_stability_test(
@@ -15,11 +16,12 @@ def seed_stability_test(
     data,
     metric_fn: Callable,
     n_seeds: int = 10,
-    base_seed: int = 42,
-    bootstrap_ci: bool = False,
-    n_bootstrap: int = 2000,
+    base_seed: Optional[int] = None,
+    bootstrap_ci: Optional[bool] = None,
+    n_bootstrap: Optional[int] = None,
     compute_icc: bool = False,
     icc_method: str = "pingouin",
+    config=None,
 ) -> pd.DataFrame:
     """Test seed stability of a method.
 
@@ -61,6 +63,13 @@ def seed_stability_test(
     pd.DataFrame  columns=[seed, metric_value]
     with added attribute stability_score (1 - cv).
     """
+    if base_seed is None:
+        base_seed = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
+    if bootstrap_ci is None:
+        bootstrap_ci = getattr(config, "bootstrap_ci", False) if config is not None else False
+    if n_bootstrap is None:
+        n_bootstrap = getattr(config, "n_bootstrap", 2000) if config is not None else 2000
+
     records = []
     for i in range(n_seeds):
         seed = base_seed + i
@@ -82,7 +91,7 @@ def seed_stability_test(
     # Bootstrap CIs on the per-seed metric vector
     if bootstrap_ci and len(values) >= 2:
         from scintilla.statistical_tests.bootstrap import bootstrap_resample_metrics  # noqa: PLC0415
-        ci = bootstrap_resample_metrics(values, B=n_bootstrap)
+        ci = bootstrap_resample_metrics(values, B=n_bootstrap, seed=base_seed)
         df.attrs["ci_low"] = ci["ci_low"]
         df.attrs["ci_high"] = ci["ci_high"]
 

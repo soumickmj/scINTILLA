@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Callable, Dict, List
+import inspect
+from typing import Callable, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
 
 from scintilla.benchmarking.profiler import profile_method
+from scintilla.config import RANDOM_SEED
+
+_OMITTED = object()
 
 
 def scalability_sweep(
@@ -15,8 +19,10 @@ def scalability_sweep(
     adata,
     fractions: List[float] = None,
     n_seeds: int = 1,
-    bootstrap_ci: bool = False,
-    n_bootstrap: int = 2000,
+    bootstrap_ci: Optional[bool] = None,
+    n_bootstrap: Optional[int] = None,
+    random_state=_OMITTED,
+    config=_OMITTED,
     **kwargs,
 ) -> pd.DataFrame:
     """Run method_fn on increasing fractions of data and profile performance.
@@ -49,8 +55,32 @@ def scalability_sweep(
     """
     if fractions is None:
         fractions = [0.1, 0.25, 0.5, 0.75, 1.0]
+    config_provided = config is not _OMITTED
+    random_state_provided = random_state is not _OMITTED
+    resolved_config = config if config_provided else None
+    if bootstrap_ci is None:
+        bootstrap_ci = getattr(resolved_config, "bootstrap_ci", False) if resolved_config is not None else False
+    if n_bootstrap is None:
+        n_bootstrap = getattr(resolved_config, "n_bootstrap", 2000) if resolved_config is not None else 2000
+    if not random_state_provided:
+        random_state = getattr(resolved_config, "random_seed", RANDOM_SEED) if resolved_config is not None else RANDOM_SEED
 
-    rng = np.random.default_rng(42)
+    method_kwargs = dict(kwargs)
+    try:
+        parameters = inspect.signature(method_fn).parameters
+        accepts_kwargs = any(
+            parameter.kind is inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters.values()
+        )
+    except (TypeError, ValueError):
+        parameters = {}
+        accepts_kwargs = False
+    if "random_state" in parameters or (accepts_kwargs and random_state_provided):
+        method_kwargs["random_state"] = random_state
+    if "config" in parameters or (accepts_kwargs and config_provided):
+        method_kwargs["config"] = resolved_config
+
+    rng = np.random.default_rng(random_state)
     n_total = adata.n_obs
     profiled = profile_method(method_fn)
 
@@ -62,7 +92,7 @@ def scalability_sweep(
             idx = rng.choice(n_total, size=n, replace=False)
             adata_sub = adata[idx].copy()
             try:
-                bench = profiled(adata_sub, **kwargs)
+                bench = profiled(adata_sub, **method_kwargs)
                 records.append({
                     "fraction": frac,
                     "n_cells": n,
@@ -72,7 +102,7 @@ def scalability_sweep(
             except TypeError as e:
                 raise TypeError(
                     f"method_fn does not accept the provided keyword arguments "
-                    f"({list(kwargs.keys())}). Check the function signature: {e}"
+                    f"({list(method_kwargs.keys())}). Check the function signature: {e}"
                 ) from e
             except MemoryError:
                 raise
@@ -95,7 +125,7 @@ def scalability_sweep(
             idx = rng.choice(n_total, size=n, replace=False)
             adata_sub = adata[idx].copy()
             try:
-                bench = profiled(adata_sub, **kwargs)
+                bench = profiled(adata_sub, **method_kwargs)
                 elapsed_vals.append(bench.elapsed_seconds)
                 memory_vals.append(bench.peak_memory_mb)
             except MemoryError:
@@ -118,11 +148,15 @@ def scalability_sweep(
             valid_e = elapsed_arr[np.isfinite(elapsed_arr)]
             valid_m = memory_arr[np.isfinite(memory_arr)]
             if len(valid_e) >= 2:
-                ci_e = bootstrap_resample_metrics(valid_e, B=n_bootstrap)
+                ci_e = bootstrap_resample_metrics(
+                    valid_e, B=n_bootstrap, seed=random_state,
+                )
                 row["elapsed_ci_low"] = ci_e["ci_low"]
                 row["elapsed_ci_high"] = ci_e["ci_high"]
             if len(valid_m) >= 2:
-                ci_m = bootstrap_resample_metrics(valid_m, B=n_bootstrap)
+                ci_m = bootstrap_resample_metrics(
+                    valid_m, B=n_bootstrap, seed=random_state,
+                )
                 row["memory_ci_low"] = ci_m["ci_low"]
                 row["memory_ci_high"] = ci_m["ci_high"]
 

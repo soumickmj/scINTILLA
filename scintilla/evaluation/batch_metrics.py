@@ -7,6 +7,8 @@ from typing import Optional
 
 import numpy as np
 
+from scintilla.config import RANDOM_SEED
+
 
 def batch_asw(
     X: np.ndarray,
@@ -50,7 +52,11 @@ def batch_asw(
     return _batch_asw(adata, batch_key="batch", embed_key="_no_pca_")
 
 
-def graph_connectivity(adata, batch_key: str) -> float:
+def graph_connectivity(
+    adata,
+    batch_key: str,
+    random_state: int = RANDOM_SEED,
+) -> float:
     """Fraction of cells connected across batches in kNN graph.
 
     Parameters
@@ -59,6 +65,8 @@ def graph_connectivity(adata, batch_key: str) -> float:
         AnnData with connectivities in obsp.
     batch_key:
         Column in obs with batch labels.
+    random_state:
+        Random seed used when constructing a missing neighbour graph.
 
     Returns
     -------
@@ -69,7 +77,7 @@ def graph_connectivity(adata, batch_key: str) -> float:
         import scipy.sparse as sp  # noqa: PLC0415
 
         if "connectivities" not in adata.obsp:
-            sc.pp.neighbors(adata)
+            sc.pp.neighbors(adata, random_state=random_state)
 
         conn = adata.obsp["connectivities"]
         batch = adata.obs[batch_key].values
@@ -107,6 +115,7 @@ def principal_component_regression(
     X_before: np.ndarray,
     X_after: np.ndarray,
     batch_labels: np.ndarray,
+    random_state: int = RANDOM_SEED,
 ) -> float:
     """PCR score: reduction in variance explained by batch after correction.
 
@@ -118,6 +127,8 @@ def principal_component_regression(
         Data after batch correction.
     batch_labels:
         Batch assignment per cell.
+    random_state:
+        Random seed for PCA when a randomized solver is selected.
 
     Returns
     -------
@@ -134,7 +145,7 @@ def principal_component_regression(
         n_comps = min(20, X.shape[0] - 1, X.shape[1] - 1)
         if n_comps < 1:
             return float("nan")
-        pca = PCA(n_components=n_comps)
+        pca = PCA(n_components=n_comps, random_state=random_state)
         pcs = pca.fit_transform(X)
         r2_list = []
         for pc in pcs.T:

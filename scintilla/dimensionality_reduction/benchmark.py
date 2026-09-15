@@ -7,11 +7,14 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from scintilla.config import RANDOM_SEED
+
 
 def benchmark_embeddings(
     adata,
     use_rep: str = "X_pca",
     methods: Optional[List[str]] = None,
+    random_state: int = RANDOM_SEED,
 ) -> pd.DataFrame:
     """Benchmark dimensionality reduction methods.
 
@@ -44,15 +47,21 @@ def benchmark_embeddings(
         try:
             if method == "umap":
                 from scintilla.dimensionality_reduction.umap import run_umap  # noqa: PLC0415
-                adata_emb = run_umap(adata, use_rep=use_rep)
+                adata_emb = run_umap(
+                    adata, use_rep=use_rep, random_state=random_state,
+                )
                 X_low = adata_emb.obsm["X_umap"].astype(np.float64)
             elif method == "tsne":
                 from scintilla.dimensionality_reduction.tsne import run_tsne  # noqa: PLC0415
-                adata_emb = run_tsne(adata, use_rep=use_rep)
+                adata_emb = run_tsne(
+                    adata, use_rep=use_rep, random_state=random_state,
+                )
                 X_low = adata_emb.obsm.get("X_tsne", adata_emb.obsm.get("tsne")).astype(np.float64)
             elif method == "diffmap":
                 from scintilla.dimensionality_reduction.diffusion_map import run_diffusion_map  # noqa: PLC0415
-                adata_emb = run_diffusion_map(adata, use_rep=use_rep)
+                adata_emb = run_diffusion_map(
+                    adata, use_rep=use_rep, random_state=random_state,
+                )
                 X_low = adata_emb.obsm["X_diffmap"].astype(np.float64)
             else:
                 records.append({"method": method, "trustworthiness": float("nan"), "status": "unknown"})

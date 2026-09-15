@@ -7,12 +7,15 @@ from typing import Dict, List
 import anndata as ad
 import numpy as np
 
+from scintilla.config import RANDOM_SEED
+
 
 def annotate_by_markers(
     adata: ad.AnnData,
     marker_dict: Dict[str, List[str]],
     method: str = "score",
     threshold: float = 0.1,
+    random_state: int = RANDOM_SEED,
 ) -> ad.AnnData:
     """Annotate cells by marker gene sets.
 
@@ -27,6 +30,8 @@ def annotate_by_markers(
         'threshold': fraction of markers expressed above threshold.
     threshold:
         Expression threshold for 'threshold' method.
+    random_state:
+        Random seed used by scanpy marker scoring.
 
     Returns
     -------
@@ -50,7 +55,13 @@ def annotate_by_markers(
                 continue
             col = f"score_{ct}"
             try:
-                sc.tl.score_genes(adata, gene_list=valid_markers, score_name=col, ctrl_as_ref=False)
+                sc.tl.score_genes(
+                    adata,
+                    gene_list=valid_markers,
+                    score_name=col,
+                    ctrl_as_ref=False,
+                    random_state=random_state,
+                )
             except RuntimeError:
                 # Fallback to simple mean expression if gene pool too small
                 X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()

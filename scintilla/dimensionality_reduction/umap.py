@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import anndata as ad
 
+from scintilla.config import RANDOM_SEED
+
 
 def run_umap(
     adata: ad.AnnData,
@@ -11,6 +13,7 @@ def run_umap(
     min_dist: float = 0.5,
     n_components: int = 2,
     use_rep: str = "X_pca",
+    random_state: int = RANDOM_SEED,
 ) -> ad.AnnData:
     """Run UMAP embedding via scanpy.
 
@@ -38,9 +41,15 @@ def run_umap(
 
     adata = adata.copy()
     if use_rep not in adata.obsm:
-        sc.tl.pca(adata)
+        sc.tl.pca(adata, random_state=random_state)
         use_rep = "X_pca"
 
-    sc.pp.neighbors(adata, n_neighbors=n_neighbors, use_rep=use_rep)
-    sc.tl.umap(adata, min_dist=min_dist, n_components=n_components)
+    sc.pp.neighbors(
+        adata, n_neighbors=n_neighbors, use_rep=use_rep,
+        random_state=random_state,
+    )
+    sc.tl.umap(
+        adata, min_dist=min_dist, n_components=n_components,
+        random_state=random_state,
+    )
     return adata

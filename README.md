@@ -275,8 +275,13 @@ from scintilla.preprocessing.benchmark import benchmark_transformations
 
 results_df, best_name, best_adata = benchmark_transformations(adata, verbose=True)
 print(f"Best transform: {best_name}")
-print(results_df[["transform", "composite_score"]].head(10))
+print(results_df[["transform", "status", "composite_score"]].head(10))
 ```
+
+Every transform gets a row. One that raised carries `status="failed"` and a
+`failure_reason` rather than disappearing from the leaderboard. If *every*
+transform fails, `best_name` and `best_adata` are `None` and `results_df` still
+lists each failure, so check `best_name is not None` before using the result.
 
 **Score weights** (configurable in `scintilla/config.py`):
 
@@ -333,6 +338,12 @@ print(report)
 |---|---|---|
 | `adata` | required | Input AnnData |
 | `sample_size` | `500` | Cells subsampled per gene for Shapiro-Wilk test |
+| `random_state` | `42` | Seed for the Shapiro-Wilk subsample |
+
+> Genes whose Shapiro-Wilk test cannot be computed count as **not passing** and
+> are listed in the report under `shapiro_failed_features`, so the pass fraction
+> is always taken over every gene rather than over the ones that happened to
+> succeed.
 | `threshold` | `0.3` | Fraction of genes that must pass to call data "normal" |
 
 > **Note:** The subsample size is intentionally small. At large *n* (e.g. 5 000), the Shapiro-Wilk test has extreme statistical power and rejects normality even for well-normalised scRNA-seq data, leading to false negatives.
@@ -385,14 +396,22 @@ adata_hvg = select_hvg(adata, n_top_genes=2000, method="seurat_v3")
 gene_list = extract_top_genes_per_pc(adata, n_per_pc=9)
 adata_reduced = build_reduced_dataset(adata, gene_list)
 
-# Mutual information (requires label column)
-selected_genes = mi_feature_selection(adata, target_col="cell_type", n_features=50)
+# The three supervised selectors below work on arrays and return indices or a
+# boolean mask, so pull X and y out of the AnnData first.
+X = adata.X.toarray() if hasattr(adata.X, "toarray") else adata.X
+y = adata.obs["cell_type"].values
 
-# Boruta (requires label column; needs Boruta package)
-selected_genes = boruta_selection(adata, target_col="cell_type", max_iter=100)
+# Mutual information -> (selected_indices, scores)
+idx, mi_scores = mi_feature_selection(X, y, n_features=50)
+selected_genes = adata.var_names[idx]
 
-# mRMR (requires label column; needs mrmr-selection package)
-selected_genes = mrmr_selection(adata, target_col="cell_type", n_features=50)
+# Boruta -> (support_mask, ranking); needs the Boruta package
+mask, ranking = boruta_selection(X, y, max_iter=100)
+selected_genes = adata.var_names[mask]
+
+# mRMR -> (selected_indices, scores); needs the mrmr-selection package
+idx, mrmr_scores = mrmr_selection(X, y, n_features=50)
+selected_genes = adata.var_names[idx]
 ```
 
 ### Benchmarking feature selection
@@ -418,9 +437,11 @@ print(results_df)
 |---|---|---|
 | `adata` | required | Input AnnData |
 | `target_col` | required | Column in `obs` with class labels |
-| `methods` | `["pca_loadings", "mutual_information"]` | Methods to benchmark |
-| `n_features` | `50` | Features to select per method |
-| `config` | `None` | `AnalysisConfig` overriding `methods`/`n_features` |
+| `methods` | `None` | Methods to benchmark; `None` uses `["pca_loadings", "mutual_information"]` |
+| `n_features` | `None` | Features to select per method; `None` uses `config.n_features`, else `50` |
+| `test_size` | `None` | Hold-out fraction; `None` uses `config.test_size`, else `0.2` |
+| `random_state` | `None` | Seed; `None` uses `config.random_seed`, else `42` |
+| `config` | `None` | `AnalysisConfig` supplying the defaults above |
 
 > **Performance note:** `boruta` and `mrmr` are not in the default set because they are significantly slower on large datasets (>10 000 cells). Add them explicitly when you have time, or adjust via `AnalysisConfig`.
 
@@ -476,7 +497,7 @@ adata = run_force_directed(adata)
 ```python
 from scintilla.dimensionality_reduction.benchmark import benchmark_embeddings
 
-results_df = benchmark_embeddings(adata, use_rep="X_pca", label_col="cell_type")
+results_df = benchmark_embeddings(adata, use_rep="X_pca")
 print(results_df)
 ```
 
@@ -554,17 +575,27 @@ result["fig"].show()
 | `cell_type_col` | required | Column in `obs` with true cell-type labels |
 | `n_clusters` | `None` | Number of clusters; inferred from `cell_type_col` if `None` |
 | `run_pca_first` | `True` | Run PCA before all clustering algorithms |
-| `n_pca_comps` | `30` | Number of PCA components when `run_pca_first=True` |
+| `use_rep` | `None` | `obsm` key to cluster on when `run_pca_first=False` |
+| `n_pca_comps` | `None` | PCA components when `run_pca_first=True`; `None` uses `config.n_pca_comps`, else `30` |
 | `store_labels` | `True` | Write best cluster labels to `adata.obs["scintilla_cluster"]` |
+| `n_jobs` | `1` | Run method groups in parallel when `> 1` |
+| `auto_pca_components` | omitted | Adaptive component count: `"gavish_donoho"`, `"marchenko_pastur"`, or `None` to disable. Omit to use `config.auto_pca_components` |
+| `mp_sigma_method` | omitted | Noise-scale estimator for Marchenko-Pastur: `"median"`, `"trimmed_mean"`. Omit to use `config.mp_sigma_method` |
+| `random_state` | `None` | Seed for PCA and every stochastic clustering method; `None` uses `config.random_seed`, else `42` |
 | `config` | `None` | `AnalysisConfig` controlling which methods run and their grids |
-| `verbose` | `True` | Print progress |
+| `verbose` | `None` | Print progress; `None` uses `config.verbose`, else `True` |
+
+> `auto_pca_components` and `mp_sigma_method` distinguish "argument omitted" from
+> an explicit `None`. Passing `auto_pca_components=None` disables adaptive
+> selection even when the config enables it; omitting the argument defers to the
+> config.
 
 **Return values**
 
 | Key | Type | Description |
 |---|---|---|
 | `adata` | AnnData | Input data (with PCA if `run_pca_first=True`; with `scintilla_cluster` if `store_labels=True`) |
-| `results_df` | DataFrame | Columns: `method`, `params`, `ari`, `n_clusters` |
+| `results_df` | DataFrame | Columns: `method`, `params`, `ari`, `ami`, `n_clusters`, `noise_fraction`, `status`, `failure_reason` |
 | `labels_dict` | dict | `{method_key: labels_array}` for every tested combination |
 | `fig` | Figure | Matplotlib figure with ARI comparison |
 | `best_method` | str | Name of the method with the highest ARI |
@@ -578,7 +609,7 @@ from scintilla.clustering.hdbscan import hdbscan_clustering
 
 labels, centers, inertia = kmeans_clustering(X, n_clusters=8)
 labels = leiden_clustering(adata, resolution=0.5, use_rep="X_pca")
-labels = hdbscan_clustering(X, min_cluster_size=20)
+hdbscan_df, labels = hdbscan_clustering(X, min_cluster_size_range=[20])
 ```
 
 ### CLI
@@ -600,7 +631,7 @@ scintilla cluster data/pbmc3k.h5ad \
 | Option | Default | Description |
 |---|---|---|
 | `input` | required | Path to input `.h5ad` |
-| `--cell-type-col` | required | Column in `obs` with true cell-type labels |
+| `--cell-type-col` | `cell_type` | Column in `obs` with true cell-type labels |
 | `--n-clusters` | `None` | Number of clusters (defaults to unique cell types) |
 | `--output` | `None` | Save results DataFrame to CSV |
 | `--config` | `None` | Path to a YAML config file (see `generate-config`) |
@@ -658,13 +689,22 @@ for name, res in result["all_results"].items():
 | Parameter | Default | Description |
 |---|---|---|
 | `adata` | required | Input AnnData |
-| `target_col` | required | Column in `obs` with class labels |
+| `target_col` | `"cell_type"` | Column in `obs` with class labels |
+| `use_rep` | `None` | `obsm` key to classify on instead of `X` |
+| `scale` | `False` | Standardise features before training |
 | `normality` | `None` | `None` = auto-detect via `check_normality`; `True`/`False` = override |
-| `test_size` | `0.2` | Fraction of data held out for evaluation |
-| `include_shap` | `True` | Compute SHAP feature importances for the best model |
-| `models` | `None` | Explicit list of classifier short names to run; `None` = all |
+| `test_size` | `None` | Hold-out fraction; `None` uses `config.test_size`, else `0.2` |
+| `include_shap` | `None` | Compute SHAP importances; `None` uses `config.include_shap`, else `True` |
+| `check_consistency` | `False` | Write per-model predictions and consensus columns to `obs` |
+| `models` | `None` | Explicit list of classifier short names to run; `None` = all available |
+| `n_jobs` | `1` | Train models in parallel when `> 1` |
+| `random_state` | `None` | Seed for the split and every stochastic model; `None` uses `config.random_seed`, else `42` |
 | `config` | `None` | `AnalysisConfig` overriding `classifiers` and `include_shap` |
-| `verbose` | `True` | Print progress |
+| `verbose` | `None` | Print progress; `None` uses `config.verbose`, else `True` |
+
+> `XGBoost` and `LightGBM` are offered only when their package is installed.
+> When it is not, the model is absent from `all_results` rather than present
+> with a failure — an uninstalled backend is not a failed method.
 
 > **Performance note:** `GradientBoosting` uses `HistGradientBoostingClassifier` internally which is orders of magnitude faster than the legacy `GradientBoostingClassifier` for large datasets (native support for missing values, multi-core computation).
 
@@ -674,7 +714,7 @@ for name, res in result["all_results"].items():
 |---|---|---|
 | `best_model` | sklearn model | Fitted best model |
 | `best_model_name` | str | Name of the best model |
-| `all_results` | dict | `{model_name: {"model": ..., "metrics": {...}}}` |
+| `all_results` | dict | `{model_name: {"model": ..., "metrics": {...}}}`. A model that raised is kept with `status="failed"`, `failure_reason`, `model=None` and an empty `metrics`, so a dropped model is visible rather than merely absent |
 | `feature_importances` | dict or None | SHAP values per feature |
 | `normality` | bool | Whether data passed normality test |
 
@@ -710,7 +750,7 @@ scintilla classify data/pbmc3k.h5ad \
 | Option | Default | Description |
 |---|---|---|
 | `input` | required | Path to input file |
-| `--target-col` | required | Column in `obs` with class labels |
+| `--target-col` | `cell_type` | Column in `obs` with class labels |
 | `--no-shap` | `False` | Skip SHAP feature importance computation |
 | `--output` | `None` | Save summary as JSON |
 | `--config` | `None` | Path to a YAML config file (see `generate-config`) |
@@ -750,18 +790,23 @@ de_df = ttest_de(adata, group_col="cell_type", group1="Monocyte", group2="T Cell
 # Permutation test
 de_df = permutation_de(adata, group_col="cell_type", group1="Monocyte", group2="T Cell")
 
-# Pseudobulk (requires sample_col)
-de_df = pseudobulk_de(adata, group_col="cell_type", sample_col="sample_id",
-                      group1="Monocyte", group2="T Cell")
+# Pseudobulk: aggregates per sample, so it needs at least two biological
+# samples per condition and raises ValueError otherwise.
+de_df = pseudobulk_de(adata, condition_col="condition", sample_col="sample_id")
 
 # scanpy rank-genes-groups (one-vs-rest across all groups)
 de_df = rank_genes_groups(adata, groupby="cell_type", method="wilcoxon", n_genes=50)
 
+# method="logreg" ranks genes by model coefficient. Scanpy does not compute
+# p-values or fold changes for it, so `pval`, `pval_adj` and `logfoldchange`
+# come back as NaN while `gene` and `score` are populated as usual.
+de_df = rank_genes_groups(adata, groupby="cell_type", method="logreg", n_genes=50)
+
 # Filter significant genes
-sig_df = filter_de_genes(de_df, pvalue_cutoff=0.05, log2fc_cutoff=1.0)
+sig_df = filter_de_genes(de_df, alpha=0.05, log2fc_threshold=1.0)
 
 # Filter by effect size (rank-biserial for Wilcoxon, Cohen's d for t-test)
-sig_df = filter_de_genes(de_df, pvalue_cutoff=0.05, log2fc_cutoff=1.0,
+sig_df = filter_de_genes(de_df, alpha=0.05, log2fc_threshold=1.0,
                          effect_size_col="rank_biserial", effect_size_threshold=0.3)
 
 # Prepare data for volcano plot
@@ -829,8 +874,8 @@ markers = {
 }
 
 # Score clusters and assign cell types
-adata = annotate_by_markers(adata, markers=markers, groupby="leiden")
-print(adata.obs["cell_type_annotation"].value_counts())
+adata = annotate_by_markers(adata, marker_dict=markers)
+print(adata.obs["predicted_cell_type"].value_counts())
 
 # Find top marker genes per cluster
 markers_df = find_marker_genes(
@@ -844,13 +889,18 @@ print(markers_df.head(20))
 # Over-representation analysis
 ora_results = ora_test(
     gene_list=["CD14", "LYZ", "CST3", "FCN1"],
+    background=list(adata.var_names),
     gene_sets={"Myeloid": ["CD14", "LYZ", "CST3"], "Lymphoid": ["CD3D", "CD19"]},
 )
 
 # Transfer labels from a reference dataset
+# Genes are matched by name, not by column position: the reference and query
+# are intersected on `var_names` and subsetted in reference order. At least 10
+# shared genes are required, and any precomputed `X_pca` is ignored because
+# embeddings fitted on different datasets are not comparable.
 adata_query = transfer_labels(
-    reference=adata_ref,
-    query=adata_query,
+    reference_adata=adata_ref,
+    query_adata=adata_query,
     label_col="cell_type",
 )
 ```
@@ -968,8 +1018,10 @@ def my_analysis(adata):
     X = adata.obsm["X_pca"]
     return kmeans_clustering(X, n_clusters=8)
 
-result: BenchmarkResult = profile_method(my_analysis, adata)
-print(f"Wall time: {result.wall_time:.2f}s")
+# profile_method is a decorator: it wraps a callable, and the wrapper returns
+# BenchmarkResult(result, elapsed_seconds, peak_memory_mb).
+result: BenchmarkResult = profile_method(my_analysis)(adata)
+print(f"Wall time: {result.elapsed_seconds:.2f}s")
 print(f"Peak memory: {result.peak_memory_mb:.1f} MB")
 ```
 
@@ -982,12 +1034,14 @@ def analysis_fn(adata):
     from scintilla.clustering.kmeans import kmeans_clustering
     return kmeans_clustering(adata.obsm["X_pca"], n_clusters=8)
 
+# Signature is (method_fn, adata, ...); sizes are given as fractions of the
+# input, not absolute cell counts.
 results_df = scalability_sweep(
+    analysis_fn,
     adata,
-    func=analysis_fn,
-    cell_counts=[1000, 5000, 10000, 50000],
+    fractions=[0.1, 0.25, 0.5, 1.0],
 )
-print(results_df[["n_cells", "wall_time", "peak_memory_mb"]])
+print(results_df[["fraction", "n_cells", "elapsed_seconds", "peak_memory_mb"]])
 ```
 
 ### Seed-stability test
@@ -995,10 +1049,17 @@ print(results_df[["n_cells", "wall_time", "peak_memory_mb"]])
 ```python
 from scintilla import seed_stability_test
 
+# method_fn is called as method_fn(data, random_state=seed); metric_fn reduces
+# its return value to the single number whose stability is measured.
+from scintilla.clustering.kmeans import kmeans_clustering
+
 stability_df = seed_stability_test(
-    adata,
-    func=analysis_fn,
-    seeds=[0, 1, 2, 3, 42],
+    method_fn=lambda data, random_state: kmeans_clustering(
+        data.obsm["X_pca"], n_clusters=8, random_state=random_state
+    )[0],
+    data=adata,
+    metric_fn=lambda labels: float(len(set(labels))),
+    n_seeds=5,
     compute_icc=True,       # proper ICC(1,1) via pingouin (default)
     icc_method="pingouin",  # or "legacy" for original approximate formula
 )
@@ -1136,34 +1197,81 @@ scintilla classify --help
 
 ### Global constants (`scintilla/config.py`)
 
-Global numeric constants can be overridden at import time:
-
-```python
-import scintilla.config as cfg
-
-cfg.RANDOM_SEED = 0          # reproducibility seed
-cfg.DEFAULT_TEST_SIZE = 0.2  # train/test split fraction
-cfg.DEFAULT_N_PCA_COMPS = 50 # PCA components
-```
+These constants provide package defaults. Configure an analysis with
+`AnalysisConfig` or an individual function's public arguments rather than
+mutating `scintilla.config` after import: the constants are read once, when
+each module is imported, so reassigning `scintilla.config.RANDOM_SEED`
+afterwards has no effect on code that already imported it.
 
 | Constant | Default | Description |
 |---|---|---|
-| `RANDOM_SEED` | `42` | Global random seed |
+| `RANDOM_SEED` | `42` | Default random seed |
 | `DEFAULT_TEST_SIZE` | `0.2` | Train/test split fraction |
 | `DEFAULT_N_PCA_COMPS` | `30` | Default PCA components |
 | `DEFAULT_VARIANCE_THRESHOLD` | `0.80` | Variance explained threshold |
 | `DISTANCE_METRICS` | 7 metrics | Distance metrics for clustering grid search |
 | `LINKAGE_METHODS` | 4 methods | Linkage methods for hierarchical clustering |
-| `DBSCAN_EPS_RANGE` | 9 values | eps grid for DBSCAN |
+| `DBSCAN_EPS_RANGE` | 5 values | eps grid for DBSCAN |
 | `LEIDEN_RESOLUTIONS` | 8 values | Resolution sweep for Leiden / Louvain |
 | `HDBSCAN_MIN_CLUSTER_SIZE_RANGE` | `[10, 20, 50]` | `min_cluster_size` grid for HDBSCAN |
 | `HDBSCAN_MIN_SAMPLES_RANGE` | `[None, 5]` | `min_samples` grid for HDBSCAN |
 | `SPECTRAL_N_CLUSTERS_RANGE` | 9 values | Cluster count grid for Spectral |
-| `CLASSIFIER_SUITE` | 13 classifiers | All classifiers used in `supervised_analysis` |
-| `DE_METHODS` | 5 methods | All DE methods available |
 | `FEATURE_SELECTION_METHODS` | 6 methods | All feature-selection strategies |
 | `TRANSFORMATION_BENCHMARK_WEIGHTS` | 5 weights | Composite-score weights |
-| `BATCH_CORRECTION_WEIGHTS` | 2 weights | Batch-mixing / bio-conservation weights |
+
+### Reproducibility and seeding
+
+Every stochastic public function takes a `random_state` argument, and every
+pipeline entry point forwards its own `random_state` down to the methods it
+calls. This is the supported way to control seeding — it replaces the old
+advice to reassign `scintilla.config.RANDOM_SEED`, which never worked for the
+modules that had already imported the constant.
+
+```python
+import scintilla as si
+
+# Seed one call.
+result = si.unsupervised_analysis(adata, cell_type_col="cell_type", random_state=0)
+
+# Seed a whole analysis through the config.
+from scintilla import AnalysisConfig
+cfg = AnalysisConfig(random_seed=0)
+result = si.unsupervised_analysis(adata, cell_type_col="cell_type", config=cfg)
+
+# Sweep seeds to check a result is not an artefact of one draw.
+aris = [
+    si.unsupervised_analysis(
+        adata, cell_type_col="cell_type", random_state=seed, verbose=False
+    )["results_df"]["ari"].max()
+    for seed in range(10)
+]
+```
+
+Precedence is the same everywhere: **an explicit argument wins, then
+`config`, then the historical default**. Passing `random_state=None` is not a
+way to request "unseeded" — it means "not supplied", so the config value or
+the default applies.
+
+Functions exposing `random_state` include `run_pca`, `run_umap`, `run_tsne`,
+`run_diffusion_map`, `leiden_clustering`, `louvain_clustering`,
+`spectral_clustering`, `consensus_clustering`, `check_normality`,
+`rank_genes_groups`, `find_marker_genes`, `transfer_labels`,
+`harmony_correct`, `bbknn_correct`, `scanorama_correct`,
+`mi_feature_selection`, `boruta_selection`, `mrmr_selection`,
+`benchmark_transformations`, `benchmark_feature_selection`,
+`benchmark_clustering_methods`, `benchmark_batch_correction`,
+`benchmark_models_comprehensive`, `unsupervised_analysis` and
+`supervised_analysis`.
+
+> **Note on comparing against pre-0.2 results.** Several functions previously
+> relied on the scanpy/scikit-learn default seed rather than scINTILLA's, and
+> one silhouette computation was genuinely unseeded. Seeding them consistently
+> changes their numbers: `run_umap`, `run_tsne`, `run_diffusion_map`,
+> `run_force_directed`, `hvg_sensitivity_analysis`, `graph_connectivity`, the
+> internal PCA inside `harmony_correct`/`bbknn_correct`, and the silhouette
+> subsample in `benchmark_transformations` for datasets above 1 000 cells.
+> Clustering, classification, differential expression and feature selection are
+> unaffected — they already used seed 42.
 
 ---
 
@@ -1207,7 +1315,7 @@ cfg = AnalysisConfig.robust()
 | `verbose` | `True` | `True` | Verbose output |
 | `bootstrap_ci` | `False` | `False` | Enable BCa bootstrap confidence intervals |
 | `n_bootstrap` | `2000` | `2000` | Number of bootstrap resamples |
-| `scoring_method` | `"single_metric"` | `"single_metric"` | Benchmark scoring method |
+| `scoring_method` | `"weighted"` | `"weighted"` | Transformation scoring (`"weighted"`/`"borda"`); batch correction treats `"weighted"` as its `"single_metric"` default |
 | `auto_pca_components` | `None` | `None` | Adaptive PCA: `"gavish_donoho"` or `"marchenko_pastur"` |
 | `adaptive_resolution` | `False` | `False` | NVI-based adaptive resolution for Leiden/Louvain |
 | `auto_eps` | `False` | `False` | Data-driven DBSCAN eps estimation |
@@ -1363,7 +1471,7 @@ for name, res in cls_result["all_results"].items():
 from scintilla import wilcoxon_de, filter_de_genes
 
 de_df = wilcoxon_de(adata_hvg, group_col="cell_type", group1="Monocyte", group2="T Cell")
-sig_df = filter_de_genes(de_df, pvalue_cutoff=0.05, log2fc_cutoff=1.0)
+sig_df = filter_de_genes(de_df, alpha=0.05, log2fc_threshold=1.0)
 print(f"Significant DE genes: {len(sig_df)}")
 print(sig_df.head(10))
 ```

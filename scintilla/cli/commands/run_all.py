@@ -3,7 +3,7 @@
 
 def add_args(parser):
     parser.add_argument("input", help="Path to input file")
-    parser.add_argument("--target-col", required=True, help="Target/cell-type column in obs")
+    parser.add_argument("--target-col", default="cell_type", help="Target/cell-type column in obs")
     parser.add_argument("--output-dir", default="results", help="Output directory")
     parser.add_argument("--config", default=None, help="Path to a scintilla YAML config file")
     parser.add_argument("--fast", action="store_true", help="Use fast preset (fewer methods)")

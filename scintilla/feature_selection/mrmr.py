@@ -13,6 +13,7 @@ def mrmr_selection(
     X: np.ndarray,
     y: np.ndarray,
     n_features: int = 50,
+    random_state: int = RANDOM_SEED,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Select features using MRMR criterion.
 
@@ -46,13 +47,14 @@ def mrmr_selection(
         return selected_indices, scores
 
     except ImportError:
-        return _greedy_mi_mrmr(X, y, n_sel)
+        return _greedy_mi_mrmr(X, y, n_sel, random_state=random_state)
 
 
 def _greedy_mi_mrmr(
     X: np.ndarray,
     y: np.ndarray,
     n_features: int,
+    random_state: int = RANDOM_SEED,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Greedy MRMR approximation using mutual information."""
     from sklearn.feature_selection import mutual_info_classif  # noqa: PLC0415
@@ -61,7 +63,7 @@ def _greedy_mi_mrmr(
     # Subsample cells for speed — MI estimates are stable at 5000 cells
     max_cells = 5000
     if X.shape[0] > max_cells:
-        rng = np.random.default_rng(RANDOM_SEED)
+        rng = np.random.default_rng(random_state)
         idx_sub = rng.choice(X.shape[0], max_cells, replace=False)
         X_sub = X[idx_sub]
         y_sub = y[idx_sub]
@@ -70,7 +72,7 @@ def _greedy_mi_mrmr(
         y_sub = y
 
     n_total = X_sub.shape[1]
-    relevance = mutual_info_classif(X_sub, y_sub, random_state=RANDOM_SEED)
+    relevance = mutual_info_classif(X_sub, y_sub, random_state=random_state)
 
     # Pre-bin all features once to avoid recomputing inside inner loop.
     # Use 8 quantile bins to better capture bimodal distributions common

@@ -7,6 +7,8 @@ from typing import Callable, Optional
 import numpy as np
 import pandas as pd
 
+from scintilla.config import RANDOM_SEED
+
 
 def pairwise_method_comparison(
     results: pd.DataFrame,
@@ -16,7 +18,7 @@ def pairwise_method_comparison(
     predictions: Optional[dict] = None,
     test: str = "permutation",
     n_permutations: int = 1000,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> pd.DataFrame:
     """Pairwise significance tests between benchmark methods.
 

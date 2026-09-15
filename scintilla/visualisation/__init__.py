@@ -1,8 +1,5 @@
 """Visualisation sub-package."""
 
-import matplotlib
-matplotlib.use("Agg")
-
 from scintilla.visualisation.clustering_plots import (
     ari_benchmark_plot,
     dendrogram_plot,

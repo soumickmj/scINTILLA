@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Dict, Optional
 
 import numpy as np
@@ -62,21 +63,19 @@ def calculate_metrics(
     fdr = float(1.0 - prec)
     fnr = float(1.0 - rec)
 
-    # Additional metrics
-    try:
-        mcc = float(matthews_corrcoef(y_true, y_pred))
-    except Exception:
-        mcc = float("nan")
+    # Additional metrics.  Only the degenerate-input errors scikit-learn
+    # raises as ValueError become NaN, and each one is named in a warning;
+    # anything else is a genuine bug and propagates.
+    def _scalar_metric(name: str, fn) -> float:
+        try:
+            return float(fn(y_true, y_pred))
+        except ValueError as exc:
+            warnings.warn(f"{name} could not be computed: {exc}", stacklevel=2)
+            return float("nan")
 
-    try:
-        kappa = float(cohen_kappa_score(y_true, y_pred))
-    except Exception:
-        kappa = float("nan")
-
-    try:
-        bal_acc = float(balanced_accuracy_score(y_true, y_pred))
-    except Exception:
-        bal_acc = float("nan")
+    mcc = _scalar_metric("mcc", matthews_corrcoef)
+    kappa = _scalar_metric("cohen_kappa", cohen_kappa_score)
+    bal_acc = _scalar_metric("balanced_accuracy", balanced_accuracy_score)
 
     auroc = float("nan")
     auprc = float("nan")
@@ -128,8 +127,8 @@ def calculate_metrics(
                     bin_y = (y_true == cls).astype(int)
                     ap_list.append(average_precision_score(bin_y, y_prob_aligned[:, i]))
                 auprc = float(np.mean(ap_list))
-        except Exception:
-            pass
+        except (ValueError, IndexError) as exc:
+            warnings.warn(f"classification AUROC/AUPRC failed: {exc}", stacklevel=2)
 
     return {
         "accuracy": acc,

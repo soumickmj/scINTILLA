@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
 from scipy import stats
 
+from scintilla.config import RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -15,6 +17,7 @@ def check_normality_for_classifier(
     data: Union[pd.DataFrame, "anndata.AnnData"],
     target_col: str,
     alpha: float = 0.05,
+    random_state: int = RANDOM_SEED,
 ) -> bool:
     """Per-group Shapiro-Wilk normality test.
 
@@ -23,7 +26,6 @@ def check_normality_for_classifier(
     reproducibility) rather than always testing the first 20.
     """
     import anndata as ad  # noqa: PLC0415
-    from scintilla.config import RANDOM_SEED  # noqa: PLC0415
 
     adata = ensure_anndata(data, target_col=target_col)
     if target_col not in adata.obs.columns:
@@ -34,9 +36,10 @@ def check_normality_for_classifier(
     groups = adata.obs[target_col].values
     unique_groups = np.unique(groups)
 
-    rng = np.random.default_rng(RANDOM_SEED)
+    rng = np.random.default_rng(random_state)
     passed = 0
     total = 0
+    shapiro_error = None
     for grp in unique_groups:
         mask = groups == grp
         X_grp = X[mask, :]
@@ -51,8 +54,14 @@ def check_normality_for_classifier(
                 total += 1
                 if p > alpha:
                     passed += 1
-            except Exception:
-                pass
+            except ValueError as exc:
+                shapiro_error = shapiro_error or exc
+
+    if shapiro_error is not None:
+        warnings.warn(
+            f"Classifier Shapiro-Wilk probe failed: {shapiro_error}",
+            stacklevel=2,
+        )
 
     return (passed / max(total, 1)) > 0.5
 
@@ -78,7 +87,7 @@ def influential_cells(
     y_pred: np.ndarray,
     metric_fn=None,
     B: int = 2000,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> Dict:
     """Identify influential cells via jackknife-after-bootstrap.
 

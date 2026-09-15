@@ -5,10 +5,13 @@ from __future__ import annotations
 import anndata as ad
 import numpy as np
 
+from scintilla.config import RANDOM_SEED
+
 
 def scanorama_correct(
     adata: ad.AnnData,
     batch_key: str,
+    random_state: int = RANDOM_SEED,
 ) -> ad.AnnData:
     """Apply Scanorama batch correction.
 
@@ -18,6 +21,8 @@ def scanorama_correct(
         AnnData object.
     batch_key:
         Column in obs with batch labels.
+    random_state:
+        Random seed for Scanorama integration.
 
     Returns
     -------
@@ -34,7 +39,9 @@ def scanorama_correct(
     batches = adata.obs[batch_key].unique().tolist()
     adatas = [adata[adata.obs[batch_key] == b].copy() for b in batches]
 
-    corrected, _ = scanorama.correct_scanpy(adatas, return_dimred=True)
+    corrected = scanorama.correct_scanpy(
+        adatas, return_dimred=True, seed=random_state,
+    )
     # Reconstruct in original order
     import pandas as pd  # noqa: PLC0415
     order = []

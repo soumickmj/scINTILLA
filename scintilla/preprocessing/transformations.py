@@ -329,7 +329,8 @@ def pearson_residuals_transform(
 
 @register_transform("glm_pca_transform")
 def glm_pca_transform(
-    data: Union[pd.DataFrame, ad.AnnData], n_components: int = 50
+    data: Union[pd.DataFrame, ad.AnnData], n_components: int = 50,
+    random_state: int = RANDOM_SEED,
 ) -> ad.AnnData:
     """Poisson GLM-PCA approximation via TruncatedSVD on log1p-normalised data.
 
@@ -355,7 +356,7 @@ def glm_pca_transform(
     X_norm = np.log1p(X / lib_sizes * 1e4)
 
     n_c = min(n_components, X_norm.shape[0] - 1, X_norm.shape[1] - 1)
-    svd = TruncatedSVD(n_components=n_c, random_state=RANDOM_SEED)
+    svd = TruncatedSVD(n_components=n_c, random_state=random_state)
     Z = svd.fit_transform(X_norm)
 
     import anndata as ad  # noqa: PLC0415

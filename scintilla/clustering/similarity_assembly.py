@@ -23,6 +23,7 @@ def build_per_celltype_clustering(
     metric: str = "canberra",
     linkage: str = "complete",
     n_clusters: int = 3,
+    random_state: int = RANDOM_SEED,
 ) -> Dict[str, np.ndarray]:
     """Cluster patients within each cell type separately.
 
@@ -48,12 +49,11 @@ def build_per_celltype_clustering(
         nc = min(n_clusters, len(ct_df))
         if method == "hierarchical":
             from scintilla.clustering.hierarchical import hierarchical_sklearn  # noqa: PLC0415
-            try:
-                labels = hierarchical_sklearn(X, nc, metric=metric, linkage_method=linkage)
-            except Exception:
-                labels = KMeans(n_clusters=nc, random_state=RANDOM_SEED, n_init=5).fit_predict(X)
+            labels = hierarchical_sklearn(
+                X, nc, metric=metric, linkage_method=linkage,
+            )
         else:
-            labels = KMeans(n_clusters=nc, random_state=RANDOM_SEED, n_init=5).fit_predict(X)
+            labels = KMeans(n_clusters=nc, random_state=random_state, n_init=5).fit_predict(X)
 
         # Align labels to the full patients list; patients absent from this
         # cell type receive the sentinel value -1.
@@ -113,6 +113,7 @@ def patient_level_clustering(
     similarity_matrix: np.ndarray,
     n_clusters: int = 3,
     method: str = "mds_kmeans",
+    random_state: int = RANDOM_SEED,
 ) -> np.ndarray:
     """Cluster patients using the assembled similarity matrix.
 
@@ -127,11 +128,11 @@ def patient_level_clustering(
 
     if method == "mds_kmeans":
         n_comp = min(n_clusters + 1, dist.shape[0] - 1, 10)
-        mds = MDS(n_components=n_comp, dissimilarity="precomputed", random_state=RANDOM_SEED)
+        mds = MDS(n_components=n_comp, dissimilarity="precomputed", random_state=random_state)
         embedding = mds.fit_transform(dist)
-        labels = KMeans(n_clusters=n_clusters, random_state=RANDOM_SEED, n_init=10).fit_predict(embedding)
+        labels = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=10).fit_predict(embedding)
     else:
-        labels = KMeans(n_clusters=n_clusters, random_state=RANDOM_SEED, n_init=10).fit_predict(
+        labels = KMeans(n_clusters=n_clusters, random_state=random_state, n_init=10).fit_predict(
             similarity_matrix
         )
     return labels

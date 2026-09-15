@@ -76,17 +76,11 @@ def pseudobulk_de(
         bulk2 = _agg(cond2)
 
         if bulk1.shape[0] < 2 or bulk2.shape[0] < 2:
-            warnings.warn(
-                "Fewer than 2 biological replicates per condition; falling back "
-                "to cell-level Wilcoxon test. This conflates biological and "
-                "technical variation and may inflate false discoveries.",
-                UserWarning,
-                stacklevel=3,
+            raise ValueError(
+                "pseudobulk requires at least 2 biological samples per "
+                f"condition; got {cond1}={bulk1.shape[0]}, "
+                f"{cond2}={bulk2.shape[0]}"
             )
-            mask1 = conditions == cond1
-            mask2 = conditions == cond2
-            bulk1 = X[mask1]
-            bulk2 = X[mask2]
 
         n_genes = X.shape[1]
 
@@ -120,6 +114,17 @@ def pseudobulk_de(
         sub = adata[adata.obs[cell_type_col] == ct].copy()
         try:
             results[ct] = _run_de(sub)
-        except Exception:
-            results[ct] = pd.DataFrame()
+        except MemoryError:
+            raise
+        except Exception as exc:
+            warnings.warn(
+                f"Pseudobulk DE failed for cell type {ct!r}: {exc}",
+                UserWarning,
+                stacklevel=2,
+            )
+            failed = pd.DataFrame(columns=[
+                "gene", "statistic", "p_value", "p_adjusted", "log2fc",
+            ])
+            failed.attrs.update(status="failed", failure_reason=str(exc))
+            results[ct] = failed
     return results

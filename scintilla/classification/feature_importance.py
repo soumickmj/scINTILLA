@@ -17,6 +17,7 @@ def shap_analysis(
     X_test: np.ndarray,
     y_test: Optional[np.ndarray] = None,
     feature_names: Optional[List[str]] = None,
+    random_state: int = RANDOM_SEED,
 ) -> Tuple[Optional[np.ndarray], pd.DataFrame]:
     """Compute feature importance using SHAP (or permutation importance fallback).
 
@@ -47,7 +48,7 @@ def shap_analysis(
     try:
         import shap  # noqa: PLC0415
 
-        explainer = shap.Explainer(model, X_train)
+        explainer = shap.Explainer(model, X_train, seed=random_state)
         shap_values = explainer(X_test)
         # Take mean absolute SHAP values across samples and classes
         sv = shap_values.values
@@ -61,7 +62,7 @@ def shap_analysis(
         try:
             if y_test is None:
                 raise ValueError("y_test is required for permutation importance fallback.")
-            result = permutation_importance(model, X_test, y_test, n_repeats=5, random_state=RANDOM_SEED)
+            result = permutation_importance(model, X_test, y_test, n_repeats=5, random_state=random_state)
             importance = result.importances_mean
         except Exception:
             importance = np.zeros(n_features)

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Optional, Union
 
 import anndata as ad
@@ -34,17 +35,18 @@ from scintilla.classification.feature_importance import shap_analysis
 
 def supervised_analysis(
     data: Union[pd.DataFrame, ad.AnnData],
-    target_col: str = "target",
+    target_col: str = "cell_type",
     use_rep: Optional[str] = None,
     scale: bool = False,
     normality: Optional[bool] = None,
-    test_size: float = DEFAULT_TEST_SIZE,
-    include_shap: bool = True,
+    test_size: Optional[float] = None,
+    include_shap: Optional[bool] = None,
     check_consistency: bool = False,
     models: Optional[list] = None,
     n_jobs: int = 1,
-    verbose: bool = True,
+    verbose: Optional[bool] = None,
     config=None,
+    random_state: Optional[int] = None,
 ) -> dict:
     """Full supervised analysis pipeline with decision logic.
 
@@ -74,6 +76,13 @@ def supervised_analysis(
     from scintilla.preprocessing.normality import check_normality  # noqa: PLC0415
     from scintilla.preprocessing.transformations import box_cox_transform  # noqa: PLC0415
 
+    if random_state is None:
+        random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
+    if test_size is None:
+        test_size = getattr(config, "test_size", DEFAULT_TEST_SIZE) if config is not None else DEFAULT_TEST_SIZE
+    if verbose is None:
+        verbose = getattr(config, "verbose", True) if config is not None else True
+
     adata = ensure_anndata(data, target_col=target_col)
     if target_col not in adata.obs.columns:
         raise KeyError(f"Column '{target_col}' not found in obs.")
@@ -89,7 +98,7 @@ def supervised_analysis(
     if normality is None:
         if verbose:
             print("Checking normality...")
-        normality, _ = check_normality(adata)
+        normality, _ = check_normality(adata, random_state=random_state)
 
     if not normality:
         if verbose:
@@ -100,7 +109,9 @@ def supervised_analysis(
             X_bc = X_bc.astype(np.float64)
             adata_test = adata.copy()
             adata_test.X = X_bc
-            normality, _ = check_normality(adata_test)
+            normality, _ = check_normality(
+                adata_test, random_state=random_state,
+            )
             if normality:
                 X = X_bc
                 if verbose:
@@ -109,7 +120,7 @@ def supervised_analysis(
             pass
 
     X_tr, X_te, y_tr, y_te = train_test_split(
-        X, y, test_size=test_size, random_state=RANDOM_SEED, stratify=y
+        X, y, test_size=test_size, random_state=random_state, stratify=y
     )
 
     if scale:
@@ -130,17 +141,10 @@ def supervised_analysis(
         "StackingEnsemble": stacking_ensemble_classification,
     }
 
-    # Optional models
-    try:
-        from scintilla.classification.models import xgboost_classification  # noqa: PLC0415
-        all_model_fns["XGBoost"] = xgboost_classification
-    except Exception:
-        pass
-    try:
-        from scintilla.classification.models import lightgbm_classification  # noqa: PLC0415
-        all_model_fns["LightGBM"] = lightgbm_classification
-    except Exception:
-        pass
+    # Optional models: offered only when their backend is installed, so a
+    # missing xgboost/lightgbm is an omission rather than a failed row.
+    from scintilla.classification.benchmark import _resolve_optional_models  # noqa: PLC0415
+    all_model_fns.update(_resolve_optional_models())
 
     # Resolve which models to run: explicit param > config > all
     _selected_models = models
@@ -149,15 +153,22 @@ def supervised_analysis(
     if _selected_models is not None:
         all_model_fns = {k: v for k, v in all_model_fns.items() if k in _selected_models}
 
-    # Resolve include_shap from config when not explicitly overridden
-    if config is not None and not include_shap:
-        include_shap = getattr(config, "include_shap", include_shap)
+    # Resolve include_shap: explicit argument > config > historical default.
+    if include_shap is None:
+        include_shap = getattr(config, "include_shap", True) if config is not None else True
 
     def _run_one(name, fn, X_tr, X_te, y_tr, y_te):
         try:
-            model, metrics = fn(X_tr, X_te, y_tr, y_te)
+            stochastic_models = {
+                "LogReg", "RF", "SVM", "MLP", "XGBoost", "LightGBM",
+                "GradientBoosting", "StackingEnsemble",
+            }
+            kwargs = {"random_state": random_state} if name in stochastic_models else {}
+            model, metrics = fn(X_tr, X_te, y_tr, y_te, **kwargs)
             return name, {"model": model, "metrics": metrics}, None
-        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as e:
+        except MemoryError:
+            raise
+        except Exception as e:
             return name, None, str(e)
 
     all_results = {}
@@ -171,8 +182,14 @@ def supervised_analysis(
                 all_results[name] = result
                 if verbose:
                     print(f"  {name}: accuracy={result['metrics'].get('accuracy', 'N/A'):.3f}")
-            elif verbose:
-                print(f"  {name} failed: {err}")
+            else:
+                all_results[name] = {
+                    "status": "failed", "failure_reason": err,
+                    "model": None, "metrics": {},
+                }
+                warnings.warn(f"{name} failed: {err}", stacklevel=2)
+                if verbose:
+                    print(f"  {name} failed: {err}")
         pbar.close()
     else:
         from joblib import Parallel, delayed  # noqa: PLC0415
@@ -187,13 +204,21 @@ def supervised_analysis(
                 all_results[name] = result
                 if verbose:
                     print(f"  {name}: accuracy={result['metrics'].get('accuracy', 'N/A'):.3f}")
-            elif verbose:
-                print(f"  {name} failed: {err}")
+            else:
+                all_results[name] = {
+                    "status": "failed", "failure_reason": err,
+                    "model": None, "metrics": {},
+                }
+                warnings.warn(f"{name} failed: {err}", stacklevel=2)
+                if verbose:
+                    print(f"  {name} failed: {err}")
 
     # Pick best model by F1
     best_name = None
     best_f1 = -1.0
     for name, res in all_results.items():
+        if res.get("status") == "failed":
+            continue
         f1 = res["metrics"].get("f1", 0.0) or 0.0
         if f1 > best_f1:
             best_f1 = f1
@@ -206,7 +231,10 @@ def supervised_analysis(
     if include_shap and best_model is not None:
         try:
             feat_names = list(adata.var_names) if adata.var_names is not None else None
-            _, feature_importances = shap_analysis(best_model, X_tr, X_te, y_te, feature_names=feat_names)
+            _, feature_importances = shap_analysis(
+                best_model, X_tr, X_te, y_te, feature_names=feat_names,
+                random_state=random_state,
+            )
         except Exception as e:
             if verbose:
                 print(f"  Feature importance failed: {e}")
@@ -227,6 +255,8 @@ def supervised_analysis(
         prob_dict = {}    # model_name -> (n_cells, n_classes) prob array
 
         for name, res in all_results.items():
+            if res.get("status") == "failed":
+                continue
             model = res["model"]
             try:
                 # Some models (XGBoost/LightGBM) use encoded labels internally

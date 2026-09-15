@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -93,17 +94,28 @@ def hdbscan_clustering(
                     "min_samples": ms,
                     "n_clusters": n_clusters,
                     "n_noise": n_noise,
+                    "status": "ok",
                 })
                 score = n_clusters - n_noise / (X.shape[0] + 1)
                 if score > best_score:
                     best_score = score
                     best_labels = labels
-            except Exception:
+            except MemoryError:
+                raise
+            except Exception as exc:
+                warnings.warn(
+                    "HDBSCAN grid point failed "
+                    f"(min_cluster_size={mcs}, min_samples={ms}): {exc}",
+                    UserWarning,
+                    stacklevel=2,
+                )
                 records.append({
                     "min_cluster_size": mcs,
                     "min_samples": ms,
-                    "n_clusters": 0,
-                    "n_noise": X.shape[0],
+                    "n_clusters": np.nan,
+                    "n_noise": np.nan,
+                    "status": "failed",
+                    "failure_reason": str(exc),
                 })
 
     results_df = pd.DataFrame(records)

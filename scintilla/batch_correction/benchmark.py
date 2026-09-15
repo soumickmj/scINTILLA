@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from scintilla.batch_correction.metrics import batch_asw, bio_conservation_score
+from scintilla.config import RANDOM_SEED
 
 
 def benchmark_batch_correction(
@@ -15,8 +16,10 @@ def benchmark_batch_correction(
     batch_key: str,
     label_key: Optional[str] = None,
     methods: Optional[List[str]] = None,
-    n_pcs: int = 30,
-    scoring_method: str = "single_metric",
+    n_pcs: Optional[int] = None,
+    scoring_method: Optional[str] = None,
+    config=None,
+    random_state: Optional[int] = None,
 ) -> Dict:
     """Benchmark batch correction methods.
 
@@ -38,20 +41,55 @@ def benchmark_batch_correction(
         batch_asw **and** bio-conservation (requires *label_key*).
         ``"pareto"`` identifies Pareto-optimal methods (batch_asw vs
         bio-conservation).
+    config:
+        Optional :class:`~scintilla.analysis_config.AnalysisConfig`.
+    random_state:
+        Random seed.  Explicit input overrides ``config.random_seed``.
 
     Returns
     -------
     dict with leaderboard (DataFrame), best_method (str), corrected_adatas (dict)
     """
+    if n_pcs is None:
+        n_pcs = getattr(config, "n_pca_comps", 30) if config is not None else 30
+    if scoring_method is None:
+        scoring_method = (
+            getattr(config, "scoring_method", "single_metric")
+            if config is not None else "single_metric"
+        )
+    scoring_method = {
+        "weighted": "single_metric",
+        "borda": "rank_aggregate",
+    }.get(scoring_method, scoring_method)
+    if scoring_method not in {"single_metric", "rank_aggregate", "pareto"}:
+        raise ValueError(
+            "Unknown batch scoring_method "
+            f"{scoring_method!r}; expected 'single_metric', "
+            "'rank_aggregate'/'borda', or 'pareto'"
+        )
+    if random_state is None:
+        random_state = (
+            getattr(config, "random_seed", RANDOM_SEED)
+            if config is not None else RANDOM_SEED
+        )
     if methods is None:
         methods = ["combat", "harmony", "bbknn", "scanorama"]
+    if not methods:
+        # Without this the leaderboard is a columnless DataFrame and scoring
+        # fails later with an opaque KeyError('batch_asw').
+        raise ValueError(
+            "benchmark_batch_correction requires at least one batch correction "
+            "method; got an empty list"
+        )
 
     records = []
     corrected_adatas: Dict = {}
 
     for method in methods:
         try:
-            adata_corr = _apply_method(adata, method, batch_key, n_pcs)
+            adata_corr = _apply_method(
+                adata, method, batch_key, n_pcs, random_state,
+            )
             asw = batch_asw(adata_corr, batch_key, label_key)
             row: Dict = {"method": method, "batch_asw": asw, "status": "ok"}
 
@@ -69,7 +107,7 @@ def benchmark_batch_correction(
     leaderboard = pd.DataFrame(records)
 
     # ---- Scoring / ranking ------------------------------------
-    if scoring_method == "rank_aggregate" and label_key is not None and "bio_conservation" in leaderboard.columns:
+    if scoring_method in {"rank_aggregate", "borda"} and label_key is not None and "bio_conservation" in leaderboard.columns:
         from scintilla.statistical_tests.rank_aggregation import borda_count  # noqa: PLC0415
 
         score_cols = ["batch_asw", "bio_conservation"]
@@ -101,19 +139,33 @@ def benchmark_batch_correction(
     }
 
 
-def _apply_method(adata, method: str, batch_key: str, n_pcs: int):
+def _apply_method(
+    adata, method: str, batch_key: str, n_pcs: int, random_state: int,
+):
     if method == "combat":
         from scintilla.batch_correction.combat import combat_correct  # noqa: PLC0415
         return combat_correct(adata, batch_key=batch_key)
     elif method == "harmony":
         from scintilla.batch_correction.harmony import harmony_correct  # noqa: PLC0415
-        return harmony_correct(adata, batch_key=batch_key, n_components=n_pcs)
+        return harmony_correct(
+            adata,
+            batch_key=batch_key,
+            n_components=n_pcs,
+            random_state=random_state,
+        )
     elif method == "bbknn":
         from scintilla.batch_correction.bbknn import bbknn_correct  # noqa: PLC0415
-        return bbknn_correct(adata, batch_key=batch_key, n_pcs=n_pcs)
+        return bbknn_correct(
+            adata,
+            batch_key=batch_key,
+            n_pcs=n_pcs,
+            random_state=random_state,
+        )
     elif method == "scanorama":
         from scintilla.batch_correction.scanorama import scanorama_correct  # noqa: PLC0415
-        return scanorama_correct(adata, batch_key=batch_key)
+        return scanorama_correct(
+            adata, batch_key=batch_key, random_state=random_state,
+        )
     else:
         raise ValueError(f"Unknown method: {method}")
 

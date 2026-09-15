@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Optional
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -17,6 +15,7 @@ def plot_batch_correction_comparison(
     adata_after,
     batch_key: str,
     cell_type_key: Optional[str] = None,
+    random_state: int = RANDOM_SEED,
 ) -> plt.Figure:
     """Show data distribution before and after batch correction.
 
@@ -46,7 +45,7 @@ def plot_batch_correction_comparison(
             return adata.obsm["X_pca"][:, :2]
         else:
             X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
-            pca = PCA(n_components=2, random_state=RANDOM_SEED)
+            pca = PCA(n_components=2, random_state=random_state)
             return pca.fit_transform(X.astype(np.float64))
 
     n_cols = 4 if cell_type_key else 2

@@ -12,6 +12,8 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 import numpy as np
 from scipy import stats as sp_stats
 
+from scintilla.config import RANDOM_SEED
+
 
 # ---------------------------------------------------------------------------
 # BCa bootstrap confidence interval
@@ -22,7 +24,7 @@ def bca_bootstrap_ci(
     stat_fn: Callable[[np.ndarray], float],
     B: int = 2000,
     alpha: float = 0.05,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
     method: str = "bca",
 ) -> Dict[str, float]:
     """Bias-corrected and accelerated (BCa) bootstrap confidence interval.
@@ -128,7 +130,7 @@ def bootstrap_metric_ci(
     metric_fn: Callable[[np.ndarray, np.ndarray], float],
     B: int = 2000,
     alpha: float = 0.05,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> Dict[str, float]:
     """Bootstrap CI for a metric computed on *(y_true, y_pred)* pairs.
 
@@ -171,7 +173,7 @@ def paired_bootstrap_test(
     pred_b: np.ndarray,
     metric_fn: Callable[[np.ndarray, np.ndarray], float],
     B: int = 2000,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> Dict[str, float]:
     """Paired bootstrap test for comparing two sets of predictions.
 
@@ -247,7 +249,7 @@ def dot632plus_bootstrap(
     y: np.ndarray,
     metric_fn: Callable[[np.ndarray, np.ndarray], float],
     B: int = 200,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
     no_info_method: str = "analytical",
     n_permutations: int = 50,
 ) -> Dict[str, float]:
@@ -363,7 +365,7 @@ def jackknife_after_bootstrap(
     data: np.ndarray,
     stat_fn: Callable[[np.ndarray], float],
     B: int = 2000,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> Dict[str, Any]:
     """Jackknife-after-bootstrap to identify influential observations.
 
@@ -423,7 +425,7 @@ def bootstrap_resample_metrics(
     values: np.ndarray,
     B: int = 2000,
     alpha: float = 0.05,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> Dict[str, float]:
     """Bootstrap a 1-D array of metric values (e.g. per-seed scores).
 

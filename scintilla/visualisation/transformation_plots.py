@@ -1,7 +1,5 @@
 """Visualisation of data distributions before and after transformation."""
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import anndata as ad

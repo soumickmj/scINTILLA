@@ -16,6 +16,7 @@ def louvain_clustering(
     data: Union[pd.DataFrame, ad.AnnData],
     resolution: float = 1.0,
     use_rep: str = "X_pca",
+    random_state: int = RANDOM_SEED,
 ) -> np.ndarray:
     """Run Louvain clustering via scanpy.
 
@@ -49,10 +50,10 @@ def louvain_clustering(
 
     if use_rep not in adata.obsm:
         import scintilla.preprocessing.pca as pca_mod  # noqa: PLC0415
-        adata = pca_mod.run_pca(adata)
+        adata = pca_mod.run_pca(adata, random_state=random_state)
         use_rep = "X_pca"
 
-    sc.pp.neighbors(adata, use_rep=use_rep, random_state=RANDOM_SEED)
-    sc.tl.louvain(adata, resolution=resolution, random_state=RANDOM_SEED)
+    sc.pp.neighbors(adata, use_rep=use_rep, random_state=random_state)
+    sc.tl.louvain(adata, resolution=resolution, random_state=random_state)
     labels = adata.obs["louvain"].astype(int).values
     return labels

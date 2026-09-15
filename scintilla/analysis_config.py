@@ -271,7 +271,8 @@ verbose: true
 bootstrap_ci: false
 # Number of bootstrap replicates.
 n_bootstrap: 2000
-# Scoring method for benchmarks: "weighted" (default), "borda".
+# Shared benchmark scoring: transformation uses "weighted"/"borda"; batch
+# correction maps these to "single_metric"/"rank_aggregate" respectively.
 scoring_method: weighted
 # Data-adaptive PCA component selection: null, "gavish_donoho", "marchenko_pastur".
 auto_pca_components: null

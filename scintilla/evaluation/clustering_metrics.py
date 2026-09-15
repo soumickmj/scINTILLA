@@ -11,6 +11,7 @@ from sklearn.metrics import adjusted_rand_score as _ari
 from sklearn.metrics import silhouette_score as _sil
 
 from scintilla.clustering.utils import map_clusters_to_labels
+from scintilla.config import RANDOM_SEED
 
 
 def adjusted_rand_index(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
@@ -140,7 +141,7 @@ def comprehensive_clustering_metrics(
     pred_labels: np.ndarray,
     bootstrap_ci: bool = False,
     n_bootstrap: int = 2000,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> dict:
     """Compute all clustering metrics.
 
@@ -195,7 +196,7 @@ def bootstrap_clustering_metrics(
     pred_labels: np.ndarray,
     B: int = 2000,
     alpha: float = 0.05,
-    seed: int = 42,
+    seed: int = RANDOM_SEED,
 ) -> dict:
     """Bootstrap confidence intervals for clustering metrics.
 

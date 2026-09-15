@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Dict, Optional, Tuple, Union
 
 import anndata as ad
@@ -9,8 +10,6 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import adjusted_mutual_info_score, adjusted_rand_score
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from tqdm.auto import tqdm
@@ -38,8 +37,9 @@ def benchmark_clustering_methods(
     resolution_selection: str = "best_ari",
     auto_eps: bool = False,
     n_jobs: int = 1,
-    verbose: bool = True,
+    verbose: Optional[bool] = None,
     config=None,
+    random_state: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, np.ndarray], plt.Figure]:
     """Benchmark multiple clustering methods using ARI against true labels.
 
@@ -73,6 +73,11 @@ def benchmark_clustering_methods(
     fig : matplotlib Figure
     """
     adata = ensure_anndata(data)
+
+    if random_state is None:
+        random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
+    if verbose is None:
+        verbose = getattr(config, "verbose", True) if config is not None else True
 
     if cell_type_col not in adata.obs.columns:
         raise KeyError(f"Column '{cell_type_col}' not found in obs.")
@@ -116,36 +121,75 @@ def benchmark_clustering_methods(
         return {
             "method": method, "params": params, "ari": ari, "ami": ami,
             "n_clusters": n_found, "noise_fraction": round(noise_frac, 4),
+            "status": "ok",
         }, labels
+
+    def _failure(method, params, exc):
+        warnings.warn(f"{method} {params} failed: {exc}", stacklevel=3)
+        return {
+            "method": method,
+            "params": params,
+            "status": "failed",
+            "failure_reason": str(exc),
+            "ari": np.nan,
+            "ami": np.nan,
+            "n_clusters": np.nan,
+            "noise_fraction": np.nan,
+        }
+
+    def _skipped(method, reason):
+        """Row for a method the environment cannot offer at all.
+
+        An uninstalled optional backend is not a failure of the method: it
+        never ran.  Keeping it distinct from status="failed" means a genuine
+        error is not hidden among missing-dependency noise, and no warning is
+        emitted for a choice the user already made at install time.
+        """
+        return {
+            "method": method,
+            "params": "unavailable",
+            "status": "skipped",
+            "failure_reason": reason,
+            "ari": np.nan,
+            "ami": np.nan,
+            "n_clusters": np.nan,
+            "noise_fraction": np.nan,
+        }
 
     # ── Define each method group as a callable ──────────────────────
     def _run_kmeans():
         recs, lbls = [], {}
         for init in ["k-means++", "random"]:
             try:
-                lbl, _, _ = kmeans_clustering(X, n_clusters, init=init)
+                lbl, _, _ = kmeans_clustering(
+                    X, n_clusters, init=init, random_state=random_state,
+                )
                 rec, lbl = _score("KMeans", f"init={init}", lbl)
                 recs.append(rec); lbls[f"KMeans_init={init}"] = lbl
             except MemoryError:
                 raise
-            except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-                pass
+            except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+                recs.append(_failure("KMeans", f"init={init}", exc))
         try:
-            lbl, _, _ = kmeans_clustering(X, n_clusters, spherical=True)
+            lbl, _, _ = kmeans_clustering(
+                X, n_clusters, spherical=True, random_state=random_state,
+            )
             rec, lbl = _score("KMeans_spherical", "spherical=True", lbl)
             recs.append(rec); lbls["KMeans_spherical_spherical=True"] = lbl
         except MemoryError:
             raise
-        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-            pass
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+            recs.append(_failure("KMeans_spherical", "spherical=True", exc))
         try:
-            lbl, _, _ = kmeans_clustering(X, n_clusters, bisecting=True)
+            lbl, _, _ = kmeans_clustering(
+                X, n_clusters, bisecting=True, random_state=random_state,
+            )
             rec, lbl = _score("KMeans_bisecting", "bisecting=True", lbl)
             recs.append(rec); lbls["KMeans_bisecting_bisecting=True"] = lbl
         except MemoryError:
             raise
-        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-            pass
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+            recs.append(_failure("KMeans_bisecting", "bisecting=True", exc))
         return recs, lbls
 
     def _run_hierarchical():
@@ -153,7 +197,16 @@ def benchmark_clustering_methods(
         for metric in DISTANCE_METRICS:
             for lnk in LINKAGE_METHODS:
                 if lnk == "ward" and metric != "euclidean":
-                    recs.append({"method": "Hierarchical", "params": f"{metric}/{lnk}", "ari": np.nan, "ami": np.nan, "n_clusters": np.nan})
+                    recs.append({
+                        "method": "Hierarchical",
+                        "params": f"{metric}/{lnk}",
+                        "status": "skipped",
+                        "failure_reason": "ward linkage requires euclidean distance",
+                        "ari": np.nan,
+                        "ami": np.nan,
+                        "n_clusters": np.nan,
+                        "noise_fraction": np.nan,
+                    })
                     continue
                 try:
                     lbl = hierarchical_sklearn(X, n_clusters, metric=metric, linkage_method=lnk)
@@ -161,8 +214,8 @@ def benchmark_clustering_methods(
                     recs.append(rec); lbls[f"Hierarchical_{metric}/{lnk}"] = lbl
                 except MemoryError:
                     raise
-                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-                    recs.append({"method": "Hierarchical", "params": f"{metric}/{lnk}", "ari": np.nan, "ami": np.nan, "n_clusters": np.nan})
+                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+                    recs.append(_failure("Hierarchical", f"{metric}/{lnk}", exc))
         return recs, lbls
 
     def _run_dbscan():
@@ -181,8 +234,10 @@ def benchmark_clustering_methods(
                     recs.append(rec); lbls[f"DBSCAN_eps={eps},min_samples={minsamp}"] = lbl
                 except MemoryError:
                     raise
-                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-                    pass
+                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+                    recs.append(_failure(
+                        "DBSCAN", f"eps={eps},min_samples={minsamp}", exc,
+                    ))
         return recs, lbls
 
     def _run_leiden():
@@ -196,7 +251,10 @@ def benchmark_clustering_methods(
             if adaptive_resolution:
                 from scintilla.statistical_tests.adaptive import adaptive_resolution_search  # noqa: PLC0415
                 def _rl(res):
-                    return leiden_clustering(adata, resolution=res, use_rep=use_rep)
+                    return leiden_clustering(
+                        adata, resolution=res, use_rep=use_rep,
+                        random_state=random_state,
+                    )
                 def _ml(labels):
                     valid = labels[labels != -1]
                     tv = true_labels[labels != -1]
@@ -210,23 +268,37 @@ def benchmark_clustering_methods(
                 from scintilla.statistical_tests.adaptive import nvi_stability  # noqa: PLC0415
                 for res in _leiden_res:
                     try:
-                        lbl = leiden_clustering(adata, resolution=res, use_rep=use_rep)
-                        rec, lbl = _score("Leiden", f"resolution={res}", lbl)
-                        recs.append(rec); lbls[f"Leiden_resolution={res}"] = lbl
-                    except Exception:
-                        pass
-            else:
-                for res in _leiden_res:
-                    try:
-                        lbl = leiden_clustering(adata, resolution=res, use_rep=use_rep)
+                        lbl = leiden_clustering(
+                            adata, resolution=res, use_rep=use_rep,
+                            random_state=random_state,
+                        )
                         rec, lbl = _score("Leiden", f"resolution={res}", lbl)
                         recs.append(rec); lbls[f"Leiden_resolution={res}"] = lbl
                     except MemoryError:
                         raise
-                    except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-                        pass
-        except ImportError:
-            pass
+                    except Exception as exc:
+                        warnings.warn(f"Leiden failed: {exc}", stacklevel=2)
+                        recs.append({
+                            "method": "Leiden", "params": f"resolution={res}",
+                            "status": "failed", "failure_reason": str(exc),
+                            "ari": np.nan, "ami": np.nan,
+                            "n_clusters": np.nan, "noise_fraction": np.nan,
+                        })
+            else:
+                for res in _leiden_res:
+                    try:
+                        lbl = leiden_clustering(
+                            adata, resolution=res, use_rep=use_rep,
+                            random_state=random_state,
+                        )
+                        rec, lbl = _score("Leiden", f"resolution={res}", lbl)
+                        recs.append(rec); lbls[f"Leiden_resolution={res}"] = lbl
+                    except MemoryError:
+                        raise
+                    except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+                        recs.append(_failure("Leiden", f"resolution={res}", exc))
+        except ImportError as exc:
+            recs.append(_skipped("Leiden", str(exc)))
         return recs, lbls
 
     def _run_hdbscan():
@@ -246,8 +318,10 @@ def benchmark_clustering_methods(
             recs.append(rec); lbls["HDBSCAN_best"] = lbl
         except MemoryError:
             raise
-        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-            pass
+        except ImportError as exc:
+            recs.append(_skipped("HDBSCAN", str(exc)))
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+            recs.append(_failure("HDBSCAN", "best", exc))
         return recs, lbls
 
     def _run_louvain():
@@ -260,15 +334,18 @@ def benchmark_clustering_methods(
                 _louv_res = config.louvain_resolutions
             for res in _louv_res:
                 try:
-                    lbl = louvain_clustering(adata, resolution=res, use_rep=use_rep)
+                    lbl = louvain_clustering(
+                        adata, resolution=res, use_rep=use_rep,
+                        random_state=random_state,
+                    )
                     rec, lbl = _score("Louvain", f"resolution={res}", lbl)
                     recs.append(rec); lbls[f"Louvain_resolution={res}"] = lbl
                 except MemoryError:
                     raise
-                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-                    pass
-        except ImportError:
-            pass
+                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+                    recs.append(_failure("Louvain", f"resolution={res}", exc))
+        except ImportError as exc:
+            recs.append(_skipped("Louvain", str(exc)))
         return recs, lbls
 
     def _run_spectral():
@@ -281,30 +358,39 @@ def benchmark_clustering_methods(
                 nc_vals = config.spectral_n_clusters_range
             for nc in nc_vals:
                 try:
-                    lbl, _, _ = spectral_clustering(X, n_clusters=nc)
+                    lbl, _, _ = spectral_clustering(
+                        X, n_clusters=nc, random_state=random_state,
+                    )
                     rec, lbl = _score("Spectral", f"n_clusters={nc}", lbl)
                     recs.append(rec); lbls[f"Spectral_n_clusters={nc}"] = lbl
                 except MemoryError:
                     raise
-                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-                    pass
+                except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+                    recs.append(_failure("Spectral", f"n_clusters={nc}", exc))
         except MemoryError:
             raise
-        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-            pass
+        except ImportError as exc:
+            recs.append(_skipped("Spectral", str(exc)))
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+            recs.append(_failure("Spectral", "unavailable", exc))
         return recs, lbls
 
     def _run_consensus():
         recs, lbls = [], {}
         try:
             from scintilla.clustering.consensus import consensus_clustering  # noqa: PLC0415
-            _, lbl, _ = consensus_clustering(adata, methods=["kmeans"], n_runs_per_method=3)
+            _, lbl, _ = consensus_clustering(
+                adata, methods=["kmeans"], n_runs_per_method=3,
+                random_state=random_state,
+            )
             rec, lbl = _score("Consensus", "kmeans", lbl)
             recs.append(rec); lbls["Consensus_kmeans"] = lbl
         except MemoryError:
             raise
-        except (ImportError, RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
-            pass
+        except ImportError as exc:
+            recs.append(_skipped("Consensus", str(exc)))
+        except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
+            recs.append(_failure("Consensus", "kmeans", exc))
         return recs, lbls
 
     # ── Build task list and execute ─────────────────────────────────

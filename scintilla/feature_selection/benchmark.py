@@ -11,7 +11,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
-from scintilla.config import RANDOM_SEED
+from scintilla.config import RANDOM_SEED, DEFAULT_TEST_SIZE
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -19,8 +19,10 @@ def benchmark_feature_selection(
     adata: Union[pd.DataFrame, ad.AnnData],
     target_col: str,
     methods: Optional[List[str]] = None,
-    n_features: int = 50,
+    n_features: Optional[int] = None,
     config=None,
+    test_size: Optional[float] = None,
+    random_state: Optional[int] = None,
 ) -> pd.DataFrame:
     """Benchmark feature selection methods by downstream classification accuracy.
 
@@ -52,8 +54,12 @@ def benchmark_feature_selection(
         else:
             methods = ["pca_loadings", "mutual_information"]
 
-    if config is not None and hasattr(config, "n_features") and n_features == 50:
-        n_features = config.n_features
+    if n_features is None:
+        n_features = getattr(config, "n_features", 50) if config is not None else 50
+    if test_size is None:
+        test_size = getattr(config, "test_size", DEFAULT_TEST_SIZE) if config is not None else DEFAULT_TEST_SIZE
+    if random_state is None:
+        random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
 
     adata = ensure_anndata(adata, target_col=target_col)
     X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
@@ -61,14 +67,14 @@ def benchmark_feature_selection(
     y = adata.obs[target_col].values
 
     X_tr, X_te, y_tr, y_te = train_test_split(
-        X, y, test_size=0.2, random_state=RANDOM_SEED, stratify=y
+        X, y, test_size=test_size, random_state=random_state, stratify=y
     )
 
     records = []
 
     def _eval(X_tr_sel, X_te_sel, method_name):
         try:
-            clf = LogisticRegression(max_iter=500, random_state=RANDOM_SEED, solver="lbfgs")
+            clf = LogisticRegression(max_iter=500, random_state=random_state, solver="lbfgs")
             clf.fit(X_tr_sel, y_tr)
             y_pred = clf.predict(X_te_sel)
             acc = float(accuracy_score(y_te, y_pred))
@@ -88,7 +94,7 @@ def benchmark_feature_selection(
                 from scintilla.feature_selection.pca_loadings import extract_top_genes_per_pc  # noqa: PLC0415
                 from sklearn.decomposition import PCA  # noqa: PLC0415
                 n_c = min(10, X_tr.shape[0] - 1, X_tr.shape[1] - 1)
-                pca = PCA(n_components=n_c, random_state=RANDOM_SEED)
+                pca = PCA(n_components=n_c, random_state=random_state)
                 pca.fit(X_tr)
                 # Use top n_features by loading magnitude
                 loadings = np.abs(pca.components_).sum(axis=0)
@@ -97,12 +103,16 @@ def benchmark_feature_selection(
 
             elif method == "mutual_information":
                 from scintilla.feature_selection.mutual_information import mi_feature_selection  # noqa: PLC0415
-                idx, _ = mi_feature_selection(X_tr, y_tr, n_features=n_features)
+                idx, _ = mi_feature_selection(
+                    X_tr, y_tr, n_features=n_features, random_state=random_state,
+                )
                 _eval(X_tr[:, idx], X_te[:, idx], method)
 
             elif method == "boruta":
                 from scintilla.feature_selection.boruta import boruta_selection  # noqa: PLC0415
-                mask, _ = boruta_selection(X_tr, y_tr, n_estimators=50)
+                mask, _ = boruta_selection(
+                    X_tr, y_tr, n_estimators=50, random_state=random_state,
+                )
                 idx = np.where(mask)[0]
                 if len(idx) == 0:
                     idx = np.arange(min(n_features, X_tr.shape[1]))
@@ -110,7 +120,9 @@ def benchmark_feature_selection(
 
             elif method == "mrmr":
                 from scintilla.feature_selection.mrmr import mrmr_selection  # noqa: PLC0415
-                idx, _ = mrmr_selection(X_tr, y_tr, n_features=n_features)
+                idx, _ = mrmr_selection(
+                    X_tr, y_tr, n_features=n_features, random_state=random_state,
+                )
                 _eval(X_tr[:, idx], X_te[:, idx], method)
 
             else:
@@ -131,6 +143,7 @@ def hvg_sensitivity_analysis(
     n_top_genes_values: Optional[List[int]] = None,
     clustering_method: str = "leiden",
     resolution: float = 1.0,
+    random_state: int = RANDOM_SEED,
 ) -> pd.DataFrame:
     """Evaluate clustering robustness across different HVG counts.
 
@@ -173,12 +186,22 @@ def hvg_sensitivity_analysis(
         try:
             sc.pp.highly_variable_genes(ad_tmp, n_top_genes=min(n_hvg, ad_tmp.n_vars), flavor="seurat_v3")
             ad_tmp = ad_tmp[:, ad_tmp.var["highly_variable"]].copy()
-            sc.pp.pca(ad_tmp, n_comps=min(30, ad_tmp.n_vars - 1, ad_tmp.n_obs - 1))
-            sc.pp.neighbors(ad_tmp, use_rep="X_pca")
+            sc.pp.pca(
+                ad_tmp,
+                n_comps=min(30, ad_tmp.n_vars - 1, ad_tmp.n_obs - 1),
+                random_state=random_state,
+            )
+            sc.pp.neighbors(ad_tmp, use_rep="X_pca", random_state=random_state)
             if clustering_method == "leiden":
-                sc.tl.leiden(ad_tmp, resolution=resolution, key_added="cluster")
+                sc.tl.leiden(
+                    ad_tmp, resolution=resolution, key_added="cluster",
+                    random_state=random_state,
+                )
             else:
-                sc.tl.louvain(ad_tmp, resolution=resolution, key_added="cluster")
+                sc.tl.louvain(
+                    ad_tmp, resolution=resolution, key_added="cluster",
+                    random_state=random_state,
+                )
             ari = float(adjusted_rand_score(y_true, ad_tmp.obs["cluster"].values))
         except Exception:
             ari = np.nan
