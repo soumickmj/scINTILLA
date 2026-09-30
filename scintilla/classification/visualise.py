@@ -174,17 +174,24 @@ def compute_label_quality_score(
     supervised_weight: float = 2.0,
     unsupervised_weight: float = 1.0,
     force: bool = False,
+    fragmentation_cols: Optional[List[str]] = None,
+    fragmentation_weight: float = 1.0,
 ) -> pd.Series:
     """Compute a per-cell label quality score and store it in ``adata.obs``.
 
-    The score is computed per cell type (from confusion and consistency
-    metrics), then mapped back to every cell.  If ``adata.obs[obs_key]``
-    already exists the computation is skipped unless *force* is True.
+    The score is computed per cell type (from confusion, fragmentation and
+    consistency metrics), then mapped back to every cell.  If
+    ``adata.obs[obs_key]`` already exists the computation is skipped unless
+    *force* is True.
 
     Supervised metrics (``pred_agreement``, ``pred_entropy``,
     ``pred_avg_confidence``) receive *supervised_weight* while unsupervised
-    confusion columns receive *unsupervised_weight*.  The final score is
-    the weighted average across all metrics.
+    confusion columns receive *unsupervised_weight* and fragmentation
+    columns receive *fragmentation_weight*.  The final score is the
+    weighted average across all metrics.  Confusion flags labels that share
+    a cluster (over-splitting); fragmentation flags a label spread over
+    several clusters (merging, contamination).  ``fragmentation_weight=0``
+    (or no fragmentation columns) reproduces the original score.
 
     Parameters
     ----------
@@ -202,6 +209,10 @@ def compute_label_quality_score(
         Weight for unsupervised confusion columns.
     force : bool
         Recompute even if the score already exists.
+    fragmentation_cols : list of str, optional
+        Columns with fragmentation scores.  Auto-detected when *None*.
+    fragmentation_weight : float
+        Weight for fragmentation columns.
 
     Returns
     -------
@@ -214,9 +225,13 @@ def compute_label_quality_score(
 
     obs = adata.obs
 
-    # Auto-detect confusion columns
+    # Auto-detect confusion and fragmentation columns
     if confusion_cols is None:
         confusion_cols = sorted([c for c in obs.columns if c.startswith("scintilla_top") and c.endswith("_confusion")])
+    if fragmentation_weight == 0:
+        fragmentation_cols = []
+    elif fragmentation_cols is None:
+        fragmentation_cols = sorted([c for c in obs.columns if c.startswith("scintilla_top") and c.endswith("_fragmentation")])
 
     # Gather all metric columns
     consistency_cols = []
@@ -224,7 +239,7 @@ def compute_label_quality_score(
         if c in obs.columns:
             consistency_cols.append(c)
 
-    all_metric_cols = confusion_cols + consistency_cols
+    all_metric_cols = confusion_cols + fragmentation_cols + consistency_cols
     if not all_metric_cols:
         raise ValueError("No confusion or consistency columns found in adata.obs.")
 
@@ -249,6 +264,9 @@ def compute_label_quality_score(
     for col in confusion_cols:
         quality += unsupervised_weight * (1.0 - normed[col])
         total_weight += unsupervised_weight
+    for col in fragmentation_cols:
+        quality += fragmentation_weight * (1.0 - normed[col])
+        total_weight += fragmentation_weight
     if "pred_entropy" in normed.columns:
         quality += supervised_weight * (1.0 - normed["pred_entropy"])
         total_weight += supervised_weight
@@ -278,8 +296,10 @@ def plot_celltype_label_quality(
     supervised_weight: float = 2.0,
     unsupervised_weight: float = 1.0,
     force: bool = False,
+    fragmentation_cols: Optional[List[str]] = None,
+    fragmentation_weight: float = 1.0,
 ) -> plt.Figure:
-    """Rank cell types by label quality using confusion and consistency metrics.
+    """Rank cell types by label quality using confusion, fragmentation and consistency metrics.
 
     Computes a composite label quality score and stores it in
     ``adata.obs[obs_key]`` (skipped if already present, unless *force*).
@@ -292,14 +312,20 @@ def plot_celltype_label_quality(
         supervised_weight=supervised_weight,
         unsupervised_weight=unsupervised_weight,
         force=force,
+        fragmentation_cols=fragmentation_cols,
+        fragmentation_weight=fragmentation_weight,
     )
 
     # Rebuild grouped metrics for the heatmap panel
     obs = adata.obs
     if confusion_cols is None:
         confusion_cols = sorted([c for c in obs.columns if c.startswith("scintilla_top") and c.endswith("_confusion")])
+    if fragmentation_weight == 0:
+        fragmentation_cols = []
+    elif fragmentation_cols is None:
+        fragmentation_cols = sorted([c for c in obs.columns if c.startswith("scintilla_top") and c.endswith("_fragmentation")])
     consistency_cols = [c for c in ["pred_agreement", "pred_entropy", "pred_avg_confidence"] if c in obs.columns]
-    all_metric_cols = confusion_cols + consistency_cols
+    all_metric_cols = confusion_cols + fragmentation_cols + consistency_cols
     grouped = obs.groupby(cell_type_col)[all_metric_cols].mean()
 
     # ── Plot ────────────────────────────────────────────────────────
