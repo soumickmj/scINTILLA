@@ -192,7 +192,11 @@ The atlases are `brain`, `eye`, `heoca`, `hnoca` and `lung`. Section 7 describes
 ## 7. Check that the code reproduces the benchmark
 
 - **Unit tests** (`tests/test_label_quality_variants.py`) check that the composites equal `compute_label_quality_score` with the right weights. They also check that the rank fusions and learned fusions follow the V4 formulas exactly, and that rank 1 is the lowest score.
-- **Real data:** on the five base atlases, the original composite, its ablations, the components and Silhouette were compared with the benchmark's saved per-label scores (`results/base_scores_<atlas>.csv`). The outcome is recorded in `results_label_quality_variants/VERIFICATION.md`.
+- **Real data:** on the five base atlases, the original composite, its ablations, the components and Silhouette were compared with the benchmark's saved per-label scores (`results/base_scores_<atlas>.csv`). Full table: `results_label_quality_variants/VERIFICATION.md`.
+  - Silhouette, top-1 confusion and the whole `eye` atlas reproduce exactly.
+  - In the other four atlases the composite drifts by up to about 0.1 between reruns, because scINTILLA's clustering and classifier training are not fully deterministic. The same thing happens when rerunning the benchmark's own code.
+  - The ordering barely changes: Spearman ≥ 0.99 for the composite. At the review budget (bottom max(3, 10%) of labels), the composite and supervised-only flags match everywhere except one swapped label in lung (composite) and one in hnoca (supervised-only).
+  - **Practical consequence:** do not over-interpret small score differences between neighbouring labels. Ranks are stable; exact values move a little from run to run.
 - The frozen learned-fusion coefficients are copied verbatim from the benchmark's `frozen_fusion.json` (SHA-256 `e781a9f9…`).
 
 The benchmark *evaluation* (AUROC, AP, Recall@k across the perturbations) is not part of this package. It lives in the separate benchmarking scripts (`Baselines/analyse_v4.py`, run through `launch_v4.sh`).
