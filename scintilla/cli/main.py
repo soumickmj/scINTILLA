@@ -27,6 +27,7 @@ def main(argv=None):
     from scintilla.cli.commands import benchmark_all  # noqa: PLC0415
     from scintilla.cli.commands import generate_config  # noqa: PLC0415
     from scintilla.cli.commands import estimate_time  # noqa: PLC0415
+    from scintilla.cli.commands import label_quality  # noqa: PLC0415
 
     # Register subcommands
     eda.add_args(subparsers.add_parser("eda", help="Exploratory data analysis"))
@@ -43,6 +44,7 @@ def main(argv=None):
     benchmark_all.add_args(subparsers.add_parser("benchmark-all", help="Full benchmark"))
     generate_config.add_args(subparsers.add_parser("generate-config", help="Generate default YAML config"))
     estimate_time.add_args(subparsers.add_parser("estimate-time", help="Estimate benchmark wall-clock time"))
+    label_quality.add_args(subparsers.add_parser("label-quality", help="Per-label scores for every scINTILLA variant"))
 
     args = parser.parse_args(argv)
     if args.command is None:
@@ -65,6 +67,7 @@ def main(argv=None):
         "benchmark-all": benchmark_all.run,
         "generate-config": generate_config.run,
         "estimate-time": estimate_time.run,
+        "label-quality": label_quality.run,
     }
     dispatch[args.command](args)
 
