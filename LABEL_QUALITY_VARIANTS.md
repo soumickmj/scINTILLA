@@ -25,8 +25,9 @@ You get two files:
 | `my_scores.csv` | One row per label, one column per variant. **Higher = better label.** |
 | `my_scores_ranks.csv` | The same table as ranks. **1 = lowest score = review this label first.** |
 
-The example runs from a Git checkout. After the first PyPI release, users
-can install `scintilla-py[full]` with `uv add` in their own analysis project
+The example runs from a Git checkout. Users can also install the published
+[PyPI package](https://pypi.org/project/scintilla-py/) with
+`uv add "scintilla-py[full]"` in their own analysis project
 and launch the same command with `uv run scintilla label-quality ...`.
 See [installation instructions](README.md#installation).
 

@@ -30,7 +30,9 @@ scINTILLA is an end-to-end single-cell RNA-seq analysis pipeline that automates 
 
 ## Installation
 
-The PyPI distribution is **`scintilla-py`**. The Python import and CLI are
+scINTILLA is published on
+[PyPI as **`scintilla-py`**](https://pypi.org/project/scintilla-py/).
+The Python import and CLI are
 **`scintilla`**. The PyPI package named `scintilla` is an unrelated project.
 Use [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage
 an isolated environment and its dependencies. Python 3.11 is used in the
@@ -38,7 +40,7 @@ examples; the package declares Python 3.9 or newer.
 
 ### Install from GitHub with uv
 
-This works before the first PyPI release:
+Install the current `master` branch from a source checkout:
 
 ```bash
 git clone https://github.com/soumickmj/scINTILLA.git
@@ -58,8 +60,8 @@ source .venv/bin/activate  # Bash/Zsh; Windows PowerShell: .venv\Scripts\Activat
 
 ### Install from PyPI with uv
 
-After the first `scintilla-py` release is published, add it to an analysis
-project. uv creates and maintains that project's environment and lockfile:
+Add the published `scintilla-py` package to an analysis project. uv creates
+and maintains that project's environment and lockfile:
 
 ```bash
 uv init --bare my-analysis --python 3.11
