@@ -1,6 +1,5 @@
 [
  "cell_type",
- "leiden",
  "pred_LogReg",
  "pred_LogReg_confidence",
  "pred_RF",

@@ -6,6 +6,8 @@ from typing import Optional
 
 import numpy as np
 
+from scintilla._compat import get_matrix
+
 
 def batch_asw(
     adata,
@@ -48,7 +50,7 @@ def batch_asw(
     if embed_key in getattr(adata, "obsm", {}):
         X = np.asarray(adata.obsm[embed_key], dtype=np.float64)
     else:
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        X = get_matrix(adata, reason="metrics needs a dense matrix")
         X = X.astype(np.float64)
     batch = adata.obs[batch_key].values
     unique = np.unique(batch)
@@ -103,7 +105,7 @@ def lisi_score(
     if embed_key in getattr(adata, "obsm", {}):
         X = np.asarray(adata.obsm[embed_key], dtype=np.float64)
     else:
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        X = get_matrix(adata, reason="metrics needs a dense matrix")
         X = X.astype(np.float64)
     batch = adata.obs[batch_key].values
     unique_batches = np.unique(batch)
@@ -204,7 +206,7 @@ def bio_conservation_score(
     if embed_key in getattr(adata, "obsm", {}):
         X = np.asarray(adata.obsm[embed_key], dtype=np.float64)
     else:
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        X = get_matrix(adata, reason="metrics needs a dense matrix")
         X = X.astype(np.float64)
 
     labels = adata.obs[label_key].values

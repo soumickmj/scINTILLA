@@ -12,7 +12,7 @@ def _fake_benchmark(clusters):
     """Stand-in for benchmark_clustering_methods returning one fixed clustering."""
     def fake(*args, **kwargs):
         results = pd.DataFrame({"method": ["fixed"], "params": ["p"], "ari": [1.0]})
-        return results, {"fixed_p": np.asarray(clusters)}, None
+        return results, {"fixed_p": np.asarray(clusters)}
     return fake
 
 
@@ -105,7 +105,7 @@ def test_failed_clustering_rerun_does_not_leave_old_label_metrics(monkeypatch):
 
     adata = _cluster(monkeypatch, ["a"] * 60 + ["b"] * 60, ["0"] * 60 + ["1"] * 60)
     def failed_benchmark(*args, **kwargs):
-        return pd.DataFrame({"method": ["failed"], "params": ["p"], "ari": [np.nan]}), {}, None
+        return pd.DataFrame({"method": ["failed"], "params": ["p"], "ari": [np.nan]}), {}
     monkeypatch.setattr(run, "benchmark_clustering_methods", failed_benchmark)
     result = run.unsupervised_analysis(adata, cell_type_col="cell_type", run_pca_first=False,
                                        use_rep="X_emb", verbose=False)

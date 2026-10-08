@@ -14,7 +14,7 @@ from scintilla.io.loaders import ensure_anndata
 
 
 def dbscan_clustering(
-    data: Union[pd.DataFrame, ad.AnnData, np.ndarray],
+    adata: Union[pd.DataFrame, ad.AnnData, np.ndarray],
     eps: float = 0.5,
     min_samples: int = 5,
     metric: str = "euclidean",
@@ -28,15 +28,15 @@ def dbscan_clustering(
     n_noise : int
     silhouette : float  (NaN if fewer than 2 clusters or all noise)
     """
-    if isinstance(data, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(data)
+    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
+        adata = ensure_anndata(adata)
         X = adata.X
         if hasattr(X, "toarray"):
             X = X.astype(np.float64)  # preserve sparsity
         else:
             X = np.asarray(X, dtype=np.float64)
     else:
-        X = np.asarray(data, dtype=np.float64)
+        X = np.asarray(adata, dtype=np.float64)
 
     db = DBSCAN(eps=eps, min_samples=min_samples, metric=metric)
     labels = db.fit_predict(X)
@@ -55,7 +55,7 @@ def dbscan_clustering(
 
 
 def estimate_eps(
-    data: Union[pd.DataFrame, ad.AnnData, np.ndarray],
+    adata: Union[pd.DataFrame, ad.AnnData, np.ndarray],
     min_samples: int = 5,
 ) -> float:
     """Data-driven eps estimation via the k-distance graph elbow method.
@@ -66,7 +66,7 @@ def estimate_eps(
 
     Parameters
     ----------
-    data:
+    adata:
         Feature matrix or AnnData.
     min_samples:
         DBSCAN ``min_samples`` parameter (used as *k* for the k-distance
@@ -80,14 +80,14 @@ def estimate_eps(
 
     from scintilla.statistical_tests.adaptive import kneedle_elbow
 
-    if isinstance(data, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(data)
+    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
+        adata = ensure_anndata(adata)
         X = adata.X
         if hasattr(X, "toarray"):
             X = X.toarray()
         X = np.asarray(X, dtype=np.float64)
     else:
-        X = np.asarray(data, dtype=np.float64)
+        X = np.asarray(adata, dtype=np.float64)
 
     k = min(min_samples, X.shape[0] - 1)
     nn = NearestNeighbors(n_neighbors=k).fit(X)

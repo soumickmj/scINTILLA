@@ -10,12 +10,13 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from scintilla._compat import get_matrix
 from scintilla.config import RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
 
 def check_normality_for_classifier(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     target_col: str,
     alpha: float = 0.05,
     random_state: int = RANDOM_SEED,
@@ -26,11 +27,11 @@ def check_normality_for_classifier(
     Tests a random sample of up to 20 genes per group (seeded for
     reproducibility) rather than always testing the first 20.
     """
-    adata = ensure_anndata(data, target_col=target_col)
+    adata = ensure_anndata(adata, target_col=target_col)
     if target_col not in adata.obs.columns:
         raise KeyError(f"Column '{target_col}' not found in obs.")
 
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="diagnostics needs a dense matrix")
     X = X.astype(np.float64)
     groups = adata.obs[target_col].values
     unique_groups = np.unique(groups)
@@ -66,7 +67,7 @@ def check_normality_for_classifier(
 
 
 def covariance_homogeneity_test(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     target_col: str,
 ) -> Dict:
     """Box's M test for homogeneity of covariance matrices.
@@ -78,7 +79,7 @@ def covariance_homogeneity_test(
     # Delegate to the canonical Box's M implementation
     from scintilla.statistical_tests.boxm import box_m_test
 
-    return box_m_test(data, group_col=target_col)
+    return box_m_test(adata, group_col=target_col)
 
 
 def influential_cells(

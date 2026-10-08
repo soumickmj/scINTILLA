@@ -11,6 +11,7 @@ import pandas as pd
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 _DEFAULT_PSEUDOCOUNT = 1e-2
@@ -51,7 +52,7 @@ def pseudobulk_de(
     adata = ensure_anndata(adata)
 
     def _run_de(adata_sub):
-        X = adata_sub.X if not hasattr(adata_sub.X, "toarray") else adata_sub.X.toarray()
+        X = get_matrix(adata_sub, reason="pseudobulk needs a dense matrix")
         X = X.astype(np.float64)
         conditions = adata_sub.obs[condition_col].values
         samples = adata_sub.obs[sample_col].values

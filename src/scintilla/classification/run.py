@@ -12,6 +12,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tqdm.auto import tqdm
 
+from scintilla._compat import get_matrix, record_params, resolve_adata
+from scintilla._logging import logger, resolve_verbose, verbosity_aware
 from scintilla.classification.feature_importance import shap_analysis
 from scintilla.classification.models import (
     gradient_boosting_classification,
@@ -26,11 +28,11 @@ from scintilla.classification.models import (
     svm_classification,
 )
 from scintilla.config import DEFAULT_TEST_SIZE, RANDOM_SEED
-from scintilla.io.loaders import ensure_anndata
 
 
+@verbosity_aware
 def supervised_analysis(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[ad.AnnData, pd.DataFrame],
     target_col: str = "cell_type",
     use_rep: Optional[str] = None,
     scale: bool = False,
@@ -43,6 +45,9 @@ def supervised_analysis(
     verbose: Optional[bool] = None,
     config=None,
     random_state: Optional[int] = None,
+    *,
+    key_added: str = "pred",
+    copy: bool = False,
 ) -> dict:
     """Full supervised analysis pipeline with decision logic.
 
@@ -55,6 +60,38 @@ def supervised_analysis(
 
     Parameters
     ----------
+    adata
+        Annotated data matrix.  Modified in place (per-cell consistency columns) unless
+        ``copy=True``.
+    target_col
+        Column in ``adata.obs`` with the cell-type labels to predict.
+    use_rep
+        Key in ``adata.obsm`` of a representation to classify on; ``None`` uses ``X``.
+    scale
+        Standardise features (fitted on the training cells).
+    normality
+        Pre-computed normality verdict; ``None`` runs the normality check.
+    test_size
+        Hold-out fraction; defaults to ``config.test_size`` or 0.2.
+    include_shap
+        Compute feature importances for the best model; defaults to ``config.include_shap``.
+    check_consistency
+        Write per-cell predictions, agreement, entropy and confidence to ``adata.obs``.
+    n_jobs
+        Number of parallel classifiers.
+    verbose
+        Log progress at INFO level for this call.  ``None`` follows
+        :data:`scintilla.settings.verbosity` (and ``config.verbose``).
+    random_state
+        Random seed; defaults to ``config.random_seed`` or ``scintilla.config.RANDOM_SEED``.
+    key_added
+        Prefix of the ``obs`` columns written by ``check_consistency``:
+        ``{key_added}_{model}``, ``{key_added}_{model}_confidence``,
+        ``{key_added}_consensus``, ``{key_added}_agreement``, ``{key_added}_entropy`` and
+        ``{key_added}_avg_confidence``.  The label-quality functions read the default
+        ``"pred"`` names.
+    copy
+        Work on a copy of ``adata`` (returned as ``result["adata"]``).
     models:
         Optional list of model names to run.  Valid names:
         LogReg, RF, SVM, MLP, LDA, QDA, kNN, GradientBoosting,
@@ -67,41 +104,41 @@ def supervised_analysis(
 
     Returns
     -------
-    dict: best_model, best_model_name, all_results, feature_importances
+    dict
+        ``adata``, ``best_model``, ``best_model_name``, ``all_results`` (every model, with
+        ``status="failed"`` and a ``failure_reason`` for those that did not run),
+        ``feature_importances`` and ``normality``.
     """
     from scintilla.preprocessing.normality import check_normality
-    from scintilla.preprocessing.transformations import box_cox_transform
+    from scintilla.preprocessing.transformations import TRANSFORM_REGISTRY
 
     if random_state is None:
         random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
     if test_size is None:
         test_size = getattr(config, "test_size", DEFAULT_TEST_SIZE) if config is not None else DEFAULT_TEST_SIZE
-    if verbose is None:
-        verbose = getattr(config, "verbose", True) if config is not None else True
+    verbose = resolve_verbose(verbose, config)
 
-    adata = ensure_anndata(data, target_col=target_col)
+    adata = resolve_adata(adata, copy=copy, target_col=target_col)
     if target_col not in adata.obs.columns:
         raise KeyError(f"Column '{target_col}' not found in obs.")
 
     if use_rep is not None and use_rep in adata.obsm:
         X = adata.obsm[use_rep].astype(np.float64)
     else:
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        X = get_matrix(adata, reason="run needs a dense matrix")
         X = X.astype(np.float64)
     y = adata.obs[target_col].values
 
     # Determine normality
     if normality is None:
-        if verbose:
-            print("Checking normality...")
+        logger.info("Checking normality...")
         normality, _ = check_normality(adata, random_state=random_state)
 
     if not normality:
-        if verbose:
-            print("Data not normal. Attempting Box-Cox transform...")
+        logger.info("Data not normal. Attempting Box-Cox transform...")
         try:
-            adata_bc = box_cox_transform(adata)
-            X_bc = adata_bc.X if not hasattr(adata_bc.X, "toarray") else adata_bc.X.toarray()
+            adata_bc = TRANSFORM_REGISTRY["box_cox_transform"](adata)
+            X_bc = get_matrix(adata_bc, reason="run needs a dense matrix")
             X_bc = X_bc.astype(np.float64)
             adata_test = adata.copy()
             adata_test.X = X_bc
@@ -110,8 +147,7 @@ def supervised_analysis(
             )
             if normality:
                 X = X_bc
-                if verbose:
-                    print("Box-Cox achieved normality.")
+                logger.info("Box-Cox achieved normality.")
         except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError):
             pass
 
@@ -177,21 +213,17 @@ def supervised_analysis(
             name, result, err = _run_one(name, fn, X_tr, X_te, y_tr, y_te)
             if result is not None:
                 all_results[name] = result
-                if verbose:
-                    print(f"  {name}: accuracy={result['metrics'].get('accuracy', 'N/A'):.3f}")
+                logger.info("  %s: accuracy=%.3f", name, result["metrics"].get("accuracy", float("nan")))
             else:
                 all_results[name] = {
                     "status": "failed", "failure_reason": err,
                     "model": None, "metrics": {},
                 }
                 warnings.warn(f"{name} failed: {err}", stacklevel=2)
-                if verbose:
-                    print(f"  {name} failed: {err}")
         pbar.close()
     else:
         from joblib import Parallel, delayed
-        if verbose:
-            print(f"Running {len(all_model_fns)} classifiers in parallel (n_jobs={n_jobs})...")
+        logger.info("Running %d classifiers in parallel (n_jobs=%s)...", len(all_model_fns), n_jobs)
         outputs = Parallel(n_jobs=n_jobs, prefer="threads")(
             delayed(_run_one)(name, fn, X_tr, X_te, y_tr, y_te)
             for name, fn in all_model_fns.items()
@@ -199,16 +231,13 @@ def supervised_analysis(
         for name, result, err in outputs:
             if result is not None:
                 all_results[name] = result
-                if verbose:
-                    print(f"  {name}: accuracy={result['metrics'].get('accuracy', 'N/A'):.3f}")
+                logger.info("  %s: accuracy=%.3f", name, result["metrics"].get("accuracy", float("nan")))
             else:
                 all_results[name] = {
                     "status": "failed", "failure_reason": err,
                     "model": None, "metrics": {},
                 }
                 warnings.warn(f"{name} failed: {err}", stacklevel=2)
-                if verbose:
-                    print(f"  {name} failed: {err}")
 
     # Pick best model by F1
     best_name = None
@@ -232,21 +261,19 @@ def supervised_analysis(
                 best_model, X_tr, X_te, y_te, feature_names=feat_names,
                 random_state=random_state,
             )
-        except Exception as e:
-            if verbose:
-                print(f"  Feature importance failed: {e}")
+        except Exception as e:  # SHAP is optional and model dependent; report, do not abort
+            warnings.warn(f"Feature importance failed: {e}", stacklevel=2)
 
     # ── Per-cell consistency check across all models ────────────────
     if check_consistency:
-        generated = {f"pred_{name}{suffix}" for name in known_model_names
+        generated = {f"{key_added}_{name}{suffix}" for name in known_model_names
                      for suffix in ("", "_confidence")}
-        generated.update({"pred_consensus", "pred_agreement", "pred_entropy",
-                          "pred_avg_confidence", "scintilla_label_quality"})
+        generated.update({f"{key_added}_consensus", f"{key_added}_agreement", f"{key_added}_entropy",
+                          f"{key_added}_avg_confidence", "scintilla_label_quality"})
         adata.obs.drop(columns=[c for c in generated if c in adata.obs and c != target_col],
                        inplace=True)
     if check_consistency and all_results:
-        if verbose:
-            print("Computing per-cell prediction consistency...")
+        logger.info("Computing per-cell prediction consistency...")
         X_all = X if not scale else scaler.transform(X)
 
         # Collect predictions & probabilities from each model on all cells
@@ -268,7 +295,7 @@ def supervised_analysis(
                 # If predictions are integers and classes are strings, decode
                 if hasattr(raw_pred, 'dtype') and np.issubdtype(raw_pred.dtype, np.integer) and not np.issubdtype(all_classes.dtype, np.integer):
                     raw_pred = le.inverse_transform(raw_pred)
-                adata.obs[f"pred_{name}"] = pd.Categorical(
+                adata.obs[f"{key_added}_{name}"] = pd.Categorical(
                     np.asarray(raw_pred).astype(str), categories=[str(c) for c in all_classes]
                 )
                 pred_matrix.append(np.asarray(raw_pred).astype(str))
@@ -277,10 +304,9 @@ def supervised_analysis(
                     probs = model.predict_proba(X_all)
                     prob_dict[name] = probs
                     # Store max probability as confidence
-                    adata.obs[f"pred_{name}_confidence"] = probs.max(axis=1)
-            except Exception as e:
-                if verbose:
-                    print(f"  Prediction for {name} failed: {e}")
+                    adata.obs[f"{key_added}_{name}_confidence"] = probs.max(axis=1)
+            except Exception as e:  # one model failing must not hide the others
+                warnings.warn(f"Prediction for {name} failed: {e}", stacklevel=2)
 
         if pred_matrix:
             pred_arr = np.array(pred_matrix)  # (n_models, n_cells)
@@ -297,10 +323,10 @@ def supervised_analysis(
                 mode_labels[i] = unique[best_idx]
                 agreement[i] = counts[best_idx] / n_models_ok
 
-            adata.obs["pred_consensus"] = pd.Categorical(
+            adata.obs[f"{key_added}_consensus"] = pd.Categorical(
                 mode_labels.astype(str), categories=[str(c) for c in all_classes]
             )
-            adata.obs["pred_agreement"] = agreement
+            adata.obs[f"{key_added}_agreement"] = agreement
 
             # Entropy of label distribution across models (higher = less consistent)
             entropy = np.empty(n_cells, dtype=np.float64)
@@ -309,15 +335,19 @@ def supervised_analysis(
                 _, counts = np.unique(labels_i, return_counts=True)
                 probs_i = counts / counts.sum()
                 entropy[i] = -np.sum(probs_i * np.log2(probs_i + 1e-12))
-            adata.obs["pred_entropy"] = entropy
+            adata.obs[f"{key_added}_entropy"] = entropy
 
             # Average max-probability across models that support predict_proba
             if prob_dict:
                 avg_confidence = np.mean(
                     [p.max(axis=1) for p in prob_dict.values()], axis=0
                 )
-                adata.obs["pred_avg_confidence"] = avg_confidence
+                adata.obs[f"{key_added}_avg_confidence"] = avg_confidence
 
+    record_params(
+        adata, "supervised", target_col=target_col, use_rep=use_rep, scale=scale, test_size=test_size,
+        random_state=random_state, key_added=key_added, best_model=best_name,
+    )
     return {
         "adata": adata,
         "best_model": best_model,

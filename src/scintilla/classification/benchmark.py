@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import warnings
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import anndata as ad
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.model_selection import StratifiedKFold, train_test_split
 
+from scintilla._compat import get_matrix
+from scintilla._logging import logger, resolve_verbose, verbosity_aware
 from scintilla.classification.models import (
     gradient_boosting_classification,
     knn_classification,
@@ -90,7 +91,7 @@ def _benchmark_cv(
     n_pca_comps: int,
     verbose: bool,
     random_state: int,
-) -> Tuple[pd.DataFrame, plt.Figure]:
+) -> pd.DataFrame:
     """Stratified k-fold cross-validation benchmark."""
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=random_state)
     # Collect full metrics dict per fold for each (space, model)
@@ -112,8 +113,7 @@ def _benchmark_cv(
 
         for space_name, (X_tr, X_te) in spaces.items():
             for model_name, fn in _MODEL_FNS.items():
-                if verbose:
-                    print(f"  Fold {fold_idx+1}/{n_folds} | {space_name} | {model_name}")
+                logger.info(f"  Fold {fold_idx+1}/{n_folds} | {space_name} | {model_name}")
                 key = (space_name, model_name)
                 try:
                     kwargs = {"random_state": random_state} if model_name in _STOCHASTIC_MODEL_NAMES else {}
@@ -122,8 +122,7 @@ def _benchmark_cv(
                 except MemoryError:
                     raise
                 except Exception as e:
-                    if verbose:
-                        print(f"    Failed: {e}")
+                    logger.info(f"    Failed: {e}")
                     fold_results[key].append(None)
                     fold_failures[key].append(str(e))
 
@@ -169,30 +168,12 @@ def _benchmark_cv(
                 f"{model_name} failed: {failures[0]}", stacklevel=2,
             )
 
-    results_df = pd.DataFrame(records)
-    fig, ax = plt.subplots(figsize=(12, 5))
-    if "mean_accuracy" in results_df.columns:
-        pivot = results_df.pivot_table(index="model", columns="space", values="mean_accuracy")
-        # Use standard error of the mean (SE = SD/√k) for error bars so
-        # they represent uncertainty on the mean estimate, not between-fold
-        # variability.  SE is the statistically correct quantity here.
-        if "se_accuracy" in results_df.columns:
-            yerr_pivot = results_df.pivot_table(index="model", columns="space", values="se_accuracy")
-            yerr_label = "± SE"
-        else:
-            yerr_pivot = results_df.pivot_table(index="model", columns="space", values="std_accuracy")
-            yerr_label = "± SD"
-        pivot.plot(kind="bar", ax=ax, yerr=yerr_pivot)
-        ax.set_title(f"Classification Benchmark ({n_folds}-fold CV, mean accuracy {yerr_label})")
-        ax.set_ylabel("Accuracy")
-        ax.set_xlabel("Model")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-    return results_df, fig
+    return pd.DataFrame(records)
 
 
+@verbosity_aware
 def benchmark_models_comprehensive(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     target_col: str,
     test_size: Optional[float] = None,
     use_pca: bool = True,
@@ -205,12 +186,12 @@ def benchmark_models_comprehensive(
     no_info_method: Optional[str] = None,
     config=None,
     random_state: Optional[int] = None,
-) -> Tuple[pd.DataFrame, plt.Figure]:
+) -> pd.DataFrame:
     """Benchmark all classifiers in gene space and PCA space.
 
     Parameters
     ----------
-    data:
+    adata:
         Input data.
     target_col:
         Column in obs with class labels.
@@ -246,14 +227,12 @@ def benchmark_models_comprehensive(
     Returns
     -------
     results_df : pd.DataFrame
-    fig : matplotlib Figure
     """
     if test_size is None:
         test_size = getattr(config, "test_size", DEFAULT_TEST_SIZE) if config is not None else DEFAULT_TEST_SIZE
     if n_pca_comps is None:
         n_pca_comps = getattr(config, "n_pca_comps", 30) if config is not None else 30
-    if verbose is None:
-        verbose = getattr(config, "verbose", True) if config is not None else True
+    verbose = resolve_verbose(verbose, config)
     if cv_folds is _OMITTED:
         cv_folds = getattr(config, "cv_folds", DEFAULT_CV_FOLDS) if config is not None else DEFAULT_CV_FOLDS
     if bootstrap_ci is None:
@@ -267,11 +246,11 @@ def benchmark_models_comprehensive(
     if random_state is None:
         random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
 
-    adata = ensure_anndata(data, target_col=target_col)
+    adata = ensure_anndata(adata, target_col=target_col)
     if target_col not in adata.obs.columns:
         raise KeyError(f"Column '{target_col}' not found in obs.")
 
-    X_full = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X_full = get_matrix(adata, reason="benchmark needs a dense matrix")
     X_full = X_full.astype(np.float64)
     y = adata.obs[target_col].values
 
@@ -310,8 +289,7 @@ def benchmark_models_comprehensive(
     records = []
     for space_name, (X_tr, X_te) in spaces.items():
         for model_name, fn in _MODEL_FNS.items():
-            if verbose:
-                print(f"  {space_name} | {model_name}")
+            logger.info(f"  {space_name} | {model_name}")
             try:
                 kwargs = {"random_state": random_state} if model_name in _STOCHASTIC_MODEL_NAMES else {}
                 model, metrics = fn(X_tr, X_te, y_tr, y_te, **kwargs)
@@ -332,8 +310,7 @@ def benchmark_models_comprehensive(
             except MemoryError:
                 raise
             except Exception as e:
-                if verbose:
-                    print(f"    Failed: {e}")
+                logger.info(f"    Failed: {e}")
                 warnings.warn(f"{model_name} failed: {e}", stacklevel=2)
                 records.append({
                     "space": space_name, "model": model_name,
@@ -341,20 +318,7 @@ def benchmark_models_comprehensive(
                     "failure_reason": str(e),
                 })
 
-    results_df = pd.DataFrame(records)
-
-    # Figure: accuracy grouped bar
-    fig, ax = plt.subplots(figsize=(12, 5))
-    if "accuracy" in results_df.columns and results_df["accuracy"].notna().any():
-        pivot = results_df.pivot_table(index="model", columns="space", values="accuracy")
-        pivot.plot(kind="bar", ax=ax)
-        ax.set_title("Classification Benchmark (Accuracy)")
-        ax.set_ylabel("Accuracy")
-        ax.set_xlabel("Model")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-
-    return results_df, fig
+    return pd.DataFrame(records)
 
 
 # ------------------------------------------------------------------
@@ -450,7 +414,7 @@ def _benchmark_632plus(
     bootstrap_ci: bool = False,
     no_info_method: str = "analytical",
     random_state: int = RANDOM_SEED,
-) -> Tuple[pd.DataFrame, plt.Figure]:
+) -> pd.DataFrame:
     """.632+ bootstrap benchmark across models and feature spaces.
 
     When *use_pca* is True the PCA step is wrapped inside a
@@ -478,8 +442,7 @@ def _benchmark_632plus(
 
     for space_name in space_defs:
         for model_name in _MODEL_FNS:
-            if verbose:
-                print(f"  .632+ | {space_name} | {model_name}")
+            logger.info(f"  .632+ | {space_name} | {model_name}")
             row: dict = {
                 "space": space_name, "model": model_name,
                 "status": "ok", "failure_reason": None,
@@ -510,27 +473,14 @@ def _benchmark_632plus(
             except MemoryError:
                 raise
             except Exception as e:
-                if verbose:
-                    print(f"    Failed: {e}")
+                logger.info(f"    Failed: {e}")
                 warnings.warn(f"{model_name} failed: {e}", stacklevel=2)
                 row["status"] = "failed"
                 row["accuracy"] = np.nan
                 row["failure_reason"] = str(e)
             records.append(row)
 
-    results_df = pd.DataFrame(records)
-
-    fig, ax = plt.subplots(figsize=(12, 5))
-    if "accuracy" in results_df.columns and results_df["accuracy"].notna().any():
-        pivot = results_df.pivot_table(index="model", columns="space", values="accuracy")
-        pivot.plot(kind="bar", ax=ax)
-        ax.set_title("Classification Benchmark (.632+ Bootstrap)")
-        ax.set_ylabel("Accuracy")
-        ax.set_xlabel("Model")
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-
-    return results_df, fig
+    return pd.DataFrame(records)
 
 
 # ------------------------------------------------------------------

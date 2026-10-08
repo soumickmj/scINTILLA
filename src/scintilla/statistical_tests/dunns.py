@@ -8,11 +8,12 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 
 def dunn_posthoc(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     gene: str,
     group_col: str,
 ) -> pd.DataFrame:
@@ -20,7 +21,7 @@ def dunn_posthoc(
 
     Parameters
     ----------
-    data:
+    adata:
         Input data.
     gene:
         Gene to test.
@@ -39,13 +40,13 @@ def dunn_posthoc(
             "Install with: pip install scikit-posthocs"
         ) from exc
 
-    adata = ensure_anndata(data)
+    adata = ensure_anndata(adata)
     if group_col not in adata.obs.columns:
         raise KeyError(f"Column '{group_col}' not found in obs.")
     if gene not in adata.var_names:
         raise KeyError(f"Gene '{gene}' not found in var_names.")
 
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="dunns needs a dense matrix")
     X = X.astype(np.float64)
     gene_idx = list(adata.var_names).index(gene)
     groups = adata.obs[group_col].values

@@ -8,11 +8,12 @@ from typing import List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 
 def hdbscan_clustering(
-    data,
+    adata,
     min_cluster_size_range: List[int] = None,
     min_samples_range: List[Optional[int]] = None,
     metric: str = "euclidean",
@@ -21,7 +22,7 @@ def hdbscan_clustering(
 
     Parameters
     ----------
-    data:
+    adata:
         Input data matrix, AnnData, or numpy array.
     min_cluster_size_range:
         List of min_cluster_size values to try.
@@ -61,12 +62,12 @@ def hdbscan_clustering(
 
     import anndata as ad
 
-    if isinstance(data, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(data)
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
+        adata = ensure_anndata(adata)
+        X = get_matrix(adata, reason="hdbscan needs a dense matrix")
         X = X.astype(np.float64)
     else:
-        X = np.asarray(data, dtype=np.float64)
+        X = np.asarray(adata, dtype=np.float64)
 
     records = []
     best_labels = np.full(X.shape[0], -1, dtype=int)

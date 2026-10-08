@@ -61,8 +61,13 @@ def load_csv(
     return ensure_anndata(df)
 
 
-def auto_detect_format(path: Union[str, Path]) -> ad.AnnData:
-    """Auto-detect file format and load accordingly."""
+def auto_detect_format(path: Union[str, Path]) -> Union[ad.AnnData, "mudata.MuData"]:
+    """Auto-detect the file format from the suffix and load it.
+
+    ``.h5ad`` and CSV/TSV files give an :class:`~anndata.AnnData`; ``.h5mu`` gives a
+    :class:`~mudata.MuData`, which every analysis function accepts together with a
+    ``modality`` argument (see :func:`ensure_anndata`).
+    """
     path = Path(path)
     suffix = path.suffix.lower()
     if suffix == ".h5ad":
@@ -77,35 +82,63 @@ def auto_detect_format(path: Union[str, Path]) -> ad.AnnData:
 
 
 def ensure_anndata(
-    data: Union[pd.DataFrame, ad.AnnData, np.ndarray],
+    adata: Union[pd.DataFrame, ad.AnnData, np.ndarray, "mudata.MuData"],
     target_col: Optional[str] = None,
+    modality: Optional[str] = None,
 ) -> ad.AnnData:
     """Convert input data to AnnData if it is not already.
 
-    Numeric columns become the X matrix; non-numeric columns go to obs.
-    If *target_col* is provided it is preserved in obs even if numeric.
+    AnnData is returned unchanged (not copied).  A DataFrame is converted with its
+    numeric columns as ``X`` and non-numeric columns as ``obs``; *target_col* is
+    kept in ``obs`` even if numeric.  A MuData is reduced to one modality:
+    *modality* selects it, and may be omitted only when the MuData has exactly one.
+
+    Parameters
+    ----------
+    data
+        AnnData (the documented contract), DataFrame, 2-D array or MuData.
+    target_col
+        Column to preserve in ``obs`` when converting a DataFrame.
+    modality
+        Modality to extract from a MuData, for example ``"rna"``.
+
+    Returns
+    -------
+    anndata.AnnData
     """
-    if isinstance(data, ad.AnnData):
-        return data
+    if isinstance(adata, ad.AnnData):
+        return adata
 
-    if isinstance(data, np.ndarray):
-        return ad.AnnData(X=data.astype(np.float32))
+    if type(adata).__module__.split(".")[0] == "mudata":
+        modalities = list(adata.mod.keys())
+        if modality is None:
+            if len(modalities) != 1:
+                raise ValueError(
+                    f"MuData holds several modalities {modalities}; pass modality=... to choose one."
+                )
+            modality = modalities[0]
+        if modality not in adata.mod:
+            raise KeyError(f"Modality {modality!r} not in MuData; available: {modalities}")
+        return adata.mod[modality]
 
-    if isinstance(data, pd.DataFrame):
+    if isinstance(adata, np.ndarray):
+        return ad.AnnData(X=adata.astype(np.float32))
+
+    if isinstance(adata, pd.DataFrame):
         # Separate metadata columns from feature columns
-        meta_cols = list(data.select_dtypes(exclude=[np.number]).columns)
-        if target_col is not None and target_col in data.columns and target_col not in meta_cols:
+        meta_cols = list(adata.select_dtypes(exclude=[np.number]).columns)
+        if target_col is not None and target_col in adata.columns and target_col not in meta_cols:
             meta_cols.append(target_col)
 
-        feature_cols = [c for c in data.columns if c not in meta_cols]
-        X = data[feature_cols].values.astype(np.float32)
-        obs = data[meta_cols].copy() if meta_cols else pd.DataFrame(index=data.index)
+        feature_cols = [c for c in adata.columns if c not in meta_cols]
+        X = adata[feature_cols].values.astype(np.float32)
+        obs = adata[meta_cols].copy() if meta_cols else pd.DataFrame(index=adata.index)
         adata = ad.AnnData(
             X=X,
             obs=obs,
             var=pd.DataFrame(index=feature_cols),
         )
-        adata.obs.index = data.index.astype(str)
+        adata.obs.index = adata.index.astype(str)
         return adata
 
-    raise TypeError(f"Cannot convert {type(data)} to AnnData.")
+    raise TypeError(f"Cannot convert {type(adata)} to AnnData.")

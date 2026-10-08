@@ -1,18 +1,34 @@
 """Data transformations / normalisation for single-cell data.
 
-All transforms accept either a pd.DataFrame or an AnnData and return an AnnData
-with the transformed expression matrix stored in X.
+Each transformation exists in two forms:
+
+* the public function, for example :func:`log_shift_size_factor`, follows the
+  scintilla API contract: ``fn(adata, *, layer=None, key_added=None, replace_x=False,
+  copy=False)`` reads ``adata.X`` (or ``adata.layers[layer]``) and **writes the result
+  to ``adata.layers[key_added]``**, so the raw counts survive.  Transformations that
+  change the set of variables (the ``*_hvg*`` variants and ``glm_pca_transform``) cannot
+  be stored as a layer and return a new AnnData instead;
+* the *pure* form, ``TRANSFORM_REGISTRY[name](data) -> AnnData``, which returns a
+  transformed copy with the result in ``X``.  The benchmarks use this form.
+
+Sparse input is kept sparse for the zero-preserving transformations
+(``log_shift_size_factor``, ``arcsinh_transform``, ``log_alpha_transform``,
+``log_cpm_transform`` and ``normalise_scran``); the others centre or invert the data
+and therefore need a dense matrix.
 """
 
 from __future__ import annotations
 
-from typing import Callable, Dict, Union
+import inspect
+from typing import Callable, Dict, Optional, Union
 
 import anndata as ad
 import numpy as np
 import pandas as pd
+from scipy import sparse
 from scipy.stats import boxcox
 
+from scintilla._compat import record_params
 from scintilla.config import RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
@@ -24,7 +40,7 @@ TRANSFORM_REGISTRY: Dict[str, Callable] = {}
 
 
 def register_transform(name: str) -> Callable:
-    """Decorator to register a transformation function."""
+    """Decorator to register a *pure* transformation function (``data -> AnnData``)."""
 
     def decorator(fn: Callable) -> Callable:
         TRANSFORM_REGISTRY[name] = fn
@@ -34,16 +50,34 @@ def register_transform(name: str) -> Callable:
 
 
 # ---------------------------------------------------------------------------
-# Helper
+# Helpers
 # ---------------------------------------------------------------------------
 
-def _to_matrix(data: Union[pd.DataFrame, ad.AnnData]) -> tuple[ad.AnnData, np.ndarray]:
+def _to_matrix(data: Union[pd.DataFrame, ad.AnnData], dense: bool = True):
+    """Return ``(adata, X)``; ``X`` is float64, dense unless ``dense=False`` and X is sparse."""
     adata = ensure_anndata(data)
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
-    return adata, X.astype(np.float64)
+    X = adata.X
+    if sparse.issparse(X):
+        if dense:
+            return adata, X.toarray().astype(np.float64)
+        return adata, X.tocsr(copy=True).astype(np.float64)
+    if hasattr(X, "toarray"):
+        return adata, X.toarray().astype(np.float64)
+    return adata, np.asarray(X).astype(np.float64)
 
 
-def _wrap(adata: ad.AnnData, X_new: np.ndarray, var_names=None) -> ad.AnnData:
+def _row_of_each_entry(X: sparse.csr_matrix) -> np.ndarray:
+    """Row index of every stored entry of a CSR matrix (to scale ``X.data`` per cell)."""
+    return np.repeat(np.arange(X.shape[0]), np.diff(X.indptr))
+
+
+def _size_factors(X, floor_zero: bool = True) -> np.ndarray:
+    """Per-cell totals, with empty cells mapped to 1 so the division is defined."""
+    totals = np.asarray(X.sum(axis=1)).ravel().astype(np.float64)
+    return np.where(totals == 0, 1.0, totals) if floor_zero else totals
+
+
+def _wrap(adata: ad.AnnData, X_new, var_names=None) -> ad.AnnData:
     """Create a new AnnData with transformed matrix, preserving all metadata.
 
     Copies obs, var, obsm, varm, obsp, uns, and layers from *adata*.  When
@@ -63,9 +97,12 @@ def _wrap(adata: ad.AnnData, X_new: np.ndarray, var_names=None) -> ad.AnnData:
 # ---------------------------------------------------------------------------
 
 @register_transform("log_shift_size_factor")
-def log_shift_size_factor(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+def _log_shift_size_factor(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     """log(x / size_factor + 1) where size_factor is per-cell total count."""
-    adata, X = _to_matrix(data)
+    adata, X = _to_matrix(data, dense=False)
+    if sparse.issparse(X):
+        X.data = np.log1p(X.data / _size_factors(X)[_row_of_each_entry(X)])
+        return _wrap(adata, X)
     size_factors = X.sum(axis=1, keepdims=True)
     size_factors = np.where(size_factors == 0, 1.0, size_factors)
     X_t = np.log1p(X / size_factors)
@@ -73,25 +110,34 @@ def log_shift_size_factor(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
 
 
 @register_transform("arcsinh_transform")
-def arcsinh_transform(data: Union[pd.DataFrame, ad.AnnData], alpha: float = 0.05) -> ad.AnnData:
+def _arcsinh_transform(data: Union[pd.DataFrame, ad.AnnData], alpha: float = 0.05) -> ad.AnnData:
     """arcsinh(alpha * x) transform."""
-    adata, X = _to_matrix(data)
+    adata, X = _to_matrix(data, dense=False)
+    if sparse.issparse(X):
+        X.data = np.arcsinh(alpha * X.data)
+        return _wrap(adata, X)
     X_t = np.arcsinh(alpha * X)
     return _wrap(adata, X_t)
 
 
 @register_transform("log_alpha_transform")
-def log_alpha_transform(data: Union[pd.DataFrame, ad.AnnData], alpha: float = 0.05) -> ad.AnnData:
+def _log_alpha_transform(data: Union[pd.DataFrame, ad.AnnData], alpha: float = 0.05) -> ad.AnnData:
     """log(alpha * x + 1) transform."""
-    adata, X = _to_matrix(data)
+    adata, X = _to_matrix(data, dense=False)
+    if sparse.issparse(X):
+        X.data = np.log1p(alpha * X.data)
+        return _wrap(adata, X)
     X_t = np.log1p(alpha * X)
     return _wrap(adata, X_t)
 
 
 @register_transform("log_cpm_transform")
-def log_cpm_transform(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+def _log_cpm_transform(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     """log(CPM + 1) where CPM = counts per million."""
-    adata, X = _to_matrix(data)
+    adata, X = _to_matrix(data, dense=False)
+    if sparse.issparse(X):
+        X.data = np.log1p(X.data / _size_factors(X)[_row_of_each_entry(X)] * 1e6)
+        return _wrap(adata, X)
     lib_sizes = X.sum(axis=1, keepdims=True)
     lib_sizes = np.where(lib_sizes == 0, 1.0, lib_sizes)
     cpm = X / lib_sizes * 1e6
@@ -100,7 +146,7 @@ def log_cpm_transform(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
 
 
 @register_transform("log_shift_scale_by_std")
-def log_shift_scale_by_std(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+def _log_shift_scale_by_std(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     """log(x+1) then scale each gene by its standard deviation."""
     adata, X = _to_matrix(data)
     X_log = np.log1p(X)
@@ -111,12 +157,12 @@ def log_shift_scale_by_std(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
 
 
 @register_transform("log_shift_size_factor_hvg")
-def log_shift_size_factor_hvg(
+def _log_shift_size_factor_hvg(
     data: Union[pd.DataFrame, ad.AnnData],
     top_frac: float = 0.35,
 ) -> ad.AnnData:
     """Apply log_shift_size_factor then select highly variable genes."""
-    adata_t = log_shift_size_factor(data)
+    adata_t = _log_shift_size_factor(data)
     _, X = _to_matrix(adata_t)
     variances = X.var(axis=0)
     n_top = max(1, int(len(variances) * top_frac))
@@ -128,9 +174,9 @@ def log_shift_size_factor_hvg(
 
 
 @register_transform("log_shift_size_factor_z")
-def log_shift_size_factor_z(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+def _log_shift_size_factor_z(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     """log_shift_size_factor then z-score per gene."""
-    adata_t = log_shift_size_factor(data)
+    adata_t = _log_shift_size_factor(data)
     _, X = _to_matrix(adata_t)
     means = X.mean(axis=0)
     stds = X.std(axis=0)
@@ -140,12 +186,12 @@ def log_shift_size_factor_z(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData
 
 
 @register_transform("log_shift_hvg_z")
-def log_shift_hvg_z(
+def _log_shift_hvg_z(
     data: Union[pd.DataFrame, ad.AnnData],
     top_frac: float = 0.35,
 ) -> ad.AnnData:
     """log_shift + HVG selection + z-score."""
-    adata_hvg = log_shift_size_factor_hvg(data, top_frac=top_frac)
+    adata_hvg = _log_shift_size_factor_hvg(data, top_frac=top_frac)
     _, X = _to_matrix(adata_hvg)
     means = X.mean(axis=0)
     stds = X.std(axis=0)
@@ -155,26 +201,28 @@ def log_shift_hvg_z(
 
 
 @register_transform("normalise_scran")
-def normalise_scran(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+def _normalise_scran(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     """Scran-style normalisation using median-ratio / pooling approximation.
 
     Implementation: normalise each cell by its library size, then scale by
     the geometric mean of library sizes across cells (median-based deconvolution
     approximation).
     """
-    adata, X = _to_matrix(data)
-    lib_sizes = X.sum(axis=1)
-    lib_sizes = np.where(lib_sizes == 0, 1.0, lib_sizes)
+    adata, X = _to_matrix(data, dense=False)
+    lib_sizes = _size_factors(X)
     # geometric mean of library sizes
     geo_mean = np.exp(np.mean(np.log(lib_sizes + 1e-8)))
     size_factors = lib_sizes / geo_mean
+    if sparse.issparse(X):
+        X.data = np.log1p(X.data / size_factors[_row_of_each_entry(X)])
+        return _wrap(adata, X)
     X_norm = X / size_factors[:, np.newaxis]
     X_t = np.log1p(X_norm)
     return _wrap(adata, X_t)
 
 
 @register_transform("normalise_tmm")
-def normalise_tmm(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+def _normalise_tmm(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     """TMM normalisation (Robinson & Oshlack 2010).
 
     Compute M-values and A-values relative to a reference sample,
@@ -255,7 +303,7 @@ def _boxcox_single_gene(args):
 
 
 @register_transform("box_cox_transform")
-def box_cox_transform(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+def _box_cox_transform(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     """Box-Cox transform per gene. Constant or failing columns are kept unchanged.
 
     Uses parallel execution when joblib is available for significant
@@ -286,7 +334,7 @@ def get_all_transformations() -> Dict[str, Callable]:
 
 
 @register_transform("pearson_residuals_transform")
-def pearson_residuals_transform(
+def _pearson_residuals_transform(
     data: Union[pd.DataFrame, ad.AnnData], theta: float = 100.0
 ) -> ad.AnnData:
     """Analytic Pearson residuals transform.
@@ -328,7 +376,7 @@ def pearson_residuals_transform(
 
 
 @register_transform("glm_pca_transform")
-def glm_pca_transform(
+def _glm_pca_transform(
     data: Union[pd.DataFrame, ad.AnnData], n_components: int = 50,
     random_state: int = RANDOM_SEED,
 ) -> ad.AnnData:
@@ -366,7 +414,7 @@ def glm_pca_transform(
 
 
 @register_transform("sanity_transform")
-def sanity_transform(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
+def _sanity_transform(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     """Bayesian estimation approximation (SANITY-like).
 
     Normalises by library size then log-transforms with a Bayesian
@@ -389,3 +437,109 @@ def sanity_transform(data: Union[pd.DataFrame, ad.AnnData]) -> ad.AnnData:
     lib_sizes = np.where(lib_sizes == 0, 1.0, lib_sizes)
     X_t = np.log(X / lib_sizes + pseudocount)
     return _wrap(adata, X_t)
+
+
+# ---------------------------------------------------------------------------
+# Public API: layer-writing wrappers around the pure transformations
+# ---------------------------------------------------------------------------
+
+_PUBLIC_PARAMS_DOC = """
+Parameters
+----------
+adata
+    Annotated data matrix (raw counts expected).
+layer
+    Layer to read; ``None`` reads ``adata.X``.
+key_added
+    Name of the layer that receives the result.  Defaults to ``"{name}"``.
+replace_x
+    Write the result to ``adata.X`` instead of a layer (the raw values are lost).
+copy
+    Return a modified copy and leave ``adata`` untouched, instead of modifying
+    ``adata`` in place and returning ``None``.
+{extra}
+Returns
+-------
+anndata.AnnData or None
+    ``None`` when working in place; the modified copy when ``copy=True``.
+    {changes_vars_note}
+Notes
+-----
+The parameters used are recorded in ``adata.uns["scintilla"]["{name}"]``.
+"""
+
+
+def _make_public(name: str, pure: Callable, *, changes_vars: bool = False) -> Callable:
+    """Build the public, layer-writing version of a pure transformation."""
+    pure_sig = inspect.signature(pure)
+    pure_params = list(pure_sig.parameters.values())
+    data_name, extra_params = pure_params[0].name, pure_params[1:]
+    summary = (inspect.getdoc(pure) or "").split("\n\n", 1)[0]
+
+    def wrapper(adata, *args, layer=None, key_added=None, replace_x=False, copy=False, **kwargs):
+        adata = ensure_anndata(adata)
+        if layer is not None and layer not in adata.layers:
+            raise KeyError(f"Layer {layer!r} not found in adata.layers.")
+        source = adata
+        if layer is not None:
+            source = ad.AnnData(X=adata.layers[layer], obs=adata.obs, var=adata.var)
+        result = pure(source, *args, **kwargs)
+        bound = pure_sig.bind(source, *args, **kwargs)
+        bound.apply_defaults()
+        params = {k: v for k, v in bound.arguments.items() if k != data_name}
+
+        if changes_vars:
+            record_params(result, name, layer=layer, **params)
+            return result
+
+        target = adata.copy() if copy else adata
+        if replace_x:
+            target.X = result.X
+        else:
+            target.layers[key_added or name] = result.X
+        record_params(target, name, layer=layer, key_added=None if replace_x else (key_added or name), **params)
+        return target if copy else None
+
+    extra_doc = "".join(
+        f"{p.name}\n    Transformation parameter, default ``{p.default!r}``.\n"
+        for p in extra_params
+        if p.default is not inspect.Parameter.empty
+    )
+    note = (
+        "This transformation changes the set of variables, so it cannot be stored as a layer: "
+        "a new AnnData is always returned and ``adata`` is not modified."
+        if changes_vars
+        else ""
+    )
+    wrapper.__name__ = wrapper.__qualname__ = name
+    wrapper.__module__ = pure.__module__
+    wrapper.__doc__ = summary + "\n" + _PUBLIC_PARAMS_DOC.format(name=name, extra=extra_doc, changes_vars_note=note)
+    keyword_only = inspect.Parameter.KEYWORD_ONLY
+    wrapper.__signature__ = inspect.Signature(
+        [
+            inspect.Parameter("adata", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+            *extra_params,
+            inspect.Parameter("layer", keyword_only, default=None, annotation=Optional[str]),
+            inspect.Parameter("key_added", keyword_only, default=None, annotation=Optional[str]),
+            inspect.Parameter("replace_x", keyword_only, default=False, annotation=bool),
+            inspect.Parameter("copy", keyword_only, default=False, annotation=bool),
+        ],
+        return_annotation=Optional[ad.AnnData],
+    )
+    return wrapper
+
+
+log_shift_size_factor = _make_public("log_shift_size_factor", _log_shift_size_factor)
+arcsinh_transform = _make_public("arcsinh_transform", _arcsinh_transform)
+log_alpha_transform = _make_public("log_alpha_transform", _log_alpha_transform)
+log_cpm_transform = _make_public("log_cpm_transform", _log_cpm_transform)
+log_shift_scale_by_std = _make_public("log_shift_scale_by_std", _log_shift_scale_by_std)
+log_shift_size_factor_hvg = _make_public("log_shift_size_factor_hvg", _log_shift_size_factor_hvg, changes_vars=True)
+log_shift_size_factor_z = _make_public("log_shift_size_factor_z", _log_shift_size_factor_z)
+log_shift_hvg_z = _make_public("log_shift_hvg_z", _log_shift_hvg_z, changes_vars=True)
+normalise_scran = _make_public("normalise_scran", _normalise_scran)
+normalise_tmm = _make_public("normalise_tmm", _normalise_tmm)
+box_cox_transform = _make_public("box_cox_transform", _box_cox_transform)
+pearson_residuals_transform = _make_public("pearson_residuals_transform", _pearson_residuals_transform)
+glm_pca_transform = _make_public("glm_pca_transform", _glm_pca_transform, changes_vars=True)
+sanity_transform = _make_public("sanity_transform", _sanity_transform)

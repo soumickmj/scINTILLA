@@ -10,11 +10,12 @@ import pandas as pd
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 
 def anova_per_gene(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     gene_list: List[str],
     group_col: str,
     method: str = "f_oneway",
@@ -24,7 +25,7 @@ def anova_per_gene(
 
     Parameters
     ----------
-    data:
+    adata:
         Input data.
     gene_list:
         Genes to test.
@@ -39,11 +40,11 @@ def anova_per_gene(
     -------
     pd.DataFrame with columns: Gene, F_statistic, p_value, p_adjusted, significant.
     """
-    adata = ensure_anndata(data)
+    adata = ensure_anndata(adata)
     if group_col not in adata.obs.columns:
         raise KeyError(f"Column '{group_col}' not found in obs.")
 
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="anova needs a dense matrix")
     X = X.astype(np.float64)
     groups = adata.obs[group_col].values
     unique_groups = np.unique(groups)

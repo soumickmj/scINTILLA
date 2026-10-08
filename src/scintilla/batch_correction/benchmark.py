@@ -7,8 +7,10 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from scintilla._logging import logger
 from scintilla.batch_correction.metrics import batch_asw, bio_conservation_score
 from scintilla.config import RANDOM_SEED
+from scintilla.io.loaders import ensure_anndata
 
 
 def benchmark_batch_correction(
@@ -48,7 +50,7 @@ def benchmark_batch_correction(
 
     Returns
     -------
-    dict with leaderboard (DataFrame), best_method (str), corrected_adatas (dict)
+    dict with ``leaderboard`` (DataFrame, with the ``embed_key`` each method was scored in), ``best_method`` (str) and ``corrected_adatas`` (dict of corrected copies)
     """
     if n_pcs is None:
         n_pcs = getattr(config, "n_pca_comps", 30) if config is not None else 30
@@ -85,23 +87,27 @@ def benchmark_batch_correction(
     records = []
     corrected_adatas: Dict = {}
 
+    adata = ensure_anndata(adata)
     for method in methods:
         try:
-            adata_corr = _apply_method(
+            adata_corr, embed_key = _apply_method(
                 adata, method, batch_key, n_pcs, random_state,
             )
-            asw = batch_asw(adata_corr, batch_key, label_key)
-            row: Dict = {"method": method, "batch_asw": asw, "status": "ok"}
+            # Every method is scored in the representation that holds *its* corrected
+            # output, never in the uncorrected X_pca that the input may carry.
+            asw = batch_asw(adata_corr, batch_key, label_key, embed_key=embed_key)
+            row: Dict = {"method": method, "batch_asw": asw, "status": "ok", "embed_key": embed_key}
 
             # Bio-conservation metric when label_key is provided
             if label_key is not None:
                 row["bio_conservation"] = bio_conservation_score(
-                    adata_corr, label_key,
+                    adata_corr, label_key, embed_key=embed_key,
                 )
 
             records.append(row)
             corrected_adatas[method] = adata_corr
-        except Exception as e:
+        except Exception as e:  # reported in the ``status`` column, never dropped
+            logger.warning("batch correction %s failed: %s", method, e)
             records.append({"method": method, "batch_asw": float("nan"), "status": str(e)})
 
     leaderboard = pd.DataFrame(records)
@@ -142,32 +148,62 @@ def benchmark_batch_correction(
 def _apply_method(
     adata, method: str, batch_key: str, n_pcs: int, random_state: int,
 ):
+    """Run one method on a copy and return ``(corrected_adata, embed_key)``.
+
+    ``embed_key`` names the ``obsm`` entry in which the method's corrected output
+    lives, so that the metrics evaluate the correction and not the input PCA.
+    """
     if method == "combat":
         from scintilla.batch_correction.combat import combat_correct
-        return combat_correct(adata, batch_key=batch_key)
+        from scintilla.preprocessing.pca import run_pca
+
+        corrected = combat_correct(adata, batch_key=batch_key, copy=True)
+        run_pca(
+            corrected, n_comps=n_pcs, layer="combat", key_added="X_pca_combat",
+            random_state=random_state,
+        )
+        return corrected, "X_pca_combat"
     elif method == "harmony":
         from scintilla.batch_correction.harmony import harmony_correct
-        return harmony_correct(
+        corrected = harmony_correct(
             adata,
             batch_key=batch_key,
             n_components=n_pcs,
             random_state=random_state,
+            copy=True,
         )
+        return corrected, "X_pca_harmony"
     elif method == "bbknn":
         from scintilla.batch_correction.bbknn import bbknn_correct
-        return bbknn_correct(
+        corrected = bbknn_correct(
             adata,
             batch_key=batch_key,
             n_pcs=n_pcs,
             random_state=random_state,
+            copy=True,
         )
+        # BBKNN outputs a graph; embed it spectrally so the embedding metrics apply.
+        corrected.obsm["X_bbknn_spectral"] = _graph_embedding(
+            corrected.obsp["connectivities"], n_pcs, random_state,
+        )
+        return corrected, "X_bbknn_spectral"
     elif method == "scanorama":
         from scintilla.batch_correction.scanorama import scanorama_correct
-        return scanorama_correct(
-            adata, batch_key=batch_key, random_state=random_state,
+        corrected = scanorama_correct(
+            adata, batch_key=batch_key, random_state=random_state, copy=True,
         )
+        return corrected, "X_scanorama"
     else:
         raise ValueError(f"Unknown method: {method}")
+
+
+def _graph_embedding(connectivities, n_components: int, random_state: int) -> np.ndarray:
+    """Spectral embedding of a (batch-corrected) neighbour graph."""
+    from sklearn.manifold import spectral_embedding
+
+    n_components = max(2, min(n_components, connectivities.shape[0] - 2))
+    adjacency = connectivities.maximum(connectivities.T)  # symmetrise
+    return spectral_embedding(adjacency, n_components=n_components, random_state=random_state)
 
 
 def _add_pareto_flag(

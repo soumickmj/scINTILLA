@@ -32,6 +32,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from scintilla._compat import get_matrix
+from scintilla._logging import logger, verbosity_aware
 from scintilla.config import RANDOM_SEED
 
 try:
@@ -256,7 +258,7 @@ def _get_X(adata, use_rep: str = "X_pca"):
     """Extract the feature matrix from an AnnData object."""
     if use_rep in adata.obsm:
         return adata.obsm[use_rep].astype(np.float64)
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="time_estimator needs a dense matrix")
     return X.astype(np.float64)
 
 
@@ -268,8 +270,8 @@ def _timed_call(fn: Callable, *args, **kwargs) -> Tuple[float, float]:
     t0 = time.perf_counter()
     try:
         fn(*args, **kwargs)
-    except Exception:
-        pass  # we only need the timing; failures are handled upstream
+    except Exception as exc:  # we only need the timing; failures are handled upstream
+        logger.debug("timed call raised %s: %s", type(exc).__name__, exc)
     elapsed = time.perf_counter() - t0
     _, peak = _tm.get_traced_memory()
     _tm.stop()
@@ -556,6 +558,7 @@ def _format_time(seconds: float) -> str:
 # ── Public API ──────────────────────────────────────────────────────────
 
 
+@verbosity_aware
 def estimate_benchmark_time(
     adata,
     config=None,
@@ -693,11 +696,10 @@ def estimate_benchmark_time(
     adata_calib = _subsample(adata, n_calib, seed=random_state)
     X_calib = _get_X(adata_calib, use_rep)
 
-    if verbose:
-        print(
-            f"[time_estimator] Calibrating on {n_calib} cells "
-            f"(full dataset: {n_full} cells, {d} features, ~{k} clusters)"
-        )
+    logger.info(
+        "[time_estimator] Calibrating on %d cells (full dataset: %d cells, %d features, ~%d clusters)",
+        n_calib, n_full, d, k,
+    )
 
     records: List[Dict[str, Any]] = []
 
@@ -725,13 +727,11 @@ def estimate_benchmark_time(
                     t_est = _extrapolate(
                         t_calib, spec.complexity_fn, n_calib, d, k, n_full, grid_size,
                     )
-                    if verbose:
-                        print(f"  {spec.name:25s}  calib={t_calib:.3f}s  "
-                              f"est={_format_time(t_est):>10s}  (grid={grid_size})")
+                    logger.info(f"  {spec.name:25s}  calib={t_calib:.3f}s  "
+                                f"est={_format_time(t_est):>10s}  (grid={grid_size})")
                 except Exception as exc:
                     status = f"unavailable ({type(exc).__name__})"
-                    if verbose:
-                        print(f"  {spec.name:25s}  skipped: {exc}")
+                    logger.info(f"  {spec.name:25s}  skipped: {exc}")
             else:
                 status = "no calibrator"
 
@@ -773,13 +773,11 @@ def estimate_benchmark_time(
                     t_est = _extrapolate(
                         t_calib, spec.complexity_fn, n_calib, d, k, n_full, grid_size,
                     )
-                    if verbose:
-                        print(f"  {spec.name:25s}  calib={t_calib:.3f}s  "
-                              f"est={_format_time(t_est):>10s}  (cv*space={grid_size})")
+                    logger.info(f"  {spec.name:25s}  calib={t_calib:.3f}s  "
+                                f"est={_format_time(t_est):>10s}  (cv*space={grid_size})")
                 except Exception as exc:
                     status = f"unavailable ({type(exc).__name__})"
-                    if verbose:
-                        print(f"  {spec.name:25s}  skipped: {exc}")
+                    logger.info(f"  {spec.name:25s}  skipped: {exc}")
             else:
                 status = "no calibrator"
 
@@ -892,11 +890,8 @@ def estimate_benchmark_time(
         total_ok = df.loc[df["status"] == "ok", "estimated_seconds"].sum()
         total_all = df["estimated_seconds"].sum()
 
-        if verbose:
-            print(f"\n[time_estimator] Total estimated time (calibrated methods): "
-                  f"{_format_time(total_ok)}")
-            print(f"[time_estimator] Total estimated time (all methods):         "
-                  f"{_format_time(total_all)}")
+        logger.info(f"[time_estimator] Total estimated time (calibrated methods): {_format_time(total_ok)}")
+        logger.info(f"[time_estimator] Total estimated time (all methods):         {_format_time(total_all)}")
 
     return df
 
@@ -942,6 +937,8 @@ def print_time_budget(
 
     excluded = df[~mask]
 
+    # Displaying the budget is this function's purpose, so it prints (the only library
+    # function that does); everything else reports through the ``scintilla`` logger.
     print(f"Time budget: {_format_time(max_seconds)}")
     print(f"Methods within budget: {len(selected)} / {len(df)}")
     if not selected.empty:

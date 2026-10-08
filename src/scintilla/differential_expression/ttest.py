@@ -10,6 +10,7 @@ import pandas as pd
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -48,7 +49,7 @@ def ttest_de(
     pd.DataFrame  columns=[gene, statistic, p_value, p_adjusted, log2fc]
     """
     adata = ensure_anndata(adata)
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="ttest needs a dense matrix")
     X = X.astype(np.float64)
     groups = adata.obs[group_col].values
 

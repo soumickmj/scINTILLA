@@ -6,6 +6,55 @@ import pandas as pd
 import seaborn as sns
 
 
+def plot_classification_benchmark(results_df: pd.DataFrame, ax=None, title: str = None) -> plt.Figure:
+    """Grouped bar chart of accuracy per model and feature space.
+
+    Handles the three table layouts that
+    :func:`scintilla.classification.benchmark.benchmark_models_comprehensive` produces:
+    cross-validation (``mean_accuracy`` with standard-error bars), hold-out and
+    .632+ bootstrap (plain ``accuracy``).
+
+    Parameters
+    ----------
+    results_df
+        The benchmark table.
+    ax
+        Optional matplotlib axes to draw on; a new figure is created when omitted.
+    title
+        Optional title; a descriptive one is generated when omitted.
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The figure; it is not closed.
+    """
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 5))
+    else:
+        fig = ax.figure
+    if "mean_accuracy" in results_df.columns and results_df["mean_accuracy"].notna().any():
+        pivot = results_df.pivot_table(index="model", columns="space", values="mean_accuracy")
+        # Error bars are the standard error of the mean (SD / sqrt(k)), the uncertainty
+        # of the mean estimate, not the between-fold variability.
+        if "se_accuracy" in results_df.columns:
+            yerr = results_df.pivot_table(index="model", columns="space", values="se_accuracy")
+            label = "± SE"
+        else:
+            yerr = results_df.pivot_table(index="model", columns="space", values="std_accuracy")
+            label = "± SD"
+        pivot.plot(kind="bar", ax=ax, yerr=yerr)
+        ax.set_title(title or f"Classification Benchmark (cross-validation, mean accuracy {label})")
+    elif "accuracy" in results_df.columns and results_df["accuracy"].notna().any():
+        pivot = results_df.pivot_table(index="model", columns="space", values="accuracy")
+        pivot.plot(kind="bar", ax=ax)
+        ax.set_title(title or "Classification Benchmark (accuracy)")
+    ax.set_ylabel("Accuracy")
+    ax.set_xlabel("Model")
+    ax.tick_params(axis="x", rotation=45)
+    fig.tight_layout()
+    return fig
+
+
 def benchmark_bar_chart(
     results_df: pd.DataFrame,
     metric: str = "accuracy",

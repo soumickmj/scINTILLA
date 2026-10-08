@@ -12,6 +12,7 @@ from scipy.cluster.hierarchy import dendrogram, fcluster, linkage
 from scipy.spatial.distance import pdist
 from sklearn.cluster import AgglomerativeClustering
 
+from scintilla._compat import get_matrix
 from scintilla.clustering.utils import cophenetic_correlation
 from scintilla.io.loaders import ensure_anndata
 
@@ -64,7 +65,7 @@ def hierarchical_scipy(
 
 
 def hierarchical_clustering(
-    data: Union[pd.DataFrame, ad.AnnData, np.ndarray],
+    adata: Union[pd.DataFrame, ad.AnnData, np.ndarray],
     n_clusters: int,
     metric: str = "euclidean",
     linkage: str = "complete",
@@ -77,12 +78,12 @@ def hierarchical_clustering(
     mode:
         'sklearn' (fast) or 'scipy' (detailed with CPCC + dendrogram).
     """
-    if isinstance(data, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(data)
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
+        adata = ensure_anndata(adata)
+        X = get_matrix(adata, reason="hierarchical needs a dense matrix")
         X = X.astype(np.float64)
     else:
-        X = np.asarray(data, dtype=np.float64)
+        X = np.asarray(adata, dtype=np.float64)
 
     if mode == "scipy":
         return hierarchical_scipy(X, metric=metric, linkage_method=linkage, n_clusters=n_clusters)

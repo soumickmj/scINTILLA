@@ -11,12 +11,13 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 
+from scintilla._compat import get_matrix
 from scintilla.config import DEFAULT_TEST_SIZE, RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
 
 def extract_top_genes_per_pc(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     n_per_pc: int = 9,
     n_pcs: Optional[int] = None,
     random_state: int = RANDOM_SEED,
@@ -25,7 +26,7 @@ def extract_top_genes_per_pc(
 
     Parameters
     ----------
-    data:
+    adata:
         AnnData (must have 'X_pca' and PCA varm stored, or gene-space X).
     n_per_pc:
         Number of top genes per PC.
@@ -36,14 +37,14 @@ def extract_top_genes_per_pc(
     -------
     Deduplicated list of gene names.
     """
-    adata = ensure_anndata(data)
+    adata = ensure_anndata(adata)
 
     # Check if PCA loadings are in varm
     if "PCs" in adata.varm:
         loadings = adata.varm["PCs"]  # (n_genes, n_pcs)
     else:
         # Compute PCA
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        X = get_matrix(adata, reason="pca_loadings needs a dense matrix")
         X = X.astype(np.float64)
         n_c = min(50, X.shape[0] - 1, X.shape[1] - 1)
         pca = PCA(n_components=n_c, random_state=random_state)
@@ -67,11 +68,11 @@ def extract_top_genes_per_pc(
 
 
 def build_reduced_dataset(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     gene_list: List[str],
 ) -> ad.AnnData:
     """Subset AnnData to specified genes."""
-    adata = ensure_anndata(data)
+    adata = ensure_anndata(adata)
     valid = [g for g in gene_list if g in adata.var_names]
     if not valid:
         raise ValueError("None of the specified genes found in adata.var_names.")
@@ -79,7 +80,7 @@ def build_reduced_dataset(
 
 
 def validate_reduced_set(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     gene_list: List[str],
     target_col: str,
     classifier: str = "qda",
@@ -96,7 +97,7 @@ def validate_reduced_set(
     from sklearn.ensemble import RandomForestClassifier  # noqa
     from sklearn.metrics import accuracy_score, confusion_matrix  # noqa
 
-    adata = ensure_anndata(data, target_col=target_col)
+    adata = ensure_anndata(adata, target_col=target_col)
     if target_col not in adata.obs.columns:
         raise KeyError(f"Column '{target_col}' not found in obs.")
 
@@ -118,11 +119,11 @@ def validate_reduced_set(
         y_pred = m.predict(X_te)
         return accuracy_score(y_te, y_pred), confusion_matrix(y_te, y_pred)
 
-    X_full = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X_full = get_matrix(adata, reason="pca_loadings needs a dense matrix")
     acc_full, cm_full = _eval(X_full.astype(np.float64))
 
     adata_red = build_reduced_dataset(adata, gene_list)
-    X_red = adata_red.X if not hasattr(adata_red.X, "toarray") else adata_red.X.toarray()
+    X_red = get_matrix(adata_red, reason="pca_loadings needs a dense matrix")
     acc_red, cm_red = _eval(X_red.astype(np.float64))
 
     return {

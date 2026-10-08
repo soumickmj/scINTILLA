@@ -14,6 +14,8 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 from sklearn.neighbors import NearestNeighbors
 
+from scintilla._compat import get_matrix
+from scintilla._logging import logger, resolve_verbose, verbosity_aware
 from scintilla.config import RANDOM_SEED, TRANSFORMATION_BENCHMARK_WEIGHTS
 from scintilla.io.loaders import ensure_anndata
 from scintilla.preprocessing.transformations import get_all_transformations
@@ -59,8 +61,9 @@ def _pca_preservation(
     return float(np.mean(corrs))
 
 
+@verbosity_aware
 def benchmark_transformations(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     transformations: Optional[Dict[str, Callable]] = None,
     weights: Optional[Dict[str, float]] = None,
     n_pca_components: Optional[int] = None,
@@ -134,13 +137,12 @@ def benchmark_transformations(
         bootstrap_ci = getattr(config, "bootstrap_ci", False) if config is not None else False
     if n_bootstrap is None:
         n_bootstrap = getattr(config, "n_bootstrap", 200) if config is not None else 200
-    if verbose is None:
-        verbose = getattr(config, "verbose", True) if config is not None else True
+    verbose = resolve_verbose(verbose, config)
     if random_state is None:
         random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
 
-    adata = ensure_anndata(data)
-    X_raw = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    adata = ensure_anndata(adata)
+    X_raw = get_matrix(adata, reason="benchmark needs a dense matrix")
     X_raw = X_raw.astype(np.float64)
 
     # Resolve ground-truth labels for silhouette (if available)
@@ -161,15 +163,14 @@ def benchmark_transformations(
 
     records = []
     for name, fn in transformations.items():
-        if verbose:
-            print(f"  Benchmarking: {name}")
+        logger.info(f"  Benchmarking: {name}")
         try:
             transform_kwargs = (
                 {"random_state": random_state}
                 if name == "glm_pca_transform" else {}
             )
             adata_t = fn(adata, **transform_kwargs)
-            X_t = adata_t.X if not hasattr(adata_t.X, "toarray") else adata_t.X.toarray()
+            X_t = get_matrix(adata_t, reason="benchmark needs a dense matrix")
             X_t = X_t.astype(np.float64)
             # Replace NaN/inf
             X_t = np.nan_to_num(X_t, nan=0.0, posinf=0.0, neginf=0.0)
@@ -282,8 +283,7 @@ def benchmark_transformations(
         except MemoryError:
             raise
         except Exception as e:
-            if verbose:
-                print(f"    Failed: {e}")
+            logger.info(f"    Failed: {e}")
             warnings.warn(f"{name} failed: {e}", stacklevel=2)
             records.append({
                 "transform": name,
@@ -357,7 +357,7 @@ def benchmark_transformations(
                             if tname == "glm_pca_transform" else {}
                         )
                         adata_bt = fn(adata_sub, **transform_kwargs)
-                        X_bt = adata_bt.X if not hasattr(adata_bt.X, "toarray") else adata_bt.X.toarray()
+                        X_bt = get_matrix(adata_bt, reason="benchmark needs a dense matrix")
                         X_bt = np.nan_to_num(X_bt.astype(np.float64))
                         n_pca_bt = min(n_pca_components, n - 1, X_bt.shape[1])
                         X_pca_bt = PCA(

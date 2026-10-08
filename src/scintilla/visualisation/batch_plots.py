@@ -7,6 +7,7 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scintilla._compat import get_matrix
 from scintilla.config import RANDOM_SEED
 
 
@@ -44,7 +45,7 @@ def plot_batch_correction_comparison(
         elif "X_pca" in adata.obsm:
             return adata.obsm["X_pca"][:, :2]
         else:
-            X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+            X = get_matrix(adata, reason="batch_plots needs a dense matrix")
             pca = PCA(n_components=2, random_state=random_state)
             return pca.fit_transform(X.astype(np.float64))
 

@@ -7,11 +7,12 @@ from typing import Union
 import anndata as ad
 import pandas as pd
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 
 def aggregate_by_patient_celltype(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     patient_col: str,
     celltype_col: str,
     method: str = "median",
@@ -20,7 +21,7 @@ def aggregate_by_patient_celltype(
 
     Parameters
     ----------
-    data:
+    adata:
         Input data.
     patient_col:
         Column in obs containing patient identifiers.
@@ -33,8 +34,8 @@ def aggregate_by_patient_celltype(
     -------
     pd.DataFrame with MultiIndex (patient, cell_type) and gene columns.
     """
-    adata = ensure_anndata(data)
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    adata = ensure_anndata(adata)
+    X = get_matrix(adata, reason="aggregation needs a dense matrix")
     df = pd.DataFrame(X, columns=adata.var_names, index=adata.obs_names)
     for col in [patient_col, celltype_col]:
         if col not in adata.obs.columns:

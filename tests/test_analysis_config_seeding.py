@@ -305,7 +305,7 @@ def test_unsupervised_analysis_threads_config_pca_fields_and_seed(monkeypatch):
 
     def fake_benchmark(*args, **kwargs):
         benchmark_kwargs.append(kwargs)
-        return pd.DataFrame(columns=["method", "params", "ari"]), {}, None
+        return pd.DataFrame(columns=["method", "params", "ari"]), {}
 
     monkeypatch.setattr(run, "run_pca", fake_pca)
     monkeypatch.setattr(run, "benchmark_clustering_methods", fake_benchmark)
@@ -350,7 +350,7 @@ def test_unsupervised_analysis_explicit_none_disables_config_pca_adaptation(
         run,
         "benchmark_clustering_methods",
         lambda *args, **kwargs: (
-            pd.DataFrame(columns=["method", "params", "ari"]), {}, None,
+            pd.DataFrame(columns=["method", "params", "ari"]), {},
         ),
     )
 
@@ -458,11 +458,11 @@ def test_batch_benchmark_uses_config_and_explicit_values_win(monkeypatch):
 
     def fake_apply(adata, method, batch_key, n_pcs, random_state):
         calls.append((method, n_pcs, random_state))
-        return adata
+        return adata, "X_pca"
 
     monkeypatch.setattr(benchmark, "_apply_method", fake_apply)
-    monkeypatch.setattr(benchmark, "batch_asw", lambda *args: 0.5)
-    monkeypatch.setattr(benchmark, "bio_conservation_score", lambda *args: 0.5)
+    monkeypatch.setattr(benchmark, "batch_asw", lambda *args, **kwargs: 0.5)
+    monkeypatch.setattr(benchmark, "bio_conservation_score", lambda *args, **kwargs: 0.5)
 
     config_result = benchmark.benchmark_batch_correction(
         _classification_data(),
@@ -695,7 +695,7 @@ def test_classifier_benchmark_explicit_none_cv_folds_disables_config_cv(
 
     def fake_cv(*args, **kwargs):
         cv_calls.append((args, kwargs))
-        return pd.DataFrame(), None
+        return pd.DataFrame()
 
     def fake_classifier(X_train, X_test, y_train, y_test):
         return _Predictor(), {"accuracy": 1.0, "f1": 1.0}
@@ -703,7 +703,7 @@ def test_classifier_benchmark_explicit_none_cv_folds_disables_config_cv(
     monkeypatch.setattr(benchmark, "_benchmark_cv", fake_cv)
     monkeypatch.setattr(benchmark, "_MODEL_FNS", {"LDA": fake_classifier})
 
-    result, _ = benchmark.benchmark_models_comprehensive(
+    result = benchmark.benchmark_models_comprehensive(
         _classification_data(),
         target_col="target",
         cv_folds=None,
@@ -739,7 +739,7 @@ def test_diffusion_map_forwards_random_state_to_scanpy_leaf(monkeypatch):
     adata = _classification_data()
     adata.obsm["X_pca"] = np.asarray(adata.X)
 
-    result = run_diffusion_map(adata, n_comps=3, random_state=731)
+    result = run_diffusion_map(adata, n_comps=3, random_state=731, copy=True)
 
     assert diffmap_seeds == [731]
     assert result.obsm["X_diffmap"].shape == (12, 3)

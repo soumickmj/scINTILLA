@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Optional
+
 import anndata as ad
 import numpy as np
 
+from scintilla._compat import finish, prepare, record_params
 from scintilla.config import RANDOM_SEED
+from scintilla.dimensionality_reduction._common import get_representation
 
 
 def harmony_correct(
@@ -13,23 +17,35 @@ def harmony_correct(
     batch_key: str,
     n_components: int = 30,
     random_state: int = RANDOM_SEED,
-) -> ad.AnnData:
-    """Apply Harmony batch correction to PCA embedding.
+    *,
+    use_rep: str = "X_pca",
+    key_added: str = "X_pca_harmony",
+    copy: bool = False,
+) -> Optional[ad.AnnData]:
+    """Apply Harmony to a PCA embedding and store it in ``adata.obsm[key_added]``.
 
     Parameters
     ----------
-    adata:
-        AnnData with X_pca in obsm (computed beforehand).
-    batch_key:
-        Column in obs with batch labels.
-    n_components:
-        Number of PCA components to use.
-    random_state:
-        Random seed for PCA and Harmony optimisation.
+    adata
+        Annotated data matrix with the embedding ``use_rep`` in ``obsm``.  When it is
+        absent a temporary PCA of ``X`` is used (and not stored).
+    batch_key
+        Column in ``adata.obs`` with batch labels.
+    n_components
+        Number of embedding dimensions to correct.
+    random_state
+        Random seed for Harmony's optimisation.
+    use_rep
+        Embedding to correct.
+    key_added
+        Key of the corrected embedding in ``adata.obsm``.
+    copy
+        Return a modified copy instead of modifying ``adata`` in place.
 
     Returns
     -------
-    AnnData with 'X_pca_harmony' added to obsm.
+    anndata.AnnData or None
+        ``None`` when working in place; the modified copy when ``copy=True``.
     """
     try:
         import harmonypy
@@ -39,12 +55,10 @@ def harmony_correct(
             "Install with: pip install harmonypy"
         ) from exc
 
-    adata = adata.copy()
-    if "X_pca" not in adata.obsm:
-        import scanpy as sc
-        sc.tl.pca(adata, n_comps=n_components, random_state=random_state)
-
-    X_pca = adata.obsm["X_pca"][:, :n_components]
+    adata, give_back = prepare(adata, copy=copy)
+    if batch_key not in adata.obs.columns:
+        raise KeyError(f"Column '{batch_key}' not found in obs.")
+    X_pca = get_representation(adata, use_rep, random_state)[:, :n_components]
     ho = harmonypy.run_harmony(
         X_pca, adata.obs, batch_key, random_state=random_state,
     )
@@ -63,5 +77,9 @@ def harmony_correct(
             "harmonypy returned a corrected embedding of unexpected shape "
             f"{Z_corr.shape}; expected {expected} or {expected[::-1]}"
         )
-    adata.obsm["X_pca_harmony"] = embedding
-    return adata
+    adata.obsm[key_added] = embedding
+    record_params(
+        adata, "harmony", batch_key=batch_key, n_components=n_components, random_state=random_state,
+        use_rep=use_rep, key_added=key_added,
+    )
+    return finish(adata, give_back)

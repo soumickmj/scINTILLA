@@ -6,12 +6,13 @@ import warnings
 from typing import Dict, Optional, Tuple, Union
 
 import anndata as ad
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.metrics import adjusted_mutual_info_score, adjusted_rand_score
 from tqdm.auto import tqdm
 
+from scintilla._compat import get_matrix
+from scintilla._logging import logger, resolve_verbose, verbosity_aware
 from scintilla.clustering.dbscan import dbscan_clustering
 from scintilla.clustering.hierarchical import hierarchical_sklearn
 from scintilla.clustering.kmeans import kmeans_clustering
@@ -26,8 +27,9 @@ from scintilla.config import (
 from scintilla.io.loaders import ensure_anndata
 
 
+@verbosity_aware
 def benchmark_clustering_methods(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     cell_type_col: str,
     use_rep: str = "X_pca",
     n_clusters: Optional[int] = None,
@@ -38,7 +40,7 @@ def benchmark_clustering_methods(
     verbose: Optional[bool] = None,
     config=None,
     random_state: Optional[int] = None,
-) -> Tuple[pd.DataFrame, Dict[str, np.ndarray], plt.Figure]:
+) -> Tuple[pd.DataFrame, Dict[str, np.ndarray]]:
     """Benchmark multiple clustering methods using ARI against true labels.
 
     Parameters
@@ -66,16 +68,18 @@ def benchmark_clustering_methods(
 
     Returns
     -------
-    results_df : pd.DataFrame  columns=[method, params, ari, n_clusters]
-    labels_dict : dict  {method_key: labels_array}
-    fig : matplotlib Figure
+    results_df : pd.DataFrame
+        One row per method and parameter setting, with ``ari``, ``ami``,
+        ``n_clusters``, ``noise_fraction``, ``status`` and, for failures,
+        ``failure_reason``.  Plot it with :func:`scintilla.pl.clustering_benchmark`.
+    labels_dict : dict
+        ``{method_key: labels_array}``.
     """
-    adata = ensure_anndata(data)
+    adata = ensure_anndata(adata)
 
     if random_state is None:
         random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
-    if verbose is None:
-        verbose = getattr(config, "verbose", True) if config is not None else True
+    verbose = resolve_verbose(verbose, config)
 
     if cell_type_col not in adata.obs.columns:
         raise KeyError(f"Column '{cell_type_col}' not found in obs.")
@@ -89,7 +93,7 @@ def benchmark_clustering_methods(
     if use_rep in adata.obsm:
         X = adata.obsm[use_rep].astype(np.float64)
     else:
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        X = get_matrix(adata, reason="benchmark needs a dense matrix")
         X = X.astype(np.float64)
 
     records = []
@@ -417,8 +421,7 @@ def benchmark_clustering_methods(
         pbar.close()
     else:
         from joblib import Parallel, delayed
-        if verbose:
-            print(f"Running {len(_methods_to_run)} clustering methods in parallel (n_jobs={n_jobs})...")
+        logger.info("Running %d clustering methods in parallel (n_jobs=%s)...", len(_methods_to_run), n_jobs)
         results = Parallel(n_jobs=n_jobs, prefer="threads")(
             delayed(runner)() for runner in _methods_to_run.values()
         )
@@ -428,26 +431,4 @@ def benchmark_clustering_methods(
 
     results_df = pd.DataFrame(records)
 
-    # Visualise
-    valid_df = results_df.dropna(subset=["ari"]).sort_values("ari", ascending=True)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, max(4, len(records) * 0.25)))
-    if not valid_df.empty:
-        y_labels = valid_df["method"] + " | " + valid_df["params"].astype(str)
-        y_pos = range(len(valid_df))
-        ax1.barh(y_pos, valid_df["ari"].values, color="steelblue")
-        ax1.set_yticks(y_pos)
-        ax1.set_yticklabels(y_labels, fontsize=6)
-        ax1.set_xlabel("ARI")
-        ax1.set_title("Clustering Benchmark (ARI)")
-
-        ami_sorted = valid_df.sort_values("ami", ascending=True)
-        y_labels_ami = ami_sorted["method"] + " | " + ami_sorted["params"].astype(str)
-        y_pos_ami = range(len(ami_sorted))
-        ax2.barh(y_pos_ami, ami_sorted["ami"].values, color="darkorange")
-        ax2.set_yticks(y_pos_ami)
-        ax2.set_yticklabels(y_labels_ami, fontsize=6)
-        ax2.set_xlabel("AMI")
-        ax2.set_title("Clustering Benchmark (AMI)")
-    plt.tight_layout()
-
-    return results_df, labels_dict, fig
+    return results_df, labels_dict

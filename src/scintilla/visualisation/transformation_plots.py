@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -16,9 +17,8 @@ def before_after_distribution_plot(
     adata_orig = ensure_anndata(original_data)
     adata_trans = ensure_anndata(transformed_data)
 
-    X_orig = adata_orig.X if not hasattr(adata_orig.X, "toarray") else adata_orig.X.toarray()
-    X_trans = adata_trans.X if not hasattr(adata_trans.X, "toarray") else adata_trans.X.toarray()
-
+    X_orig = get_matrix(adata_orig, reason="transformation_plots needs a dense matrix")
+    X_trans = get_matrix(adata_trans, reason="transformation_plots needs a dense matrix")
     n_genes = min(n_genes, X_orig.shape[1], X_trans.shape[1])
     fig, axes = plt.subplots(n_genes, 2, figsize=(10, n_genes * 2.5))
     if n_genes == 1:

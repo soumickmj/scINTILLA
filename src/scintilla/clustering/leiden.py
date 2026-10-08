@@ -2,36 +2,50 @@
 
 from __future__ import annotations
 
-from typing import Union
+from typing import Optional, Union
 
 import anndata as ad
 import numpy as np
 import pandas as pd
 
-from scintilla.config import RANDOM_SEED
+from scintilla._compat import record_params
+from scintilla.config import DEFAULT_N_PCA_COMPS, RANDOM_SEED
+from scintilla.dimensionality_reduction._common import get_representation, stand_in
 from scintilla.io.loaders import ensure_anndata
 
 
 def leiden_clustering(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[ad.AnnData, pd.DataFrame],
     resolution: float = 1.0,
     use_rep: str = "X_pca",
     random_state: int = RANDOM_SEED,
+    *,
+    key_added: Optional[str] = None,
 ) -> np.ndarray:
-    """Run Leiden clustering via scanpy.
+    """Run Leiden clustering via scanpy and return the cluster labels.
+
+    The neighbour graph and the clustering are computed on a stand-in object that holds
+    only the representation, so ``adata`` is not modified (no ``"leiden"`` column and no
+    neighbour graph is left behind) unless ``key_added`` is given.
 
     Parameters
     ----------
-    data:
-        Input data (AnnData preferred; must have *use_rep* in obsm if AnnData).
-    resolution:
-        Leiden resolution parameter.
-    use_rep:
-        Key in obsm to use as representation for neighbour graph.
+    adata
+        Annotated data matrix (AnnData preferred).
+    resolution
+        Leiden resolution parameter; higher gives more clusters.
+    use_rep
+        Key in ``adata.obsm`` of the representation used for the neighbour graph.
+        When it is absent a temporary PCA with 30 components is used.
+    random_state
+        Random seed.
+    key_added
+        If given, also store the labels (as a categorical) in ``adata.obs[key_added]``.
 
     Returns
     -------
-    np.ndarray of cluster labels (int).
+    numpy.ndarray
+        Integer cluster labels, one per cell.
     """
     try:
         import leidenalg  # noqa: F401
@@ -41,16 +55,15 @@ def leiden_clustering(
             "leidenalg and scanpy are required for Leiden clustering. "
             "Install with: pip install leidenalg python-igraph scanpy"
         ) from exc
-
-    adata = ensure_anndata(data)
-
-    if use_rep not in adata.obsm:
-        # Run PCA if representation not available
-        import scintilla.preprocessing.pca as pca_mod
-        adata = pca_mod.run_pca(adata, random_state=random_state)
-        use_rep = "X_pca"
-
-    sc.pp.neighbors(adata, use_rep=use_rep, random_state=random_state)
-    sc.tl.leiden(adata, resolution=resolution, random_state=random_state, flavor="igraph")
-    labels = adata.obs["leiden"].astype(int).values
+    adata = ensure_anndata(adata)
+    rep = get_representation(adata, use_rep, random_state, n_comps=DEFAULT_N_PCA_COMPS)
+    tmp = stand_in(rep, adata.obs_names)
+    sc.pp.neighbors(tmp, use_rep="rep", random_state=random_state)
+    sc.tl.leiden(tmp, resolution=resolution, random_state=random_state, flavor="igraph")
+    labels = tmp.obs["leiden"].astype(int).values
+    if key_added is not None:
+        adata.obs[key_added] = pd.Categorical(labels.astype(str))
+        record_params(
+            adata, key_added, method="leiden", resolution=resolution, use_rep=use_rep, random_state=random_state
+        )
     return labels

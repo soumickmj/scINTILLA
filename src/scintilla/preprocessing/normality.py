@@ -10,12 +10,13 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from scintilla._compat import get_matrix
 from scintilla.config import RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
 
 def check_normality(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     alpha: float = 0.05,
     sample_size: int = 500,
     threshold: float = 0.3,
@@ -27,7 +28,7 @@ def check_normality(
 
     Parameters
     ----------
-    data:
+    adata:
         Input data (DataFrame or AnnData).
     alpha:
         Significance level.
@@ -62,8 +63,8 @@ def check_normality(
     report : dict
         Per-feature statistics, p-values, pass/fail, and a summary string.
     """
-    adata = ensure_anndata(data)
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    adata = ensure_anndata(adata)
+    X = get_matrix(adata, reason="normality needs a dense matrix")
     X = X.astype(np.float64)
 
     n_features = X.shape[1]

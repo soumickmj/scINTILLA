@@ -16,7 +16,7 @@ from scintilla.io.loaders import ensure_anndata
 
 
 def kmeans_clustering(
-    data: Union[pd.DataFrame, ad.AnnData, np.ndarray],
+    adata: Union[pd.DataFrame, ad.AnnData, np.ndarray],
     n_clusters: int,
     init: str = "k-means++",
     spherical: bool = False,
@@ -27,7 +27,7 @@ def kmeans_clustering(
 
     Parameters
     ----------
-    data:
+    adata:
         Input data matrix or AnnData.
     n_clusters:
         Number of clusters.
@@ -44,15 +44,15 @@ def kmeans_clustering(
     model : fitted sklearn model
     metrics : dict with 'inertia' and 'silhouette'
     """
-    if isinstance(data, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(data)
+    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
+        adata = ensure_anndata(adata)
         X = adata.X
         if hasattr(X, "toarray"):
             X = X.astype(np.float64)  # preserve sparsity
         else:
             X = np.asarray(X, dtype=np.float64)
     else:
-        X = np.asarray(data, dtype=np.float64)
+        X = np.asarray(adata, dtype=np.float64)
 
     if spherical:
         X = normalize(X, norm="l2")

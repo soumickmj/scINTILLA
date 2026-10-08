@@ -15,7 +15,7 @@ from scintilla.io.loaders import ensure_anndata
 
 
 def build_per_celltype_clustering(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     patient_col: str,
     celltype_col: str,
     target_col: Optional[str] = None,
@@ -33,7 +33,7 @@ def build_per_celltype_clustering(
     """
     from scintilla.preprocessing.aggregation import aggregate_by_patient_celltype
 
-    adata = ensure_anndata(data)
+    adata = ensure_anndata(adata)
     pseudo = aggregate_by_patient_celltype(adata, patient_col, celltype_col)
     patients = pseudo.index.get_level_values(patient_col).unique().tolist()
     cell_types = pseudo.index.get_level_values(celltype_col).unique().tolist()

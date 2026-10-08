@@ -10,11 +10,12 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 
 def box_m_test(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[pd.DataFrame, ad.AnnData],
     group_col: str,
 ) -> Dict:
     """Full Box's M test implementation.
@@ -27,11 +28,11 @@ def box_m_test(
     dict with keys: M_statistic, chi2_approx, p_value, df, recommendation ('LDA'|'QDA'),
     and optionally 'warning' when the approximation is unreliable.
     """
-    adata = ensure_anndata(data)
+    adata = ensure_anndata(adata)
     if group_col not in adata.obs.columns:
         raise KeyError(f"Column '{group_col}' not found in obs.")
 
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="boxm needs a dense matrix")
     X = X.astype(np.float64)
     groups = adata.obs[group_col].values
     unique_groups = np.unique(groups)

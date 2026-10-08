@@ -8,49 +8,92 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 
+from scintilla._compat import finish, prepare, record_params
 from scintilla.config import DEFAULT_N_PCA_COMPS, RANDOM_SEED
-from scintilla.io.loaders import ensure_anndata
 
 
 def run_pca(
-    data: Union[pd.DataFrame, ad.AnnData],
+    adata: Union[ad.AnnData, pd.DataFrame],
     n_comps: int = DEFAULT_N_PCA_COMPS,
     variance_threshold: Optional[float] = None,
     auto_components: Optional[str] = None,
     mp_sigma_method: str = "median",
     random_state: int = RANDOM_SEED,
-) -> ad.AnnData:
-    """Run PCA using scanpy and store results in adata.obsm['X_pca'].
+    *,
+    layer: Optional[str] = None,
+    key_added: str = "X_pca",
+    copy: bool = False,
+) -> Optional[ad.AnnData]:
+    """Run PCA using scanpy and store the embedding in ``adata.obsm[key_added]``.
 
     If *variance_threshold* is given, automatically select the number of
-    components needed to explain that fraction of variance.
+    components needed to explain that fraction of variance.  Sparse input is
+    passed to scanpy unchanged.
 
     Parameters
     ----------
-    auto_components:
+    adata
+        Annotated data matrix.  A DataFrame is converted to AnnData, in which case
+        the converted object is returned.
+    n_comps
+        Number of principal components (capped at ``min(n_obs, n_vars) - 1``).
+    variance_threshold
+        Keep the smallest number of components whose cumulative explained variance
+        reaches this fraction.
+    auto_components
         Data-adaptive component selection method.  Overrides *n_comps*
         and *variance_threshold* when set.
 
-        - ``"gavish_donoho"`` — Gavish-Donoho optimal hard threshold for
+        - ``"gavish_donoho"``: Gavish-Donoho optimal hard threshold for
           singular values under a noise model.
-        - ``"marchenko_pastur"`` — retain eigenvalues exceeding the
+        - ``"marchenko_pastur"``: retain eigenvalues exceeding the
           Marchenko-Pastur bulk edge.
-        - ``None`` (default) — use *n_comps* / *variance_threshold* as
-          before.
-    mp_sigma_method:
+        - ``None`` (default): use *n_comps* / *variance_threshold*.
+    mp_sigma_method
         Noise-variance estimation method passed to
-        ``marchenko_pastur_cutoff`` when ``auto_components="marchenko_pastur"``.
-        ``"median"`` (default) or ``"trimmed_mean"``.
+        :func:`~scintilla.statistical_tests.adaptive.marchenko_pastur_cutoff` when
+        ``auto_components="marchenko_pastur"``: ``"median"`` (default) or
+        ``"trimmed_mean"``.
+    random_state
+        Seed for the randomised solver.
+    layer
+        Layer to decompose; ``None`` uses ``.X``.
+    key_added
+        Key of the embedding in ``adata.obsm``.  The default ``"X_pca"`` is what the
+        downstream scintilla functions look for.  A different key leaves any
+        existing ``X_pca``, ``PCs`` and ``uns["pca"]`` untouched and stores the
+        loadings in ``varm[key_added + "_loadings"]`` and the variance information in
+        ``uns[key_added]``.
+    copy
+        Return a modified copy instead of modifying ``adata`` in place.
+
+    Returns
+    -------
+    anndata.AnnData or None
+        ``None`` when working in place on an AnnData, the modified AnnData otherwise.
+        The component actually kept is recorded in ``adata.uns["pca"]`` and
+        ``adata.uns["scintilla"]["pca"]``.
     """
     import scanpy as sc
 
-    adata = ensure_anndata(data)
+    adata, give_back = prepare(adata, copy=copy)
     max_comps = min(adata.n_obs - 1, adata.n_vars - 1)
     if max_comps < 1:
         raise ValueError(
             f"PCA requires at least 2 observations and 2 variables, "
             f"but got n_obs={adata.n_obs}, n_vars={adata.n_vars}."
         )
+
+    saved = {}
+    if key_added != "X_pca":
+        saved = {
+            "obsm": adata.obsm["X_pca"] if "X_pca" in adata.obsm else None,
+            "varm": adata.varm["PCs"] if "PCs" in adata.varm else None,
+            "uns": adata.uns["pca"] if "pca" in adata.uns else None,
+        }
+
+    def _scanpy_pca(n):
+        sc.pp.pca(adata, n_comps=n, layer=layer, random_state=random_state)
 
     if auto_components is not None:
         from scintilla.statistical_tests.adaptive import (
@@ -59,10 +102,8 @@ def run_pca(
         )
         # Run PCA with maximum feasible components first
         max_fit = min(max_comps, 100)
-        sc.pp.pca(adata, n_comps=max_fit, random_state=random_state)
-        svd_solver_key = adata.uns.get("pca", {})
-        # Retrieve singular values; scanpy stores variance, convert back
-        var_ratio = adata.uns["pca"]["variance_ratio"]
+        _scanpy_pca(max_fit)
+        # scanpy stores variance; convert back to singular values
         variance = adata.uns["pca"]["variance"]
         singular_values = np.sqrt(variance * (adata.n_obs - 1))
 
@@ -83,19 +124,37 @@ def run_pca(
         adata.obsm["X_pca"] = adata.obsm["X_pca"][:, :n_keep]
         adata.uns["pca"]["auto_n_comps"] = n_keep
         adata.uns["pca"]["auto_method"] = auto_components
-        return adata
+        n_final = n_keep
+    else:
+        n_comps = min(n_comps, max_comps)
+        _scanpy_pca(n_comps)
+        n_final = n_comps
 
-    n_comps = min(n_comps, max_comps)
-    sc.pp.pca(adata, n_comps=n_comps, random_state=random_state)
+        if variance_threshold is not None:
+            cum_var = cumulative_variance_explained(adata)
+            # find minimum n_comps to exceed threshold
+            n_needed = int(np.searchsorted(cum_var, variance_threshold)) + 1
+            n_needed = max(2, min(n_needed, n_comps))
+            adata.obsm["X_pca"] = adata.obsm["X_pca"][:, :n_needed]
+            n_final = n_needed
 
-    if variance_threshold is not None:
-        cum_var = cumulative_variance_explained(adata)
-        # find minimum n_comps to exceed threshold
-        n_needed = int(np.searchsorted(cum_var, variance_threshold)) + 1
-        n_needed = max(2, min(n_needed, n_comps))
-        adata.obsm["X_pca"] = adata.obsm["X_pca"][:, :n_needed]
+    if key_added != "X_pca":
+        adata.obsm[key_added] = adata.obsm.pop("X_pca")
+        adata.varm[key_added + "_loadings"] = adata.varm.pop("PCs")
+        adata.uns[key_added] = adata.uns.pop("pca")
+        for slot, value in (("obsm", saved["obsm"]), ("varm", saved["varm"]), ("uns", saved["uns"])):
+            if value is None:
+                continue
+            {"obsm": adata.obsm, "varm": adata.varm, "uns": adata.uns}[slot][
+                {"obsm": "X_pca", "varm": "PCs", "uns": "pca"}[slot]
+            ] = value
 
-    return adata
+    record_params(
+        adata, "pca", n_comps=n_comps, n_comps_kept=n_final, variance_threshold=variance_threshold,
+        auto_components=auto_components, mp_sigma_method=mp_sigma_method, random_state=random_state,
+        layer=layer, key_added=key_added,
+    )
+    return finish(adata, give_back)
 
 
 def cumulative_variance_explained(adata: ad.AnnData) -> np.ndarray:

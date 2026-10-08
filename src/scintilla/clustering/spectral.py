@@ -15,7 +15,7 @@ from scintilla.io.loaders import ensure_anndata
 
 
 def spectral_clustering(
-    data,
+    adata,
     n_clusters: Optional[int] = None,
     affinity: str = "rbf",
     n_clusters_range: Optional[List[int]] = None,
@@ -25,7 +25,7 @@ def spectral_clustering(
 
     Parameters
     ----------
-    data:
+    adata:
         Input data matrix, AnnData, or numpy array.
     n_clusters:
         Number of clusters for single run. If None and n_clusters_range given,
@@ -44,15 +44,15 @@ def spectral_clustering(
 
     from scintilla.config import SPECTRAL_N_CLUSTERS_RANGE
 
-    if isinstance(data, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(data)
+    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
+        adata = ensure_anndata(adata)
         X = adata.X
         if hasattr(X, "toarray"):
             X = X.astype(np.float64)  # preserve sparsity
         else:
             X = np.asarray(X, dtype=np.float64)
     else:
-        X = np.asarray(data, dtype=np.float64)
+        X = np.asarray(adata, dtype=np.float64)
 
     if n_clusters is not None:
         # Single run

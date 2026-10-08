@@ -7,6 +7,7 @@ from typing import Dict, List
 import anndata as ad
 import numpy as np
 
+from scintilla._compat import get_matrix
 from scintilla.config import RANDOM_SEED
 
 
@@ -64,7 +65,7 @@ def annotate_by_markers(
                 )
             except RuntimeError:
                 # Fallback to simple mean expression if gene pool too small
-                X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+                X = get_matrix(adata, reason="marker_based needs a dense matrix")
                 gene_idx = {g: i for i, g in enumerate(adata.var_names)}
                 idx = [gene_idx[m] for m in valid_markers if m in gene_idx]
                 adata.obs[col] = X[:, idx].mean(axis=1) if idx else 0.0
@@ -75,7 +76,7 @@ def annotate_by_markers(
         adata.obs["predicted_cell_type"] = [cell_types[i] for i in best_idx]
 
     elif method == "threshold":
-        X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+        X = get_matrix(adata, reason="marker_based needs a dense matrix")
         gene_idx = {g: i for i, g in enumerate(adata.var_names)}
         scores = np.zeros((adata.n_obs, len(cell_types)))
         for k, (ct, markers) in enumerate(marker_dict.items()):

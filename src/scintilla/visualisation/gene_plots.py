@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from scintilla._compat import get_matrix
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -16,7 +17,7 @@ def boxplot_genes_by_group(
 ) -> plt.Figure:
     """Box plots of selected genes split by group."""
     adata = ensure_anndata(data)
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="gene_plots needs a dense matrix")
     df = pd.DataFrame(X, columns=adata.var_names)
     df[group_col] = adata.obs[group_col].values
 
@@ -53,7 +54,7 @@ def expression_heatmap(
 ) -> plt.Figure:
     """Heatmap of mean expression per group for selected genes."""
     adata = ensure_anndata(data)
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="gene_plots needs a dense matrix")
     df = pd.DataFrame(X, columns=adata.var_names)
     df[group_col] = adata.obs[group_col].values
 

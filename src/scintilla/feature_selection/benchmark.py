@@ -11,6 +11,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
+from scintilla._compat import get_matrix
 from scintilla.config import DEFAULT_TEST_SIZE, RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
@@ -62,7 +63,7 @@ def benchmark_feature_selection(
         random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
 
     adata = ensure_anndata(adata, target_col=target_col)
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="benchmark needs a dense matrix")
     X = X.astype(np.float64)
     y = adata.obs[target_col].values
 

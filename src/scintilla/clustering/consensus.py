@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import fcluster, linkage
 
+from scintilla._compat import get_matrix
 from scintilla.config import LEIDEN_RESOLUTIONS, RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
@@ -75,7 +76,7 @@ def consensus_clustering(
     if isinstance(adata, (pd.DataFrame,)):
         adata = ensure_anndata(adata)
 
-    X = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
+    X = get_matrix(adata, reason="consensus needs a dense matrix")
     X = X.astype(np.float64)
     n_cells = X.shape[0]
 
