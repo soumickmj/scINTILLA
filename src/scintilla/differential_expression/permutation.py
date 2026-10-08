@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Union
+from typing import Optional, Union
 
 import anndata as ad
 import numpy as np
 import pandas as pd
 from statsmodels.stats.multitest import multipletests
 
-from scintilla._compat import get_matrix
 from scintilla.config import RANDOM_SEED
+from scintilla.differential_expression._common import two_group_matrices
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -24,6 +24,8 @@ def permutation_de(
     pseudocount: float = 1e-2,
     standardise: bool = False,
     random_state: int = RANDOM_SEED,
+    *,
+    layer: Optional[str] = None,
 ) -> pd.DataFrame:
     """Permutation test for differential expression.
 
@@ -55,24 +57,20 @@ def permutation_de(
         heterogeneous variance across genes (e.g. raw counts or Pearson
         residuals).  Default False for backward compatibility.
 
+    layer:
+        Layer to test; ``None`` uses ``adata.X``.  Only the cells of the two groups are
+        densified.
+
     Returns
     -------
-    pd.DataFrame  columns=[gene, statistic, p_value, p_adjusted, log2fc]
+    pandas.DataFrame
+        One row per gene: ``gene``, ``statistic``, ``p_value``, ``p_adjusted``,
+        ``log2fc`` and, where defined, the effect sizes of the test.
     """
     adata = ensure_anndata(adata)
-    X = get_matrix(adata, reason="permutation needs a dense matrix")
-    X = X.astype(np.float64)
-    groups = adata.obs[group_col].values
-
-    mask1 = groups == group1
-    mask2 = groups == group2
-    if not mask1.any() or not mask2.any():
-        raise ValueError(f"Groups '{group1}' or '{group2}' not found.")
-
-    X1 = X[mask1]
-    X2 = X[mask2]
+    X1, X2 = two_group_matrices(adata, group_col, group1, group2, layer)
     n1, n2 = X1.shape[0], X2.shape[0]
-    n_genes = X.shape[1]
+    n_genes = X1.shape[1]
     X_combined = np.vstack([X1, X2])
 
     # Observed statistics (mean difference)

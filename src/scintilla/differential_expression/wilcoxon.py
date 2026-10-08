@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Union
+from typing import Optional, Union
 
 import anndata as ad
 import numpy as np
@@ -10,7 +10,7 @@ import pandas as pd
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
-from scintilla._compat import get_matrix
+from scintilla.differential_expression._common import two_group_matrices
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -21,6 +21,8 @@ def wilcoxon_de(
     group2: str,
     correction: str = "fdr_bh",
     pseudocount: float = 1e-2,
+    *,
+    layer: Optional[str] = None,
 ) -> pd.DataFrame:
     """Wilcoxon rank-sum test for differential expression.
 
@@ -44,22 +46,18 @@ def wilcoxon_de(
         adding 1.0 would compress true fold-change differences for lowly-
         expressed genes.
 
+    layer:
+        Layer to test; ``None`` uses ``adata.X``.  Only the cells of the two groups are
+        densified.
+
     Returns
     -------
-    pd.DataFrame  columns=[gene, statistic, p_value, p_adjusted, log2fc]
+    pandas.DataFrame
+        One row per gene: ``gene``, ``statistic``, ``p_value``, ``p_adjusted``,
+        ``log2fc`` and, where defined, the effect sizes of the test.
     """
     adata = ensure_anndata(adata)
-    X = get_matrix(adata, reason="wilcoxon needs a dense matrix")
-    X = X.astype(np.float64)
-    groups = adata.obs[group_col].values
-
-    mask1 = groups == group1
-    mask2 = groups == group2
-    if not mask1.any() or not mask2.any():
-        raise ValueError(f"Groups '{group1}' or '{group2}' not found.")
-
-    X1 = X[mask1]
-    X2 = X[mask2]
+    X1, X2 = two_group_matrices(adata, group_col, group1, group2, layer)
 
     # Vectorised Mann-Whitney U across all genes (scipy >= 1.8)
     stats_arr, p_vals = stats.mannwhitneyu(X1, X2, axis=0, alternative="two-sided")
@@ -74,7 +72,7 @@ def wilcoxon_de(
     # Effect sizes (always included — cheap and critical for interpretation)
     from scintilla.statistical_tests.effect_sizes import rank_biserial
 
-    n1, n2 = int(mask1.sum()), int(mask2.sum())
+    n1, n2 = X1.shape[0], X2.shape[0]
     # Negate rank_biserial so that all directional measures (log2fc,
     # rank_biserial, cliffs_delta) are positive when group1 > group2.
     # The raw formula r = 1 - 2U/(n1*n2) is negative when group1

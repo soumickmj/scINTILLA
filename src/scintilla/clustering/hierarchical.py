@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Optional, Tuple, Union
 
 import anndata as ad
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.cluster.hierarchy import dendrogram, fcluster, linkage
+from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import pdist
 from sklearn.cluster import AgglomerativeClustering
 
@@ -40,12 +40,27 @@ def hierarchical_scipy(
     metric: str = "euclidean",
     linkage_method: str = "complete",
     n_clusters: Optional[int] = None,
-) -> Tuple[np.ndarray, np.ndarray, float, plt.Figure]:
-    """Scipy-based hierarchical clustering with dendrogram and CPCC.
+) -> Tuple[np.ndarray, np.ndarray, float]:
+    """Scipy-based hierarchical clustering with the cophenetic correlation (CPCC).
+
+    Parameters
+    ----------
+    data
+        Feature matrix (cells by features).
+    metric
+        Distance metric passed to :func:`scipy.spatial.distance.pdist`.
+    linkage_method
+        Linkage method passed to :func:`scipy.cluster.hierarchy.linkage`.
+    n_clusters
+        Cut the tree into this many clusters; if ``None`` the tree is cut at distance 0.7.
 
     Returns
     -------
-    labels, Z, cpcc, fig_dendrogram
+    labels : numpy.ndarray
+    Z : numpy.ndarray
+        The linkage matrix; draw it with :func:`scintilla.pl.dendrogram`.
+    cpcc : float
+        Cophenetic correlation coefficient.
     """
     dist_vec = pdist(data, metric=metric)
     Z = linkage(dist_vec, method=linkage_method)
@@ -56,36 +71,51 @@ def hierarchical_scipy(
     else:
         labels = fcluster(Z, t=0.7, criterion="distance")
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    dendrogram(Z, ax=ax, no_labels=True, truncate_mode="lastp", p=30)
-    ax.set_title(f"Dendrogram ({metric} / {linkage_method}), CPCC={cpcc:.3f}")
-    plt.tight_layout()
-
-    return labels, Z, cpcc, fig
+    return labels, Z, cpcc
 
 
 def hierarchical_clustering(
-    adata: Union[pd.DataFrame, ad.AnnData, np.ndarray],
+    adata: Union[ad.AnnData, pd.DataFrame, np.ndarray],
     n_clusters: int,
     metric: str = "euclidean",
     linkage: str = "complete",
     mode: str = "sklearn",
 ) -> Union[np.ndarray, Tuple]:
-    """Dispatcher for hierarchical clustering.
+    """Hierarchical (agglomerative) clustering; returns the cluster labels.
 
     Parameters
     ----------
-    mode:
-        'sklearn' (fast) or 'scipy' (detailed with CPCC + dendrogram).
+    adata
+        Annotated data matrix, DataFrame or array.
+    n_clusters
+        Number of clusters.
+    metric
+        Distance metric.
+    linkage
+        Linkage method.
+    mode
+        ``"sklearn"`` (default) returns the labels.  ``"scipy"`` is deprecated because it
+        changes the return type to ``(labels, Z, cpcc)``; call :func:`hierarchical_scipy`
+        instead.
+
+    Returns
+    -------
+    numpy.ndarray
+        Cluster labels (``mode="sklearn"``).
     """
     if isinstance(adata, (pd.DataFrame, ad.AnnData)):
         adata = ensure_anndata(adata)
-        X = get_matrix(adata, reason="hierarchical needs a dense matrix")
+        X = get_matrix(adata, reason="hierarchical clustering needs a dense matrix")
         X = X.astype(np.float64)
     else:
         X = np.asarray(adata, dtype=np.float64)
 
     if mode == "scipy":
+        warnings.warn(
+            "hierarchical_clustering(mode='scipy') returns a tuple and is deprecated; "
+            "call hierarchical_scipy() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return hierarchical_scipy(X, metric=metric, linkage_method=linkage, n_clusters=n_clusters)
-    else:
-        return hierarchical_sklearn(X, n_clusters=n_clusters, metric=metric, linkage_method=linkage)
+    return hierarchical_sklearn(X, n_clusters=n_clusters, metric=metric, linkage_method=linkage)

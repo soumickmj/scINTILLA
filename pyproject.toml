@@ -75,6 +75,7 @@ viz = [
 full = [
     "scintilla-py[stats,viz]",
     "shap",
+    "scikit-misc",  # scanpy's seurat_v3 HVG flavour (the default of select_hvg)
     "mudata>=0.2",
     "leidenalg",
     "louvain>=0.8.2",

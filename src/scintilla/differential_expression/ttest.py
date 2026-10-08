@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Union
+from typing import Optional, Union
 
 import anndata as ad
 import numpy as np
@@ -10,7 +10,7 @@ import pandas as pd
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
 
-from scintilla._compat import get_matrix
+from scintilla.differential_expression._common import two_group_matrices
 from scintilla.io.loaders import ensure_anndata
 
 
@@ -21,6 +21,8 @@ def ttest_de(
     group2: str,
     correction: str = "fdr_bh",
     pseudocount: float = 1e-2,
+    *,
+    layer: Optional[str] = None,
 ) -> pd.DataFrame:
     """Welch's t-test for differential expression.
 
@@ -44,22 +46,18 @@ def ttest_de(
         adding 1.0 would compress true fold-change differences for lowly-
         expressed genes.
 
+    layer:
+        Layer to test; ``None`` uses ``adata.X``.  Only the cells of the two groups are
+        densified.
+
     Returns
     -------
-    pd.DataFrame  columns=[gene, statistic, p_value, p_adjusted, log2fc]
+    pandas.DataFrame
+        One row per gene: ``gene``, ``statistic``, ``p_value``, ``p_adjusted``,
+        ``log2fc`` and, where defined, the effect sizes of the test.
     """
     adata = ensure_anndata(adata)
-    X = get_matrix(adata, reason="ttest needs a dense matrix")
-    X = X.astype(np.float64)
-    groups = adata.obs[group_col].values
-
-    mask1 = groups == group1
-    mask2 = groups == group2
-    if not mask1.any() or not mask2.any():
-        raise ValueError(f"Groups '{group1}' or '{group2}' not found.")
-
-    X1 = X[mask1]
-    X2 = X[mask2]
+    X1, X2 = two_group_matrices(adata, group_col, group1, group2, layer)
 
     # Vectorised Welch's t-test across all genes at once
     t_stats, p_vals = stats.ttest_ind(X1, X2, axis=0, equal_var=False)
