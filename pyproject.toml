@@ -41,7 +41,7 @@ full = [
     "leidenalg",
     "louvain>=0.8.2",
     # Louvain imports pkg_resources, removed from setuptools 82.
-    "setuptools<82",
+    "setuptools<84",
     "python-igraph",
     "harmonypy",
     "bbknn",
