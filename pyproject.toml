@@ -54,7 +54,7 @@ dependencies = [
     "numpy>=1.26",
     "pandas>=2.1",
     "PyYAML>=6",
-    "scanpy>=1.10",
+    "scanpy>=1.10.3",  # score_genes(ctrl_as_ref=...) first appears in 1.10.3
     "scikit-learn>=1.3",
     "scipy>=1.11",
     "seaborn>=0.13",

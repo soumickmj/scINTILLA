@@ -71,3 +71,16 @@ def adata_logged(adata_dense) -> ad.AnnData:
 
 def to_dense(X) -> np.ndarray:
     return X.toarray() if sparse.issparse(X) else np.asarray(X)
+
+
+@pytest.fixture
+def scintilla_log(caplog):
+    """Capture the ``scintilla`` logger, which does not propagate to the root logger."""
+    import logging
+
+    from scintilla._logging import logger
+
+    logger.addHandler(caplog.handler)
+    caplog.set_level(logging.DEBUG, logger="scintilla")
+    yield caplog
+    logger.removeHandler(caplog.handler)

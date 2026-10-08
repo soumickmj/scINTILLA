@@ -40,6 +40,7 @@ def test_embeddings_use_a_temporary_pca_without_storing_it(adata_dense):
 
 
 def test_draw_graph_records_the_layout_actually_used(adata_logged):
+    pytest.importorskip("igraph")
     si.tl.draw_graph(adata_logged, random_state=0)
     assert adata_logged.uns["scintilla"]["X_draw_graph_fa"]["params"]["layout"] in {"fa", "fr"}
     assert adata_logged.obsm["X_draw_graph_fa"].shape == (adata_logged.n_obs, 2)

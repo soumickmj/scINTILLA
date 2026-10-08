@@ -147,15 +147,14 @@ def test_library_is_silent_by_default(adata_logged, capsys):
     assert captured.out == ""
 
 
-def test_verbose_argument_enables_progress_for_one_call_only(adata_logged, caplog):
+def test_verbose_argument_enables_progress_for_one_call_only(adata_logged, scintilla_log):
     from scintilla._logging import logger
 
     config = si.AnalysisConfig.fast().copy(include_shap=False, classifiers=["LogReg"])
-    assert logger.level == logging.WARNING
-    with caplog.at_level(logging.INFO, logger="scintilla"):
-        si.tl.supervised_analysis(adata_logged, "cell_type", config=config, verbose=True)
-    assert "accuracy=" in caplog.text
-    assert logger.level == logging.WARNING  # restored
+    logger.setLevel(logging.WARNING)
+    si.tl.supervised_analysis(adata_logged, "cell_type", config=config, verbose=True)
+    assert "accuracy=" in scintilla_log.text
+    assert logger.level == logging.WARNING  # restored after the call
 
 
 def test_no_print_in_library_code_outside_the_cli_and_time_budget():

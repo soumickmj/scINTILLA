@@ -56,7 +56,10 @@ def run_force_directed(
     rep = get_representation(adata, use_rep, random_state, layer)
     tmp = stand_in(rep, adata.obs_names)
     sc.pp.neighbors(tmp, use_rep="rep", random_state=random_state)
-    sc.tl.draw_graph(tmp, layout="fa", random_state=random_state)
+    try:
+        sc.tl.draw_graph(tmp, layout="fa", random_state=random_state)
+    except ImportError as exc:
+        raise ImportError("python-igraph is required for draw_graph. Install with: pip install python-igraph") from exc
     # scanpy falls back to the Fruchterman-Reingold layout ("fr") when fa2-modified is missing.
     produced = [k for k in tmp.obsm if str(k).startswith("X_draw_graph_")]
     layout = produced[0].removeprefix("X_draw_graph_")

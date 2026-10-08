@@ -109,10 +109,9 @@ def test_annotate_by_markers_copy_key_added_and_sparse(adata_logged):
     assert "auto" in out.obs and "auto" not in sp.obs and sparse.issparse(sp.X)
 
 
-def test_annotate_by_markers_warns_about_unknown_markers_and_rejects_unknown_methods(adata_logged, caplog):
-    with caplog.at_level("WARNING", logger="scintilla"):
-        si.tl.annotate_by_markers(adata_logged, {"x": ["nope"], **MARKERS})
-    assert "no markers of 'x'" in caplog.text
+def test_annotate_by_markers_warns_about_unknown_markers_and_rejects_unknown_methods(adata_logged, scintilla_log):
+    si.tl.annotate_by_markers(adata_logged, {"x": ["nope"], **MARKERS})
+    assert "no markers of 'x'" in scintilla_log.text
     with pytest.raises(ValueError, match="Unknown method"):
         si.tl.annotate_by_markers(adata_logged, MARKERS, method="bogus")
 
