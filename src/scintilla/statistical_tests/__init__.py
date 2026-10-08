@@ -21,6 +21,7 @@ from scintilla.statistical_tests.bootstrap import (
 )
 from scintilla.statistical_tests.boxm import box_m_test
 from scintilla.statistical_tests.correction import correct_pvalues
+from scintilla.statistical_tests.dunns import dunn_posthoc
 
 # Standardised effect sizes
 from scintilla.statistical_tests.effect_sizes import (
@@ -44,6 +45,7 @@ __all__ = [
     "anova_per_gene",
     "box_m_test",
     "kruskal_per_gene",
+    "dunn_posthoc",
     "correct_pvalues",
     # bootstrap
     "bca_bootstrap_ci",

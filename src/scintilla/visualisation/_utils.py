@@ -73,3 +73,14 @@ def plot_api(func: Callable) -> Callable:
         "    save\n        Path to save the figure to (dpi 300); a dict of figures is saved with the key as suffix.\n"
     )
     return wrapper
+
+
+def get_cmap(cmap, n: Optional[int] = None):
+    """Return a colour map by name (or pass one through), optionally resampled to ``n`` colours.
+
+    ``matplotlib.cm.get_cmap`` was removed in matplotlib 3.9; the registry lookup works from 3.6.
+    """
+    import matplotlib
+
+    resolved = matplotlib.colormaps[cmap] if isinstance(cmap, str) else cmap
+    return resolved.resampled(n) if n is not None else resolved

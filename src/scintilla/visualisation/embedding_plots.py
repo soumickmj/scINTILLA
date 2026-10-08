@@ -7,6 +7,8 @@ from typing import List, Optional
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scintilla.visualisation._utils import get_cmap
+
 
 def plot_embedding(
     adata,
@@ -79,7 +81,7 @@ def compare_embeddings(
 
     labels = adata.obs[colour_by].values
     unique_labels = np.unique(labels)
-    cmap = plt.cm.get_cmap("tab20", len(unique_labels))
+    cmap = get_cmap("tab20", len(unique_labels))
     label_colour = {lbl: cmap(i) for i, lbl in enumerate(unique_labels)}
 
     for ax, basis in zip(axes, bases):

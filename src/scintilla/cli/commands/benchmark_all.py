@@ -9,6 +9,8 @@ def add_args(parser):
 
 
 def run(args):
+    import sys
+
     from scintilla.benchmarking.reporter import BenchmarkReport
     from scintilla.classification.benchmark import benchmark_models_comprehensive
     from scintilla.cli.commands import load_adata
@@ -24,9 +26,8 @@ def run(args):
             )
             for _, row in results_df.iterrows():
                 report.add_result("clustering", row.get("method", "unknown"), {"ari": row.get("ari", float("nan"))})
-        except Exception as e:
-            if args.verbose:
-                print(f"Clustering benchmark failed: {e}")
+        except Exception as e:  # a failed stage must be visible, not only with --verbose
+            print(f"Clustering benchmark failed: {e}", file=sys.stderr)
 
         try:
             results_df = benchmark_models_comprehensive(
@@ -34,9 +35,8 @@ def run(args):
             )
             for _, row in results_df.iterrows():
                 report.add_result("classification", row.get("model", "unknown"), {"accuracy": row.get("accuracy", float("nan"))})
-        except Exception as e:
-            if args.verbose:
-                print(f"Classification benchmark failed: {e}")
+        except Exception as e:  # a failed stage must be visible, not only with --verbose
+            print(f"Classification benchmark failed: {e}", file=sys.stderr)
 
     report.export(args.output_dir)
     print(f"Benchmark results saved to {args.output_dir}")

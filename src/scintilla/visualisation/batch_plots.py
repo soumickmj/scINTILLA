@@ -9,6 +9,7 @@ import numpy as np
 
 from scintilla._compat import get_matrix
 from scintilla.config import RANDOM_SEED
+from scintilla.visualisation._utils import get_cmap
 
 
 def plot_batch_correction_comparison(
@@ -67,7 +68,7 @@ def plot_batch_correction_comparison(
             ax_idx += 1
             vals = adata.obs[col_key].values
             unique = np.unique(vals)
-            cmap = plt.cm.get_cmap("tab20", len(unique))
+            cmap = get_cmap("tab20", len(unique))
             for i, v in enumerate(unique):
                 mask = vals == v
                 ax.scatter(coords[mask, 0], coords[mask, 1], c=[cmap(i)], s=5, alpha=0.5, label=str(v))

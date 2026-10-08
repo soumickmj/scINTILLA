@@ -11,6 +11,7 @@ import pandas as pd
 import seaborn as sns
 
 from scintilla.config import RANDOM_SEED
+from scintilla.visualisation._utils import get_cmap
 
 
 def _finalise_figure(fig: plt.Figure, save: Optional[str]) -> plt.Figure:
@@ -430,7 +431,7 @@ def plot_metric_correlation(
 
     fig, ax = plt.subplots(figsize=figsize or (10, 7))
 
-    colourmap = plt.cm.get_cmap(cmap, len(labels))
+    colourmap = get_cmap(cmap, len(labels))
     for i, label in enumerate(labels):
         ax.scatter(x[i], y[i], color=colourmap(i), s=80, edgecolors="black",
                    linewidths=0.5, zorder=3, label=label)
@@ -699,7 +700,7 @@ def plot_celltype_confusion_network(
     edge_widths = [0.5 + 6.0 * (w / max_weight) for w in edge_weights]
 
     # Node colours from colourmap
-    colourmap = plt.cm.get_cmap(cmap)
+    colourmap = get_cmap(cmap)
     node_list = list(G.nodes())
     node_colours = [colourmap(i / max(len(node_list) - 1, 1)) for i in range(len(node_list))]
     # Draw

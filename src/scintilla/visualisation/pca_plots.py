@@ -4,6 +4,8 @@ import anndata as ad
 import matplotlib.pyplot as plt
 import numpy as np
 
+from scintilla.visualisation._utils import get_cmap
+
 
 def pca_2d_plot(
     adata: ad.AnnData,
@@ -28,7 +30,7 @@ def pca_2d_plot(
     if colour_col and colour_col in adata.obs.columns:
         cats = adata.obs[colour_col].values
         unique = np.unique(cats)
-        cmap = plt.cm.get_cmap("tab20", len(unique))
+        cmap = get_cmap("tab20", len(unique))
         for i, cat in enumerate(unique):
             mask = cats == cat
             ax.scatter(X[mask, 0], X[mask, 1], label=cat, s=10, color=cmap(i), alpha=0.7)
@@ -62,7 +64,7 @@ def pca_3d_multiview(
     fig = plt.figure(figsize=(15, 5))
     cats = adata.obs[colour_col].values if colour_col and colour_col in adata.obs.columns else None
     unique = np.unique(cats) if cats is not None else None
-    cmap = plt.cm.get_cmap("tab20", len(unique)) if unique is not None else None
+    cmap = get_cmap("tab20", len(unique)) if unique is not None else None
     for k, (elev, azim) in enumerate(angles):
         ax = fig.add_subplot(1, 3, k + 1, projection="3d")
         if cats is not None and unique is not None:

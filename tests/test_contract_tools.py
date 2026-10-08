@@ -5,10 +5,10 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import to_dense
 from scipy import sparse
 
 import scintilla as si
+from conftest import to_dense
 
 # ── differential expression ─────────────────────────────────────────────
 

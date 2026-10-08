@@ -6,10 +6,10 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 import pytest
-from conftest import to_dense
 from scipy import sparse
 
 import scintilla as si
+from conftest import to_dense
 from scintilla.preprocessing import transformations as T
 
 ZERO_PRESERVING = [
