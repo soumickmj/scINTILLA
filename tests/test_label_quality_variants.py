@@ -6,7 +6,12 @@ import pandas as pd
 import pytest
 
 from scintilla.classification.label_quality_variants import (
-    FROZEN_FUSION, VARIANTS, compute_label_quality_variants, quality_rank, review_ranks)
+    FROZEN_FUSION,
+    VARIANTS,
+    compute_label_quality_variants,
+    quality_rank,
+    review_ranks,
+)
 from scintilla.classification.visualise import compute_label_quality_score
 
 

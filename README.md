@@ -110,7 +110,7 @@ Publishing instructions: [PUBLISHING.md](https://github.com/soumickmj/scINTILLA/
 | `scanpy` | Single-cell utilities |
 | `statsmodels` | Statistical tests |
 | `matplotlib`, `seaborn`, `plotly` | Visualisation |
-| `scikit-posthocs`, `pingouin` | Post-hoc statistical tests |
+| `scikit-posthocs` *(optional, `stats` extra)* | Dunn's post-hoc test |
 | `umap-learn` *(optional)* | UMAP embedding |
 | `hdbscan` *(optional)* | HDBSCAN clustering |
 | `harmonypy` *(optional)* | Harmony batch correction |
@@ -1130,8 +1130,8 @@ stability_df = seed_stability_test(
     data=adata,
     metric_fn=lambda labels: float(len(set(labels))),
     n_seeds=5,
-    compute_icc=True,       # proper ICC(1,1) via pingouin (default)
-    icc_method="pingouin",  # or "legacy" for original approximate formula
+    compute_icc=True,       # one-way random-effects ICC(1,1), split-half (default)
+    icc_method="anova",      # or "legacy" for original approximate formula
 )
 print(stability_df)
 print(f"ICC: {stability_df.attrs['icc']:.3f}")
@@ -1188,7 +1188,7 @@ scINTILLA includes a comprehensive suite of robust statistical methods that can 
 | **Adaptive resolution** | NVI-stability-based Leiden/Louvain resolution selection (normalise by `log(n)` or `max(H(A), H(B))`) |
 | **Auto DBSCAN eps** | Kneedle elbow on k-distance curve |
 | **Permutation tests** | Pairwise method comparison via permutation or McNemar's test |
-| **ICC** | Intraclass correlation coefficient for seed stability (via `pingouin` for proper ICC(1,1) or `"legacy"` mode) |
+| **ICC** | Intraclass correlation coefficient for seed stability (split-half ICC(1,1), or `"legacy"` mode) |
 | **Hardened bootstrap** | `bootstrap_clustering_metrics` handles rare-cluster dropout gracefully with discard-rate logging |
 
 ### Quick example

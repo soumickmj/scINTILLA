@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import anndata as ad
 import inspect
+
+import anndata as ad
 import numpy as np
 import pandas as pd
 import pytest

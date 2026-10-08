@@ -1382,7 +1382,7 @@ stability_df = seed_stability_test(
     bootstrap_ci=True,      # BCa CIs for the mean metric across seeds
     n_bootstrap=2000,
     compute_icc=True,       # ICC(1,1) stored in stability_df.attrs["icc"]
-    icc_method="pingouin",  # proper split-half ICC via pingouin (default)
+    icc_method="anova",      # proper split-half ICC(1,1) (default)
 )
 print(f"ICC: {stability_df.attrs['icc']:.3f}")
 ```
@@ -1394,7 +1394,7 @@ print(f"ICC: {stability_df.attrs['icc']:.3f}")
 | `bootstrap_ci` | `False` | Compute BCa bootstrap CIs for the mean metric |
 | `n_bootstrap` | `2000` | Number of bootstrap resamples |
 | `compute_icc` | `False` | Compute ICC(1,1) across seeds (stored in `df.attrs["icc"]`) |
-| `icc_method` | `"pingouin"` | ICC computation method: `"pingouin"` (proper split-half ICC via pingouin) or `"legacy"` (approximate formula) |
+| `icc_method` | `"anova"` | ICC computation method: `"anova"` (proper split-half ICC(1,1); `"pingouin"` is an accepted alias) or `"legacy"` (approximate formula) |
 
 ### Pairwise method comparison
 

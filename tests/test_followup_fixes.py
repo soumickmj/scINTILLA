@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-
 # ── Consensus clustering: validated methods and a typed failures channel ──
 
 
@@ -229,6 +228,7 @@ def test_clustering_benchmark_marks_absent_backend_as_skipped(monkeypatch) -> No
     import builtins
 
     from matplotlib import pyplot as plt
+
     from scintilla import AnalysisConfig
     from scintilla.clustering import benchmark
 

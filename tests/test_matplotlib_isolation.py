@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import importlib.util
 import subprocess
 import sys
 import types
-import importlib.util
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -39,7 +39,7 @@ print(matplotlib.get_backend())
 
 def test_classifier_comparison_returns_open_figures() -> None:
     """Callers can inspect and close every figure returned by the helper."""
-    module_path = Path(__file__).resolve().parents[1] / "scintilla/classification/visualise.py"
+    module_path = Path(__file__).resolve().parents[1] / "src/scintilla/classification/visualise.py"
     module_spec = importlib.util.spec_from_file_location(
         "_scintilla_visualise_test", module_path
     )
