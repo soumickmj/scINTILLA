@@ -1,11 +1,21 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "scintilla"
+name = "scintilla-py"
 version = "0.1.0"
 description = "Single-Cell INTegrated Inference, Labelling, and Landscape Analysis pipeline"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["single-cell", "scrna-seq", "label-quality", "bioinformatics"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+]
 requires-python = ">=3.9"
 dependencies = [
     "numpy",
@@ -29,6 +39,9 @@ full = [
     "shap",
     "mudata",
     "leidenalg",
+    "louvain>=0.8.2",
+    # Louvain imports pkg_resources, removed from setuptools 82.
+    "setuptools<82",
     "python-igraph",
     "harmonypy",
     "bbknn",
@@ -45,6 +58,15 @@ full = [
 
 [project.scripts]
 scintilla = "scintilla.cli.main:main"
+
+[project.urls]
+Homepage = "https://github.com/soumickmj/scINTILLA"
+Documentation = "https://github.com/soumickmj/scINTILLA/blob/master/README.md"
+Source = "https://github.com/soumickmj/scINTILLA"
+Issues = "https://github.com/soumickmj/scINTILLA/issues"
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.9", "twine>=6"]
 
 [tool.setuptools.packages.find]
 where = ["."]

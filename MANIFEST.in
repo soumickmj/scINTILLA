@@ -1,0 +1,2 @@
+include GUIDE.md LABEL_QUALITY_VARIANTS.md PUBLISHING.md uv.lock
+exclude scverse_plan.md

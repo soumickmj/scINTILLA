@@ -42,25 +42,42 @@ scINTILLA (*Single-Cell INTegrated Inference, Labelling, and Landscape Analysis*
 
 ## Installation & Environments
 
-### Core install
+### uv environment from a checkout
 
 ```bash
-pip install .
+uv sync --locked --python 3.11 --no-dev
+uv run --locked --no-dev scintilla --help
 ```
 
 ### Full install (all optional packages)
 
 ```bash
-pip install ".[full]"
+uv sync --locked --python 3.11 --extra full --no-dev
+uv run --locked --extra full --no-dev scintilla --help
 ```
 
-This installs optional extras including: `umap-learn`, `hdbscan`, `harmonypy`, `bbknn`, `scanorama`, `xgboost`, `lightgbm`, `Boruta`, `mrmr-selection`, `shap`, `psutil`, `kneed`.
+This installs optional extras including: `leidenalg`, `louvain`, `python-igraph`, `umap-learn`, `hdbscan`, `harmonypy`, `bbknn`, `scanorama`, `xgboost`, `lightgbm`, `Boruta`, `mrmr-selection`, `shap`, `psutil`, `kneed`.
 
-### Editable development install
+uv installs the checkout in editable mode. The committed `uv.lock` fixes
+dependency versions for the supported Python versions. Prefix the CLI
+examples below with `uv run --extra full --no-dev`, or activate `.venv`
+with `source .venv/bin/activate` before using `scintilla` directly.
+
+### Editable development install with tests
 
 ```bash
-pip install -e .
+uv sync --locked --python 3.11
+uv run --locked pytest
 ```
+
+### PyPI installation
+
+After the first PyPI release, use `uv add "scintilla-py[full]"` in your own
+uv project, or `uv pip install "scintilla-py[full]"` in a virtual environment.
+The distribution name is `scintilla-py`; Python code still uses
+`import scintilla`. The PyPI package named `scintilla` is unrelated.
+See [README installation instructions](README.md#installation) and
+[publishing instructions](PUBLISHING.md).
 
 ---
 

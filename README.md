@@ -30,19 +30,75 @@ scINTILLA is an end-to-end single-cell RNA-seq analysis pipeline that automates 
 
 ## Installation
 
-### Minimal install (core dependencies)
+The PyPI distribution is **`scintilla-py`**. The Python import and CLI are
+**`scintilla`**. The PyPI package named `scintilla` is an unrelated project.
+Use [uv](https://docs.astral.sh/uv/getting-started/installation/) to manage
+an isolated environment and its dependencies. Python 3.11 is used in the
+examples; the package declares Python 3.9 or newer.
+
+### Install from GitHub with uv
+
+This works before the first PyPI release:
 
 ```bash
-pip install .
+git clone https://github.com/soumickmj/scINTILLA.git
+cd scINTILLA
+uv sync --locked --python 3.11 --extra full --no-dev
+uv run --locked --extra full --no-dev scintilla --help
 ```
 
-### Full install (enables all optional features)
-
-Install with all optional dependencies (UMAP, HDBSCAN, Harmony, BBKNN, Scanorama, XGBoost, LightGBM, Boruta, mRMR, SHAP, and more):
+`uv.lock` records exact dependency versions for repository environments.
+Omit `--extra full` for core dependencies only. Use the same extra selection
+with `uv run` to retain those packages in the environment. To use the plain
+`scintilla` command in the examples below, activate `.venv`:
 
 ```bash
-pip install ".[full]"
+source .venv/bin/activate  # Bash/Zsh; Windows PowerShell: .venv\Scripts\Activate.ps1
 ```
+
+### Install from PyPI with uv
+
+After the first `scintilla-py` release is published, add it to an analysis
+project. uv creates and maintains that project's environment and lockfile:
+
+```bash
+uv init --bare my-analysis --python 3.11
+cd my-analysis
+uv add "scintilla-py[full]"
+uv run scintilla --help
+uv run scintilla label-quality /path/to/data.h5ad \
+    --cell-type-col cell_type --output results/scores.csv
+```
+
+Use `uv add scintilla-py` for core dependencies. Commit the analysis
+project's `pyproject.toml` and `uv.lock` to reproduce its environment later
+with `uv sync --locked`.
+
+For an existing virtual environment, `uv pip install "scintilla-py[full]"`
+also works. For the traditional pip installer:
+
+```bash
+python -m pip install "scintilla-py[full]"
+```
+
+### Install from a local checkout
+
+```bash
+uv venv --python 3.11
+uv pip install .
+```
+
+The `full` extra enables optional features including Leiden, Louvain, HDBSCAN, Harmony,
+BBKNN, Scanorama, XGBoost, LightGBM, Boruta, mRMR and SHAP:
+
+```bash
+uv pip install ".[full]"
+```
+
+For development, use `uv sync --locked --python 3.11` and
+`uv run --locked pytest`. The default `dev` dependency group includes
+pytest, Ruff and Twine; use `--no-dev` for analysis-only installations.
+Publishing instructions: [PUBLISHING.md](https://github.com/soumickmj/scINTILLA/blob/master/PUBLISHING.md).
 
 ### Requirements
 
@@ -769,7 +825,7 @@ scintilla label-quality data/pbmc3k.h5ad \
     --output results/label_quality.csv
 ```
 
-This writes per-label scores and review ranks. See [the label-quality guide](LABEL_QUALITY_VARIANTS.md) for the Python API, score definitions, and rerun options. For the original composite through `compute_label_quality_score`, pass `fragmentation_weight=0.0, force=True`.
+This writes per-label scores and review ranks. See [the label-quality guide](https://github.com/soumickmj/scINTILLA/blob/master/LABEL_QUALITY_VARIANTS.md) for the Python API, score definitions, and rerun options. For the original composite through `compute_label_quality_score`, pass `fragmentation_weight=0.0, force=True`.
 
 ---
 
@@ -1166,7 +1222,7 @@ result = dot632plus_bootstrap(
 )
 ```
 
-See the [User Guide](GUIDE.md#robust-statistics) for detailed API documentation of all statistical functions.
+See the [User Guide](https://github.com/soumickmj/scINTILLA/blob/master/GUIDE.md#robust-statistics) for detailed API documentation of all statistical functions.
 
 ---
 
@@ -1540,4 +1596,4 @@ scintilla run-all data/pbmc3k_raw.h5ad \
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+See [LICENSE](https://github.com/soumickmj/scINTILLA/blob/master/LICENSE) for details.

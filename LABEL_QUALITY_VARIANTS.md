@@ -10,9 +10,9 @@ Original scoring, fragmentation scoring and all label-quality variants are avail
 
 ```bash
 git checkout master
-pip install -e ".[full]"
+uv sync --locked --python 3.11 --extra full --no-dev
 
-scintilla label-quality my_data.h5ad \
+uv run --locked --extra full --no-dev scintilla label-quality my_data.h5ad \
     --cell-type-col cell_type \
     --use-rep X_pca \
     --output my_scores.csv
@@ -24,6 +24,11 @@ You get two files:
 | --- | --- |
 | `my_scores.csv` | One row per label, one column per variant. **Higher = better label.** |
 | `my_scores_ranks.csv` | The same table as ranks. **1 = lowest score = review this label first.** |
+
+The example runs from a Git checkout. After the first PyPI release, users
+can install `scintilla-py[full]` with `uv add` in their own analysis project
+and launch the same command with `uv run scintilla label-quality ...`.
+See [installation instructions](README.md#installation).
 
 If you only look at one column, use **`scintilla_composite_frag__silhouette`**. It did best overall in the benchmark (section 4).
 
