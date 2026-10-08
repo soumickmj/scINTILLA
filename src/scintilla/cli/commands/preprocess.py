@@ -8,11 +8,11 @@ def add_args(parser):
 
 
 def run(args):
+    from scintilla.cli.commands import load_adata
     from scintilla.io.exporters import save_anndata
-    from scintilla.io.loaders import auto_detect_format
     from scintilla.preprocessing.transformations import TRANSFORM_REGISTRY
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     fn = TRANSFORM_REGISTRY.get(args.transform)
     if fn is None:
         print(f"Unknown transform '{args.transform}'. Available: {list(TRANSFORM_REGISTRY.keys())}")

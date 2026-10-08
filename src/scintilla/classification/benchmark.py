@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import anndata as ad
 import numpy as np
@@ -27,6 +27,9 @@ from scintilla.classification.models import (
 )
 from scintilla.config import DEFAULT_CV_FOLDS, DEFAULT_TEST_SIZE, RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
+
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
 
 _MODEL_FNS = {
     "LogReg": logistic_regression_classification,
@@ -184,7 +187,7 @@ def benchmark_models_comprehensive(
     n_bootstrap: Optional[int] = None,
     estimator: Optional[str] = None,
     no_info_method: Optional[str] = None,
-    config=None,
+    config: Optional[AnalysisConfig] = None,
     random_state: Optional[int] = None,
 ) -> pd.DataFrame:
     """Benchmark all classifiers in gene space and PCA space.

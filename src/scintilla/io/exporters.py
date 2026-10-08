@@ -11,14 +11,34 @@ import pandas as pd
 
 
 def save_results_csv(results: pd.DataFrame, path: Union[str, Path], **kwargs) -> None:
-    """Save a DataFrame to CSV."""
+    """Save a DataFrame to CSV.
+
+    Parameters
+    ----------
+    results
+        The results to write.
+    path
+        Destination path.
+    **kwargs
+        Passed on to the underlying function.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     results.to_csv(path, **kwargs)
 
 
 def save_results_json(results: Dict[str, Any], path: Union[str, Path], indent: int = 2) -> None:
-    """Save a dictionary to JSON, converting non-serialisable types."""
+    """Save a dictionary to JSON, converting non-serialisable types.
+
+    Parameters
+    ----------
+    results
+        The results to write.
+    path
+        Destination path.
+    indent
+        JSON indentation.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -40,7 +60,15 @@ def save_results_json(results: Dict[str, Any], path: Union[str, Path], indent: i
 
 
 def save_anndata(adata: ad.AnnData, path: Union[str, Path]) -> None:
-    """Save an AnnData object to .h5ad format."""
+    """Save an AnnData object to .h5ad format.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    path
+        Destination path.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     adata.write_h5ad(path)

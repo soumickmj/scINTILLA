@@ -10,7 +10,17 @@ def pca_2d_plot(
     colour_col=None,
     title: str = "PCA 2D",
 ) -> plt.Figure:
-    """2D scatter plot of the first two PCs."""
+    """2D scatter plot of the first two PCs.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    colour_col
+        Column in ``adata.obs`` used to colour the points.
+    title
+        Title of the plot.
+    """
     if "X_pca" not in adata.obsm:
         raise ValueError("Run PCA first (X_pca not in obsm).")
     X = adata.obsm["X_pca"]
@@ -36,7 +46,15 @@ def pca_3d_multiview(
     adata: ad.AnnData,
     colour_col=None,
 ) -> plt.Figure:
-    """Three viewing angles of PC1-2-3 space."""
+    """Three viewing angles of PC1-2-3 space.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    colour_col
+        Column in ``adata.obs`` used to colour the points.
+    """
     if "X_pca" not in adata.obsm:
         raise ValueError("Run PCA first (X_pca not in obsm).")
     X = adata.obsm["X_pca"]
@@ -65,7 +83,15 @@ def cumulative_variance_plot(
     adata: ad.AnnData,
     threshold=None,
 ) -> plt.Figure:
-    """Cumulative explained variance plot."""
+    """Cumulative explained variance plot.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    threshold
+        Cumulative variance threshold to mark.
+    """
     if "pca" not in adata.uns or "variance_ratio" not in adata.uns["pca"]:
         raise ValueError("Run PCA first.")
     cum_var = np.cumsum(adata.uns["pca"]["variance_ratio"])

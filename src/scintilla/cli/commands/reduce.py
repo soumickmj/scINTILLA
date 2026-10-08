@@ -10,20 +10,20 @@ def add_args(parser):
 
 
 def run(args):
+    from scintilla.cli.commands import load_adata
     from scintilla.io.exporters import save_anndata
-    from scintilla.io.loaders import auto_detect_format
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
 
     if args.method == "umap":
         from scintilla.dimensionality_reduction.umap import run_umap
-        adata = run_umap(adata, use_rep=args.use_rep)
+        run_umap(adata, use_rep=args.use_rep)
     elif args.method == "tsne":
         from scintilla.dimensionality_reduction.tsne import run_tsne
-        adata = run_tsne(adata, use_rep=args.use_rep)
+        run_tsne(adata, use_rep=args.use_rep)
     elif args.method == "diffmap":
         from scintilla.dimensionality_reduction.diffusion_map import run_diffusion_map
-        adata = run_diffusion_map(adata, use_rep=args.use_rep)
+        run_diffusion_map(adata, use_rep=args.use_rep)
 
     if args.output:
         save_anndata(adata, args.output)

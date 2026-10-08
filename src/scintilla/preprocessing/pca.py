@@ -161,6 +161,11 @@ def cumulative_variance_explained(adata: ad.AnnData) -> np.ndarray:
     """Return cumulative variance explained by PCs.
 
     Requires that sc.pp.pca has already been run (stores variance_ratio in uns).
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
     """
     if "pca" not in adata.uns or "variance_ratio" not in adata.uns["pca"]:
         raise ValueError("PCA has not been run. Call run_pca first.")

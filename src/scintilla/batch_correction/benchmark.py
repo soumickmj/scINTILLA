@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -12,6 +12,9 @@ from scintilla.batch_correction.metrics import batch_asw, bio_conservation_score
 from scintilla.config import RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
+
 
 def benchmark_batch_correction(
     adata,
@@ -20,7 +23,7 @@ def benchmark_batch_correction(
     methods: Optional[List[str]] = None,
     n_pcs: Optional[int] = None,
     scoring_method: Optional[str] = None,
-    config=None,
+    config: Optional[AnalysisConfig] = None,
     random_state: Optional[int] = None,
 ) -> Dict:
     """Benchmark batch correction methods.

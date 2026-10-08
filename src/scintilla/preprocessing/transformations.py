@@ -40,7 +40,13 @@ TRANSFORM_REGISTRY: Dict[str, Callable] = {}
 
 
 def register_transform(name: str) -> Callable:
-    """Decorator to register a *pure* transformation function (``data -> AnnData``)."""
+    """Register a *pure* transformation function (``data -> AnnData``) under ``name``.
+
+    Parameters
+    ----------
+    name
+        Name under which the function is registered.
+    """
 
     def decorator(fn: Callable) -> Callable:
         TRANSFORM_REGISTRY[name] = fn
@@ -466,7 +472,7 @@ anndata.AnnData or None
 Notes
 -----
 The parameters used are recorded in ``adata.uns["scintilla"]["{name}"]``.
-"""
+    """
 
 
 def _make_public(name: str, pure: Callable, *, changes_vars: bool = False) -> Callable:

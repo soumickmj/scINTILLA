@@ -15,7 +15,19 @@ def boxplot_genes_by_group(
     group_col: str,
     title: str = "Gene Expression",
 ) -> plt.Figure:
-    """Box plots of selected genes split by group."""
+    """Box plots of selected genes split by group.
+
+    Parameters
+    ----------
+    data
+        Annotated data matrix.
+    gene_list
+        Names of the genes to use.
+    group_col
+        Column in ``adata.obs`` with the group labels.
+    title
+        Title of the plot.
+    """
     adata = ensure_anndata(data)
     X = get_matrix(adata, reason="gene_plots needs a dense matrix")
     df = pd.DataFrame(X, columns=adata.var_names)
@@ -52,7 +64,19 @@ def expression_heatmap(
     group_col: str,
     title: str = "Expression Heatmap",
 ) -> plt.Figure:
-    """Heatmap of mean expression per group for selected genes."""
+    """Heatmap of mean expression per group for selected genes.
+
+    Parameters
+    ----------
+    data
+        Annotated data matrix.
+    gene_list
+        Names of the genes to use.
+    group_col
+        Column in ``adata.obs`` with the group labels.
+    title
+        Title of the plot.
+    """
     adata = ensure_anndata(data)
     X = get_matrix(adata, reason="gene_plots needs a dense matrix")
     df = pd.DataFrame(X, columns=adata.var_names)

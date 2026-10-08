@@ -227,7 +227,6 @@ def test_clustering_benchmark_marks_absent_backend_as_skipped(monkeypatch) -> No
     """Catch an uninstalled optional backend being reported as a failed method."""
     import builtins
 
-
     from scintilla import AnalysisConfig
     from scintilla.clustering import benchmark
 

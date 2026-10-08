@@ -71,7 +71,15 @@ def build_reduced_dataset(
     adata: Union[pd.DataFrame, ad.AnnData],
     gene_list: List[str],
 ) -> ad.AnnData:
-    """Subset AnnData to specified genes."""
+    """Subset AnnData to specified genes.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    gene_list
+        Names of the genes to use.
+    """
     adata = ensure_anndata(adata)
     valid = [g for g in gene_list if g in adata.var_names]
     if not valid:
@@ -88,6 +96,21 @@ def validate_reduced_set(
     random_state: int = RANDOM_SEED,
 ) -> Dict:
     """Compare classification accuracy on full vs reduced gene set.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    gene_list
+        Names of the genes to use.
+    target_col
+        Column in ``adata.obs`` with the class labels.
+    classifier
+        Name of the classifier used for validation.
+    test_size
+        Hold-out fraction.
+    random_state
+        Random seed.
 
     Returns
     -------

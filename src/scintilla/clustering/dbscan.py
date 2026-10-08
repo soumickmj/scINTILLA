@@ -21,6 +21,17 @@ def dbscan_clustering(
 ) -> Tuple[np.ndarray, int, int, float]:
     """Run DBSCAN clustering.
 
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    eps
+        Neighbourhood radius.
+    min_samples
+        Minimum number of points in a neighbourhood for a core point.
+    metric
+        Distance metric.
+
     Returns
     -------
     labels : np.ndarray  (-1 = noise)

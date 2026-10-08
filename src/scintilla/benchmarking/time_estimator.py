@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -35,6 +35,9 @@ import pandas as pd
 from scintilla._compat import get_matrix
 from scintilla._logging import logger, verbosity_aware
 from scintilla.config import RANDOM_SEED
+
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
 
 try:
     import anndata as ad
@@ -100,8 +103,10 @@ def _complexity_stacking(n: float, d: float, k: float) -> float:
 
 
 def _complexity_shap(n: float, d: float, k: float) -> float:
-    """O(n * 2^d) in theory, but TreeSHAP is O(n * d * T * L) for trees.
-    We approximate as O(n * d^2) for practical single-cell feature counts."""
+    """Complexity of SHAP: O(n * 2^d) in theory, but TreeSHAP is O(n * d * T * L) for trees.
+
+    We approximate as O(n * d^2) for practical single-cell feature counts.
+    """
     return n * d * d
 
 
@@ -140,8 +145,10 @@ def _complexity_mi(n: float, d: float, k: float) -> float:
 
 
 def _complexity_boruta(n: float, d: float, k: float) -> float:
-    """O(n * 2d * log(n) * n_iterations) -- Boruta wraps Random Forest
-    on doubled feature set, typically 100+ iterations."""
+    """Complexity of Boruta: O(n * 2d * log(n) * n_iterations).
+
+    Boruta wraps a Random Forest on a doubled feature set, typically 100+ iterations.
+    """
     return n * 2 * d * max(np.log2(n), 1.0) * 100.0
 
 
@@ -561,7 +568,7 @@ def _format_time(seconds: float) -> str:
 @verbosity_aware
 def estimate_benchmark_time(
     adata,
-    config=None,
+    config: Optional[AnalysisConfig] = None,
     *,
     stages: Optional[List[str]] = None,
     use_rep: str = "X_pca",

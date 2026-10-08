@@ -23,7 +23,19 @@ def hierarchical_sklearn(
     metric: str = "euclidean",
     linkage_method: str = "complete",
 ) -> np.ndarray:
-    """Fast sklearn-based agglomerative clustering (for benchmarking)."""
+    """Fast sklearn-based agglomerative clustering (for benchmarking).
+
+    Parameters
+    ----------
+    data
+        Feature matrix (cells by features).
+    n_clusters
+        Number of clusters.
+    metric
+        Distance metric.
+    linkage_method
+        Linkage criterion (``ward`` requires the euclidean metric).
+    """
     # Ward requires euclidean
     if linkage_method == "ward" and metric != "euclidean":
         raise ValueError("Ward linkage requires euclidean metric.")

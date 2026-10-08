@@ -22,6 +22,19 @@ def two_group_matrices(
     Only the cells of the two groups are densified, so comparing two clusters of a large
     sparse dataset does not allocate a dense copy of the whole matrix.  Row order within
     each group follows ``adata``.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    group_col
+        Column in ``adata.obs`` with the group labels.
+    group1
+        Label of the first group.
+    group2
+        Label of the second group.
+    layer
+        Layer to use; ``None`` uses ``adata.X``.
     """
     if group_col not in adata.obs.columns:
         raise KeyError(f"Column '{group_col}' not found in obs.")

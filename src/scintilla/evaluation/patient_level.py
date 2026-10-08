@@ -50,6 +50,13 @@ def patient_confusion_matrix(
 ) -> Dict:
     """Compute confusion matrix and accuracy at patient level.
 
+    Parameters
+    ----------
+    patient_true
+        True label of each patient.
+    patient_pred
+        Predicted label of each patient.
+
     Returns
     -------
     dict: confusion_matrix, accuracy, n_patients

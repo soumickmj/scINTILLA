@@ -15,9 +15,9 @@ def run(args):
 
     from scintilla.analysis_config import AnalysisConfig
     from scintilla.classification.run import supervised_analysis
+    from scintilla.cli.commands import load_adata
     from scintilla.clustering.run import unsupervised_analysis
     from scintilla.io.exporters import save_results_csv, save_results_json
-    from scintilla.io.loaders import auto_detect_format
 
     cfg = None
     if args.config:
@@ -26,7 +26,7 @@ def run(args):
         cfg = AnalysisConfig.fast()
 
     os.makedirs(args.output_dir, exist_ok=True)
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
 
     print("=== Clustering ===")
     clust_result = unsupervised_analysis(

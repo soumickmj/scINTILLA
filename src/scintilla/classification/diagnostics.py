@@ -26,6 +26,17 @@ def check_normality_for_classifier(
     Returns True if the majority of (group, gene) pairs pass Shapiro-Wilk.
     Tests a random sample of up to 20 genes per group (seeded for
     reproducibility) rather than always testing the first 20.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    target_col
+        Column in ``adata.obs`` with the class labels.
+    alpha
+        Significance level of the normality tests.
+    random_state
+        Random seed.
     """
     adata = ensure_anndata(adata, target_col=target_col)
     if target_col not in adata.obs.columns:
@@ -71,6 +82,13 @@ def covariance_homogeneity_test(
     target_col: str,
 ) -> Dict:
     """Box's M test for homogeneity of covariance matrices.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    target_col
+        Column in ``adata.obs`` with the class labels.
 
     Returns
     -------

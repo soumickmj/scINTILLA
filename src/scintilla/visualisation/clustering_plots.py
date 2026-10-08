@@ -10,7 +10,15 @@ def ari_benchmark_plot(
     results_df: pd.DataFrame,
     title: str = "Clustering Benchmark",
 ) -> plt.Figure:
-    """Horizontal bar chart of ARI scores per method."""
+    """Horizontal bar chart of ARI scores per method.
+
+    Parameters
+    ----------
+    results_df
+        Benchmark results table.
+    title
+        Title of the plot.
+    """
     valid = results_df.dropna(subset=["ari"]).sort_values("ari", ascending=True)
     labels = valid["method"] + " | " + valid["params"].astype(str)
     fig, ax = plt.subplots(figsize=(12, max(4, len(valid) * 0.3)))
@@ -71,7 +79,17 @@ def dendrogram_plot(
     labels=None,
     title: str = "Dendrogram",
 ) -> plt.Figure:
-    """Plot a scipy linkage matrix as a dendrogram."""
+    """Plot a scipy linkage matrix as a dendrogram.
+
+    Parameters
+    ----------
+    Z
+        Linkage matrix from :func:`scipy.cluster.hierarchy.linkage`.
+    labels
+        Optional leaf labels.
+    title
+        Title of the plot.
+    """
     fig, ax = plt.subplots(figsize=(12, 5))
     _dendrogram(Z, ax=ax, labels=labels, truncate_mode="lastp", p=30, no_labels=(labels is None))
     ax.set_title(title)
@@ -84,7 +102,17 @@ def cophenetic_vs_original_scatter(
     original_distances: np.ndarray,
     title: str = "Cophenetic vs Original Distances",
 ) -> plt.Figure:
-    """Scatter plot of cophenetic vs original distances."""
+    """Scatter plot of cophenetic vs original distances.
+
+    Parameters
+    ----------
+    cophenetic_distances
+        Cophenetic distances.
+    original_distances
+        Original pairwise distances.
+    title
+        Title of the plot.
+    """
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.scatter(original_distances, cophenetic_distances, alpha=0.3, s=5)
     ax.set_xlabel("Original distances")

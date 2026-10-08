@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
 
 import anndata as ad
 import numpy as np
@@ -26,6 +26,9 @@ from scintilla.config import (
 )
 from scintilla.io.loaders import ensure_anndata
 
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
+
 
 @verbosity_aware
 def benchmark_clustering_methods(
@@ -38,7 +41,7 @@ def benchmark_clustering_methods(
     auto_eps: bool = False,
     n_jobs: int = 1,
     verbose: Optional[bool] = None,
-    config=None,
+    config: Optional[AnalysisConfig] = None,
     random_state: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, Dict[str, np.ndarray]]:
     """Benchmark multiple clustering methods using ARI against true labels.
@@ -167,7 +170,8 @@ def benchmark_clustering_methods(
                     X, n_clusters, init=init, random_state=random_state,
                 )
                 rec, lbl = _score("KMeans", f"init={init}", lbl)
-                recs.append(rec); lbls[f"KMeans_init={init}"] = lbl
+                recs.append(rec)
+                lbls[f"KMeans_init={init}"] = lbl
             except MemoryError:
                 raise
             except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
@@ -177,7 +181,8 @@ def benchmark_clustering_methods(
                 X, n_clusters, spherical=True, random_state=random_state,
             )
             rec, lbl = _score("KMeans_spherical", "spherical=True", lbl)
-            recs.append(rec); lbls["KMeans_spherical_spherical=True"] = lbl
+            recs.append(rec)
+            lbls["KMeans_spherical_spherical=True"] = lbl
         except MemoryError:
             raise
         except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
@@ -187,7 +192,8 @@ def benchmark_clustering_methods(
                 X, n_clusters, bisecting=True, random_state=random_state,
             )
             rec, lbl = _score("KMeans_bisecting", "bisecting=True", lbl)
-            recs.append(rec); lbls["KMeans_bisecting_bisecting=True"] = lbl
+            recs.append(rec)
+            lbls["KMeans_bisecting_bisecting=True"] = lbl
         except MemoryError:
             raise
         except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
@@ -213,7 +219,8 @@ def benchmark_clustering_methods(
                 try:
                     lbl = hierarchical_sklearn(X, n_clusters, metric=metric, linkage_method=lnk)
                     rec, lbl = _score("Hierarchical", f"{metric}/{lnk}", lbl)
-                    recs.append(rec); lbls[f"Hierarchical_{metric}/{lnk}"] = lbl
+                    recs.append(rec)
+                    lbls[f"Hierarchical_{metric}/{lnk}"] = lbl
                 except MemoryError:
                     raise
                 except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
@@ -233,7 +240,8 @@ def benchmark_clustering_methods(
                 try:
                     lbl, _, _, _ = dbscan_clustering(X, eps=eps, min_samples=minsamp)
                     rec, lbl = _score("DBSCAN", f"eps={eps},min_samples={minsamp}", lbl)
-                    recs.append(rec); lbls[f"DBSCAN_eps={eps},min_samples={minsamp}"] = lbl
+                    recs.append(rec)
+                    lbls[f"DBSCAN_eps={eps},min_samples={minsamp}"] = lbl
                 except MemoryError:
                     raise
                 except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
@@ -262,12 +270,12 @@ def benchmark_clustering_methods(
                     tv = true_labels[labels != -1]
                     return adjusted_rand_score(tv, valid) if len(valid) > 0 else 0.0
                 search_result = adaptive_resolution_search(_rl, _ml, _leiden_res, refine_steps=5)
-                for res, score in search_result["all_scores"]:
+                for res, _score_unused in search_result["all_scores"]:
                     lbl = _rl(res)
                     rec, lbl = _score("Leiden", f"resolution={res:.4f}", lbl)
-                    recs.append(rec); lbls[f"Leiden_resolution={res:.4f}"] = lbl
+                    recs.append(rec)
+                    lbls[f"Leiden_resolution={res:.4f}"] = lbl
             elif resolution_selection == "nvi_stability":
-                from scintilla.statistical_tests.adaptive import nvi_stability
                 for res in _leiden_res:
                     try:
                         lbl = leiden_clustering(
@@ -275,7 +283,8 @@ def benchmark_clustering_methods(
                             random_state=random_state,
                         )
                         rec, lbl = _score("Leiden", f"resolution={res}", lbl)
-                        recs.append(rec); lbls[f"Leiden_resolution={res}"] = lbl
+                        recs.append(rec)
+                        lbls[f"Leiden_resolution={res}"] = lbl
                     except MemoryError:
                         raise
                     except Exception as exc:
@@ -294,7 +303,8 @@ def benchmark_clustering_methods(
                             random_state=random_state,
                         )
                         rec, lbl = _score("Leiden", f"resolution={res}", lbl)
-                        recs.append(rec); lbls[f"Leiden_resolution={res}"] = lbl
+                        recs.append(rec)
+                        lbls[f"Leiden_resolution={res}"] = lbl
                     except MemoryError:
                         raise
                     except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
@@ -317,7 +327,8 @@ def benchmark_clustering_methods(
                     _hdb_samples = config.hdbscan_min_samples
             _, lbl = hdbscan_clustering(X, min_cluster_size_range=_hdb_sizes, min_samples_range=_hdb_samples)
             rec, lbl = _score("HDBSCAN", "best", lbl)
-            recs.append(rec); lbls["HDBSCAN_best"] = lbl
+            recs.append(rec)
+            lbls["HDBSCAN_best"] = lbl
         except MemoryError:
             raise
         except ImportError as exc:
@@ -341,7 +352,8 @@ def benchmark_clustering_methods(
                         random_state=random_state,
                     )
                     rec, lbl = _score("Louvain", f"resolution={res}", lbl)
-                    recs.append(rec); lbls[f"Louvain_resolution={res}"] = lbl
+                    recs.append(rec)
+                    lbls[f"Louvain_resolution={res}"] = lbl
                 except MemoryError:
                     raise
                 except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
@@ -364,7 +376,8 @@ def benchmark_clustering_methods(
                         X, n_clusters=nc, random_state=random_state,
                     )
                     rec, lbl = _score("Spectral", f"n_clusters={nc}", lbl)
-                    recs.append(rec); lbls[f"Spectral_n_clusters={nc}"] = lbl
+                    recs.append(rec)
+                    lbls[f"Spectral_n_clusters={nc}"] = lbl
                 except MemoryError:
                     raise
                 except (RuntimeError, ValueError, np.linalg.LinAlgError, ArithmeticError) as exc:
@@ -386,7 +399,8 @@ def benchmark_clustering_methods(
                 random_state=random_state,
             )
             rec, lbl = _score("Consensus", "kmeans", lbl)
-            recs.append(rec); lbls["Consensus_kmeans"] = lbl
+            recs.append(rec)
+            lbls["Consensus_kmeans"] = lbl
         except MemoryError:
             raise
         except ImportError as exc:

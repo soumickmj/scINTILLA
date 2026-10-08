@@ -10,11 +10,11 @@ def add_args(parser):
 def run(args):
     import json
 
+    from scintilla.cli.commands import load_adata
     from scintilla.eda.summary import dataset_summary
     from scintilla.io.exporters import save_results_json
-    from scintilla.io.loaders import auto_detect_format
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     summary = dataset_summary(adata)
     print(json.dumps({k: v for k, v in summary.items() if not isinstance(v, list)}, indent=2))
     if args.output:

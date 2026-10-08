@@ -15,6 +15,13 @@ def map_clusters_to_labels(
 ) -> Dict[int, object]:
     """Map cluster IDs to true-label categories by majority vote.
 
+    Parameters
+    ----------
+    cluster_labels
+        Cluster assignment of each cell.
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+
     Returns
     -------
     mapping : dict

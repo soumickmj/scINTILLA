@@ -12,9 +12,9 @@ def add_args(parser):
 
 def run(args):
     from scintilla.annotation.rank_genes import find_marker_genes
-    from scintilla.io.loaders import auto_detect_format
+    from scintilla.cli.commands import load_adata
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     markers_df = find_marker_genes(adata, groupby=args.groupby, method=args.method, n_genes=args.n_genes)
     print(markers_df.head(20).to_string(index=False))
     if args.output:

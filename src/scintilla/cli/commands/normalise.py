@@ -8,11 +8,11 @@ def add_args(parser):
 
 
 def run(args):
+    from scintilla.cli.commands import load_adata
     from scintilla.io.exporters import save_results_csv
-    from scintilla.io.loaders import auto_detect_format
     from scintilla.preprocessing.benchmark import benchmark_transformations
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     results_df, best_name, _ = benchmark_transformations(adata, verbose=args.verbose)
     print(f"Best transformation: {best_name}")
     print(results_df[["transform", "composite_score"]].to_string(index=False))

@@ -30,6 +30,11 @@ def plot_api(func: Callable) -> Callable:
     (a figure, axes or dict of figures) and never closes it: whether to display or
     close a figure is the caller's decision.  Functions that already define ``show``
     or ``save`` are left alone.
+
+    Parameters
+    ----------
+    func
+        Plotting function returning a figure.
     """
     signature = inspect.signature(func)
     has_save = "save" in signature.parameters

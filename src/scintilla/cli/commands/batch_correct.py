@@ -12,9 +12,9 @@ def add_args(parser):
 
 def run(args):
     from scintilla.batch_correction.benchmark import benchmark_batch_correction
-    from scintilla.io.loaders import auto_detect_format
+    from scintilla.cli.commands import load_adata
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     result = benchmark_batch_correction(
         adata,
         batch_key=args.batch_key,

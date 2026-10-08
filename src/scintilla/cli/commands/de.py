@@ -12,9 +12,9 @@ def add_args(parser):
 
 
 def run(args):
-    from scintilla.io.loaders import auto_detect_format
+    from scintilla.cli.commands import load_adata
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
 
     if args.method == "wilcoxon":
         from scintilla.differential_expression.wilcoxon import wilcoxon_de

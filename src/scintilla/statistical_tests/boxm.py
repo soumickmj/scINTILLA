@@ -23,6 +23,13 @@ def box_m_test(
     M = (n - g) * ln(|S_pooled|) - sum_i((n_i - 1) * ln(|S_i|))
     df = p(p+1)(g-1)/2
 
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    group_col
+        Column in ``adata.obs`` with the group labels.
+
     Returns
     -------
     dict with keys: M_statistic, chi2_approx, p_value, df, recommendation ('LDA'|'QDA'),

@@ -13,7 +13,19 @@ def before_after_distribution_plot(
     transform_name: str = "",
     n_genes: int = 5,
 ) -> plt.Figure:
-    """Side-by-side histograms of n_genes before and after transformation."""
+    """Side-by-side histograms of n_genes before and after transformation.
+
+    Parameters
+    ----------
+    original_data
+        Expression before transformation.
+    transformed_data
+        Expression after transformation.
+    transform_name
+        Name of the transformation, used in the title.
+    n_genes
+        Number of genes to show.
+    """
     adata_orig = ensure_anndata(original_data)
     adata_trans = ensure_anndata(transformed_data)
 

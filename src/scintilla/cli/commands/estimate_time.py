@@ -50,7 +50,7 @@ def run(args):
         estimate_benchmark_time,
         print_time_budget,
     )
-    from scintilla.io.loaders import auto_detect_format
+    from scintilla.cli.commands import load_adata
 
     cfg = None
     if args.config:
@@ -60,7 +60,7 @@ def run(args):
 
     stages = [s.strip() for s in args.stages.split(",") if s.strip()]
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
 
     estimates = estimate_benchmark_time(
         adata,

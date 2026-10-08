@@ -14,7 +14,13 @@ if TYPE_CHECKING:
 
 
 def load_h5ad(path: Union[str, Path]) -> ad.AnnData:
-    """Load an AnnData object from an .h5ad file."""
+    """Load an AnnData object from an .h5ad file.
+
+    Parameters
+    ----------
+    path
+        Destination path.
+    """
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -22,7 +28,13 @@ def load_h5ad(path: Union[str, Path]) -> ad.AnnData:
 
 
 def load_h5mu(path: Union[str, Path]) -> mudata.MuData:
-    """Load a MuData object from an .h5mu file."""
+    """Load a MuData object from an .h5mu file.
+
+    Parameters
+    ----------
+    path
+        Destination path.
+    """
     try:
         import mudata as md
     except ImportError as exc:
@@ -61,12 +73,17 @@ def load_csv(
     return ensure_anndata(df)
 
 
-def auto_detect_format(path: Union[str, Path]) -> Union[ad.AnnData, "mudata.MuData"]:
+def auto_detect_format(path: Union[str, Path]) -> Union[ad.AnnData, mudata.MuData]:
     """Auto-detect the file format from the suffix and load it.
 
     ``.h5ad`` and CSV/TSV files give an :class:`~anndata.AnnData`; ``.h5mu`` gives a
     :class:`~mudata.MuData`, which every analysis function accepts together with a
     ``modality`` argument (see :func:`ensure_anndata`).
+
+    Parameters
+    ----------
+    path
+        Destination path.
     """
     path = Path(path)
     suffix = path.suffix.lower()
@@ -82,7 +99,7 @@ def auto_detect_format(path: Union[str, Path]) -> Union[ad.AnnData, "mudata.MuDa
 
 
 def ensure_anndata(
-    adata: Union[pd.DataFrame, ad.AnnData, np.ndarray, "mudata.MuData"],
+    adata: Union[pd.DataFrame, ad.AnnData, np.ndarray, mudata.MuData],
     target_col: Optional[str] = None,
     modality: Optional[str] = None,
 ) -> ad.AnnData:

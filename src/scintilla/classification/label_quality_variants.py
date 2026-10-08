@@ -66,7 +66,13 @@ VARIANTS: Dict[str, str] = {
 
 
 def quality_rank(score: pd.Series) -> pd.Series:
-    """Midrank percentile ``(rank - 0.5) / n`` of finite scores; NaN stays NaN."""
+    """Midrank percentile ``(rank - 0.5) / n`` of finite scores; NaN stays NaN.
+
+    Parameters
+    ----------
+    score
+        Per-label scores; non-finite values are ignored.
+    """
     s = score.astype(float).round(12)
     s = s.where(np.isfinite(s))
     n = s.notna().sum()
@@ -75,7 +81,17 @@ def quality_rank(score: pd.Series) -> pd.Series:
 
 def label_silhouette(adata: ad.AnnData, cell_type_col: str = "cell_type",
                      use_rep: str = "X_pca") -> pd.Series:
-    """Per-label mean of per-cell silhouette on ``adata.obsm[use_rep]``."""
+    """Per-label mean of per-cell silhouette on ``adata.obsm[use_rep]``.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    cell_type_col
+        Column in ``adata.obs`` with the cell-type labels.
+    use_rep
+        Embedding in ``adata.obsm`` on which the silhouette is computed.
+    """
     from sklearn.metrics import silhouette_samples
 
     if use_rep not in adata.obsm:
@@ -175,5 +191,11 @@ def compute_label_quality_variants(
 
 
 def review_ranks(scores: pd.DataFrame) -> pd.DataFrame:
-    """Rank labels per variant: 1 = lowest score = most worth reviewing."""
+    """Rank labels per variant: 1 = lowest score = most worth reviewing.
+
+    Parameters
+    ----------
+    scores
+        Output of ``compute_label_quality_variants`` (labels by variants).
+    """
     return scores.rank(method="min", ascending=True).astype("Int64")

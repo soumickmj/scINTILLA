@@ -1,4 +1,17 @@
-"""scintilla: Single-Cell INTegrated Inference, Labelling, and Landscape Analysis."""
+"""scintilla: Single-Cell INTegrated Inference, Labelling, and Landscape Analysis.
+
+The recommended entry points are the scanpy-style namespaces ``pp`` (preprocessing), ``tl``
+(tools), ``pl`` (plotting), ``stats`` (array-level statistics) and ``benchmark``, plus ``eda``,
+``io`` and ``settings``::
+
+    import scintilla as si
+
+    si.settings.verbosity = "info"
+    scores = si.tl.label_quality(adata, cell_type_col="cell_type")
+
+The flat names below (``si.run_pca``, ``si.unsupervised_analysis``, ...) are kept as convenient
+aliases of the same functions.
+"""
 
 from scintilla.analysis_config import AnalysisConfig, generate_default_yaml
 from scintilla.annotation import (
@@ -13,6 +26,11 @@ from scintilla.batch_correction import (
     combat_correct,
 )
 from scintilla.batch_correction.metrics import bio_conservation_score
+from scintilla.classification.label_quality import label_quality
+from scintilla.classification.label_quality_variants import compute_label_quality_variants
+from scintilla.settings import settings
+
+from scintilla import benchmark, eda, io, pl, pp, stats, tl  # isort: skip  (namespaces)
 from scintilla.benchmarking import (
     BenchmarkReport,
     BenchmarkResult,
@@ -28,6 +46,9 @@ from scintilla.classification.diagnostics import influential_cells
 from scintilla.classification.run import supervised_analysis
 from scintilla.clustering.dbscan import estimate_eps
 from scintilla.clustering.run import unsupervised_analysis
+
+__version__ = "0.2.0.dev0"
+
 from scintilla.config import (
     DEFAULT_N_PCA_COMPS,
     DEFAULT_TEST_SIZE,
@@ -83,8 +104,21 @@ from scintilla.statistical_tests import (
     rank_biserial,
 )
 
-__version__ = "0.1.0"
 __all__ = [
+    # Namespaces
+    "pp",
+    "tl",
+    "pl",
+    "stats",
+    "benchmark",
+    "eda",
+    "io",
+    "settings",
+    "label_quality",
+    "compute_label_quality_variants",
+    "estimate_benchmark_time",
+    "print_time_budget",
+    "__version__",
     "RANDOM_SEED",
     "DEFAULT_TEST_SIZE",
     "DEFAULT_N_PCA_COMPS",

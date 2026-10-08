@@ -7,20 +7,60 @@ from typing import Optional
 import numpy as np
 from scipy.cluster.hierarchy import cophenet
 from scipy.spatial.distance import pdist
+from sklearn.metrics import (
+    adjusted_mutual_info_score as _ami,
+)
 from sklearn.metrics import adjusted_rand_score as _ari
+from sklearn.metrics import (
+    calinski_harabasz_score as _ch,
+)
+from sklearn.metrics import (
+    completeness_score as _comp,
+)
+from sklearn.metrics import (
+    davies_bouldin_score as _db,
+)
+from sklearn.metrics import (
+    fowlkes_mallows_score as _fm,
+)
+from sklearn.metrics import (
+    homogeneity_score as _hom,
+)
+from sklearn.metrics import (
+    normalized_mutual_info_score as _nmi,
+)
 from sklearn.metrics import silhouette_score as _sil
+from sklearn.metrics import (
+    v_measure_score as _v,
+)
 
 from scintilla.clustering.utils import map_clusters_to_labels
 from scintilla.config import RANDOM_SEED
 
 
 def adjusted_rand_index(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
-    """Compute Adjusted Rand Index."""
+    """Compute Adjusted Rand Index.
+
+    Parameters
+    ----------
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+    pred_labels
+        Predicted cluster or class labels, one per cell.
+    """
     return float(_ari(true_labels, pred_labels))
 
 
 def silhouette(X: np.ndarray, labels: np.ndarray) -> float:
-    """Compute silhouette score (returns NaN if not computable)."""
+    """Compute silhouette score (returns NaN if not computable).
+
+    Parameters
+    ----------
+    X
+        Feature matrix (cells by features).
+    labels
+        Cluster or class label of each row of ``X``.
+    """
     unique = np.unique(labels[labels != -1])
     if len(unique) < 2:
         return float("nan")
@@ -36,6 +76,15 @@ def cophenetic_correlation_coefficient(
     """Compute cophenetic correlation coefficient.
 
     Provide either a linkage matrix Z, or let the function compute one.
+
+    Parameters
+    ----------
+    X
+        Feature matrix (cells by features).
+    labels
+        Cluster labels used to build the linkage when ``Z`` is not given.
+    Z
+        Precomputed linkage matrix (optional).
     """
     if Z is None:
         from scipy.cluster.hierarchy import linkage
@@ -60,6 +109,13 @@ def accuracy_from_mapped_labels(
     aggressive parameters) the denominator includes *all* cells, which may
     make accuracy appear misleadingly low.  This is intentional — noise
     points are counted as incorrect.
+
+    Parameters
+    ----------
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+    pred_labels
+        Predicted cluster or class labels, one per cell.
     """
     valid_mask = pred_labels != -1
     if not valid_mask.any():
@@ -75,64 +131,96 @@ def accuracy_from_mapped_labels(
     return float(n_correct) / len(true_labels)
 
 
-from sklearn.metrics import (
-    adjusted_mutual_info_score as _ami,
-)
-from sklearn.metrics import (
-    calinski_harabasz_score as _ch,
-)
-from sklearn.metrics import (
-    completeness_score as _comp,
-)
-from sklearn.metrics import (
-    davies_bouldin_score as _db,
-)
-from sklearn.metrics import (
-    fowlkes_mallows_score as _fm,
-)
-from sklearn.metrics import (
-    homogeneity_score as _hom,
-)
-from sklearn.metrics import (
-    normalized_mutual_info_score as _nmi,
-)
-from sklearn.metrics import (
-    v_measure_score as _v,
-)
 
 
 def normalised_mutual_info(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
-    """Normalised Mutual Information."""
+    """Normalised Mutual Information.
+
+    Parameters
+    ----------
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+    pred_labels
+        Predicted cluster or class labels, one per cell.
+    """
     return float(_nmi(true_labels, pred_labels))
 
 
 def adjusted_mutual_info(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
-    """Adjusted Mutual Information."""
+    """Compute the Adjusted Mutual Information.
+
+    Parameters
+    ----------
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+    pred_labels
+        Predicted cluster or class labels, one per cell.
+    """
     return float(_ami(true_labels, pred_labels))
 
 
 def v_measure(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
-    """V-measure score."""
+    """V-measure score.
+
+    Parameters
+    ----------
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+    pred_labels
+        Predicted cluster or class labels, one per cell.
+    """
     return float(_v(true_labels, pred_labels))
 
 
 def homogeneity(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
-    """Homogeneity score."""
+    """Homogeneity score.
+
+    Parameters
+    ----------
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+    pred_labels
+        Predicted cluster or class labels, one per cell.
+    """
     return float(_hom(true_labels, pred_labels))
 
 
 def completeness(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
-    """Completeness score."""
+    """Completeness score.
+
+    Parameters
+    ----------
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+    pred_labels
+        Predicted cluster or class labels, one per cell.
+    """
     return float(_comp(true_labels, pred_labels))
 
 
 def fowlkes_mallows(true_labels: np.ndarray, pred_labels: np.ndarray) -> float:
-    """Fowlkes-Mallows index."""
+    """Fowlkes-Mallows index.
+
+    Parameters
+    ----------
+    true_labels
+        Reference (ground-truth) labels, one per cell.
+    pred_labels
+        Predicted cluster or class labels, one per cell.
+    """
     return float(_fm(true_labels, pred_labels))
 
 
 def calinski_harabasz(X: np.ndarray, labels: np.ndarray) -> float:
-    """Calinski-Harabasz index."""
+    """Calinski-Harabasz index.
+
+    Parameters
+    ----------
+    X
+        Feature matrix (cells by features).
+    labels
+        Cluster or class label of each row of ``X``.
+    """
     unique = np.unique(labels[labels != -1])
     if len(unique) < 2:
         return float("nan")
@@ -141,7 +229,15 @@ def calinski_harabasz(X: np.ndarray, labels: np.ndarray) -> float:
 
 
 def davies_bouldin(X: np.ndarray, labels: np.ndarray) -> float:
-    """Davies-Bouldin index."""
+    """Davies-Bouldin index.
+
+    Parameters
+    ----------
+    X
+        Feature matrix (cells by features).
+    labels
+        Cluster or class label of each row of ``X``.
+    """
     unique = np.unique(labels[labels != -1])
     if len(unique) < 2:
         return float("nan")

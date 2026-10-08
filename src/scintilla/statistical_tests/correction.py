@@ -38,7 +38,7 @@ def correct_pvalues(
 
     # Warn if statsmodels qvalue not available (informational only)
     try:
-        from statsmodels.stats.multitest import local_fdr
+        from statsmodels.stats.multitest import local_fdr  # noqa: F401
     except ImportError:
         warnings.warn(
             "Storey q-value not available. Using statsmodels multipletests instead.",

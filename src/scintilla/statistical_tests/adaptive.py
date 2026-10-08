@@ -63,7 +63,7 @@ def marchenko_pastur_cutoff(
     p: int,
     sigma_method: str = "median",
 ) -> int:
-    """Number of significant components via Marchenko-Pastur distribution.
+    """Count the significant components via the Marchenko-Pastur distribution.
 
     Eigenvalues exceeding the upper edge of the MP bulk
     ``λ+ = σ² (1 + √(p/n))²`` are considered significant, where σ² is

@@ -173,6 +173,7 @@ select = [
     "B",                # flake8-bugbear
     "UP",               # pyupgrade
     "I",                # isort
+    "D",                # pydocstyle (numpydoc style)
 ]
 ignore = [
     "B008",  # function call in default argument (argparse/typer style)
@@ -182,5 +183,10 @@ ignore = [
     "UP006", "UP035",  # keep typing.List/Dict where they already exist
 ]
 
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["B011"]
+"tests/*" = ["B011", "D"]
+"src/scintilla/cli/commands/*" = ["D103"]  # add_args/run: documented by the --help text
+"src/scintilla/__init__.py" = ["F401"]

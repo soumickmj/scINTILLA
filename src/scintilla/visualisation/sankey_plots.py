@@ -39,7 +39,6 @@ def cluster_label_sankey(
     unique_true = sorted(np.unique(true_labels).tolist(), key=str)
 
     # Build source/target/value lists
-    cluster_offset = 0
     true_offset = len(unique_clusters)
 
     cluster_idx = {c: i for i, c in enumerate(unique_clusters)}

@@ -7,7 +7,7 @@ import seaborn as sns
 
 
 def plot_classification_benchmark(results_df: pd.DataFrame, ax=None, title: str = None) -> plt.Figure:
-    """Grouped bar chart of accuracy per model and feature space.
+    """Draw a grouped bar chart of accuracy per model and feature space.
 
     Handles the three table layouts that
     :func:`scintilla.classification.benchmark.benchmark_models_comprehensive` produces:
@@ -60,7 +60,17 @@ def benchmark_bar_chart(
     metric: str = "accuracy",
     title: str = "Classification Benchmark",
 ) -> plt.Figure:
-    """Grouped bar chart of classification metric per model."""
+    """Draw a grouped bar chart of a classification metric per model.
+
+    Parameters
+    ----------
+    results_df
+        Benchmark results table.
+    metric
+        Column of ``results_df`` to plot.
+    title
+        Title of the plot.
+    """
     fig, ax = plt.subplots(figsize=(10, 5))
     if metric in results_df.columns and "model" in results_df.columns:
         if "space" in results_df.columns:
@@ -81,7 +91,17 @@ def confusion_matrix_heatmap(
     class_names=None,
     title: str = "Confusion Matrix",
 ) -> plt.Figure:
-    """Heatmap of a confusion matrix."""
+    """Heatmap of a confusion matrix.
+
+    Parameters
+    ----------
+    cm
+        Confusion matrix.
+    class_names
+        Class names for the axes.
+    title
+        Title of the plot.
+    """
     fig, ax = plt.subplots(figsize=(max(4, cm.shape[0]), max(4, cm.shape[0])))
     sns.heatmap(
         cm,

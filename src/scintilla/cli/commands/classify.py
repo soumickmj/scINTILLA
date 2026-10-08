@@ -14,8 +14,8 @@ def add_args(parser):
 def run(args):
     from scintilla.analysis_config import AnalysisConfig
     from scintilla.classification.run import supervised_analysis
+    from scintilla.cli.commands import load_adata
     from scintilla.io.exporters import save_results_json
-    from scintilla.io.loaders import auto_detect_format
 
     cfg = None
     if args.config:
@@ -23,7 +23,7 @@ def run(args):
     elif args.fast:
         cfg = AnalysisConfig.fast()
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     result = supervised_analysis(
         adata,
         target_col=args.target_col,
@@ -33,5 +33,5 @@ def run(args):
     )
     print(f"Best model: {result['best_model_name']}")
     if args.output:
-        summary = {k: v for k, v in result.items() if k not in ("best_model", "feature_importances")}
+        summary = {k: v for k, v in result.items() if k not in ("adata", "best_model", "feature_importances")}
         save_results_json(summary, args.output)

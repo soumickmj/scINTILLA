@@ -136,7 +136,7 @@ def plot_classifier_comparison(
     fig6, axes = plt.subplots(n_rows, n_cols,
                               figsize=figsize or (5 * n_cols, 4 * n_rows))
     axes = np.atleast_2d(axes)
-    for idx, (name, res) in enumerate(all_results.items()):
+    for idx, res in enumerate(all_results.values()):
         r, c = divmod(idx, n_cols)
         ax = axes[r, c]
         cm = res["metrics"].get("confusion_matrix")
@@ -305,6 +305,33 @@ def plot_celltype_label_quality(
 
     Computes a composite label quality score and stores it in
     ``adata.obs[obs_key]`` (skipped if already present, unless *force*).
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    cell_type_col
+        Column in ``adata.obs`` with the cell-type labels.
+    confusion_cols
+        Confusion columns of ``adata.obs``; auto-detected when ``None``.
+    cmap
+        Name of the matplotlib colour map.
+    save
+        Optional path to save the figure to.
+    figsize
+        Optional figure size in inches, ``(width, height)``.
+    obs_key
+        Column used to store the per-cell score.
+    supervised_weight
+        Weight of the supervised consistency metrics.
+    unsupervised_weight
+        Weight of the unsupervised confusion metrics.
+    force
+        Recompute the score even if ``obs_key`` already exists.
+    fragmentation_cols
+        Fragmentation columns of ``adata.obs``; auto-detected when ``None``.
+    fragmentation_weight
+        Weight of the fragmentation metrics.
     """
     quality = compute_label_quality_score(
         adata,
@@ -371,6 +398,25 @@ def plot_metric_correlation(
     """Scatter plot of two metrics aggregated per cell type with correlation.
 
     Each point is one cell type (mean of the metric across its cells).
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    metric_x
+        Per-cell metric on the x axis (a column of ``adata.obs``).
+    metric_y
+        Per-cell metric on the y axis (a column of ``adata.obs``).
+    cell_type_col
+        Column in ``adata.obs`` with the cell-type labels.
+    label_dots
+        Annotate each point with its cell type.
+    cmap
+        Name of the matplotlib colour map.
+    save
+        Optional path to save the figure to.
+    figsize
+        Optional figure size in inches, ``(width, height)``.
     """
     from scipy.stats import pearsonr, spearmanr
 

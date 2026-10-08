@@ -12,7 +12,7 @@ BenchmarkResult = namedtuple("BenchmarkResult", ["result", "elapsed_seconds", "p
 
 
 def profile_method(func: Callable) -> Callable:
-    """Decorator that captures wall-clock time and peak memory usage.
+    """Capture wall-clock time and peak memory usage of a function.
 
     Parameters
     ----------

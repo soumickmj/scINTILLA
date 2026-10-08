@@ -97,7 +97,7 @@ def annotate_by_markers(
         X = get_matrix(adata, layer, dense=False)
         gene_idx = {g: i for i, g in enumerate(adata.var_names)}
         scores = np.zeros((adata.n_obs, len(cell_types)))
-        for k, (ct, markers) in enumerate(marker_dict.items()):
+        for k, markers in enumerate(marker_dict.values()):
             idx = [gene_idx[m] for m in markers if m in gene_idx]
             if idx:
                 scores[:, k] = np.asarray((X[:, idx] > threshold).mean(axis=1)).ravel()

@@ -12,11 +12,11 @@ def add_args(parser):
 def run(args):
     import pandas as pd
 
+    from scintilla.cli.commands import load_adata
     from scintilla.feature_selection.pca_loadings import extract_top_genes_per_pc
     from scintilla.io.exporters import save_results_csv
-    from scintilla.io.loaders import auto_detect_format
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     genes = extract_top_genes_per_pc(adata, n_per_pc=args.n_per_pc)
     print(f"Selected {len(genes)} genes:")
     print(genes)

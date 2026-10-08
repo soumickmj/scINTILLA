@@ -11,15 +11,15 @@ def add_args(parser):
 def run(args):
     from scintilla.benchmarking.reporter import BenchmarkReport
     from scintilla.classification.benchmark import benchmark_models_comprehensive
+    from scintilla.cli.commands import load_adata
     from scintilla.clustering.benchmark import benchmark_clustering_methods
-    from scintilla.io.loaders import auto_detect_format
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     report = BenchmarkReport()
 
     if args.cell_type_col in adata.obs.columns:
         try:
-            results_df, _, _ = benchmark_clustering_methods(
+            results_df, _ = benchmark_clustering_methods(
                 adata, cell_type_col=args.cell_type_col, verbose=args.verbose
             )
             for _, row in results_df.iterrows():
@@ -29,7 +29,7 @@ def run(args):
                 print(f"Clustering benchmark failed: {e}")
 
         try:
-            results_df, _ = benchmark_models_comprehensive(
+            results_df = benchmark_models_comprehensive(
                 adata, target_col=args.cell_type_col, verbose=args.verbose
             )
             for _, row in results_df.iterrows():

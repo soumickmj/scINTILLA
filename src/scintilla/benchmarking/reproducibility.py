@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Callable, Optional
+from typing import TYPE_CHECKING, Callable, Optional
 
 import numpy as np
 import pandas as pd
 
 from scintilla.config import RANDOM_SEED
+
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
 
 
 def seed_stability_test(
@@ -20,7 +23,7 @@ def seed_stability_test(
     n_bootstrap: Optional[int] = None,
     compute_icc: bool = False,
     icc_method: str = "anova",
-    config=None,
+    config: Optional[AnalysisConfig] = None,
 ) -> pd.DataFrame:
     """Test seed stability of a method.
 

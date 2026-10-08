@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Dict, Optional, Tuple, Union
 
 import anndata as ad
 import numpy as np
@@ -19,6 +19,9 @@ from scintilla._logging import logger, resolve_verbose, verbosity_aware
 from scintilla.config import RANDOM_SEED, TRANSFORMATION_BENCHMARK_WEIGHTS
 from scintilla.io.loaders import ensure_anndata
 from scintilla.preprocessing.transformations import get_all_transformations
+
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
 
 
 def _get_pca_matrix(
@@ -73,7 +76,7 @@ def benchmark_transformations(
     bootstrap_ci: Optional[bool] = None,
     n_bootstrap: Optional[int] = None,
     verbose: Optional[bool] = None,
-    config=None,
+    config: Optional[AnalysisConfig] = None,
     random_state: Optional[int] = None,
 ) -> Tuple[pd.DataFrame, Optional[str], Optional[ad.AnnData]]:
     """Benchmark multiple data transformations and return the best one.
@@ -348,7 +351,7 @@ def benchmark_transformations(
                 fn = transformations[tname]
                 boot_scores = []
                 bootstrap_error = None
-                for b in range(n_bootstrap):
+                for _ in range(n_bootstrap):
                     idx = rng_boot.integers(0, n, size=n)
                     adata_sub = adata[idx].copy()
                     try:

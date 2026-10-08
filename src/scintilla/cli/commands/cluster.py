@@ -13,9 +13,9 @@ def add_args(parser):
 
 def run(args):
     from scintilla.analysis_config import AnalysisConfig
+    from scintilla.cli.commands import load_adata
     from scintilla.clustering.run import unsupervised_analysis
     from scintilla.io.exporters import save_results_csv
-    from scintilla.io.loaders import auto_detect_format
 
     cfg = None
     if args.config:
@@ -23,7 +23,7 @@ def run(args):
     elif args.fast:
         cfg = AnalysisConfig.fast()
 
-    adata = auto_detect_format(args.input)
+    adata = load_adata(args)
     result = unsupervised_analysis(
         adata,
         cell_type_col=args.cell_type_col,

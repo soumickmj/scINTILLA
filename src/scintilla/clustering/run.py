@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import anndata as ad
 import numpy as np
@@ -15,6 +15,9 @@ from scintilla._logging import resolve_verbose, verbosity_aware
 from scintilla.clustering.benchmark import benchmark_clustering_methods
 from scintilla.config import DEFAULT_N_PCA_COMPS, RANDOM_SEED
 from scintilla.preprocessing.pca import run_pca
+
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
 
 _OMITTED = object()
 
@@ -30,7 +33,7 @@ def unsupervised_analysis(
     store_labels: bool = True,
     n_jobs: int = 1,
     verbose: Optional[bool] = None,
-    config=None,
+    config: Optional[AnalysisConfig] = None,
     auto_pca_components=_OMITTED,
     mp_sigma_method=_OMITTED,
     random_state: Optional[int] = None,

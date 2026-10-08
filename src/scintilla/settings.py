@@ -38,6 +38,7 @@ class Settings:
 
     @property
     def verbosity(self) -> str:
+        """Name of the active level: ``"error"``, ``"warning"``, ``"info"`` or ``"debug"``."""
         level = logger.level
         for name in ("debug", "info", "warning", "error"):
             if level <= _LEVELS[name]:
@@ -56,6 +57,7 @@ class Settings:
         logger.setLevel(level)
 
     def __repr__(self) -> str:
+        """Return a short description of the settings."""
         return f"Settings(verbosity={self.verbosity!r})"
 
 

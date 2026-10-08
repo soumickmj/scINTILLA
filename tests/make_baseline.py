@@ -16,7 +16,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from _synthetic import make_labelled_blobs  # noqa: E402
-
 from scintilla.analysis_config import AnalysisConfig  # noqa: E402
 from scintilla.classification.label_quality_variants import compute_label_quality_variants  # noqa: E402
 from scintilla.classification.run import supervised_analysis  # noqa: E402

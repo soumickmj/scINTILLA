@@ -27,6 +27,27 @@ def build_per_celltype_clustering(
 ) -> Dict[str, np.ndarray]:
     """Cluster patients within each cell type separately.
 
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    patient_col
+        Column in ``adata.obs`` with the patient identifiers.
+    celltype_col
+        Column in ``adata.obs`` with the cell-type labels.
+    target_col
+        Column in ``adata.obs`` with the class labels.
+    method
+        Clustering method.
+    metric
+        Distance metric.
+    linkage
+        Linkage criterion for hierarchical clustering.
+    n_clusters
+        Number of clusters.
+    random_state
+        Random seed.
+
     Returns
     -------
     dict : {cell_type: labels_array (length = n_patients)}
@@ -71,6 +92,13 @@ def build_similarity_matrices(
 ) -> Dict[str, np.ndarray]:
     """Build per-cell-type co-clustering similarity matrices.
 
+    Parameters
+    ----------
+    clustering_results
+        Per-cell-type clustering results.
+    patients
+        Patient identifiers.
+
     Returns
     -------
     dict : {cell_type: similarity_matrix (n_patients x n_patients)}
@@ -95,7 +123,15 @@ def weighted_assembly(
     similarity_matrices: Dict[str, np.ndarray],
     weights: Optional[Dict[str, float]] = None,
 ) -> np.ndarray:
-    """Compute a weighted average similarity matrix across cell types."""
+    """Compute a weighted average similarity matrix across cell types.
+
+    Parameters
+    ----------
+    similarity_matrices
+        Per-cell-type patient similarity matrices.
+    weights
+        Weight of each matrix.
+    """
     if not similarity_matrices:
         raise ValueError("No similarity matrices provided.")
     mats = list(similarity_matrices.items())

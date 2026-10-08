@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 import anndata as ad
 import numpy as np
@@ -15,13 +15,16 @@ from scintilla._compat import get_matrix
 from scintilla.config import DEFAULT_TEST_SIZE, RANDOM_SEED
 from scintilla.io.loaders import ensure_anndata
 
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
+
 
 def benchmark_feature_selection(
     adata: Union[pd.DataFrame, ad.AnnData],
     target_col: str,
     methods: Optional[List[str]] = None,
     n_features: Optional[int] = None,
-    config=None,
+    config: Optional[AnalysisConfig] = None,
     test_size: Optional[float] = None,
     random_state: Optional[int] = None,
 ) -> pd.DataFrame:

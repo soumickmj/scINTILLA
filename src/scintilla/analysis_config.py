@@ -80,7 +80,7 @@ class AnalysisConfig:
     random_seed: int = RANDOM_SEED
     test_size: float = DEFAULT_TEST_SIZE
     n_pca_comps: int = DEFAULT_N_PCA_COMPS
-    verbose: bool = True
+    verbose: Optional[bool] = None
 
     # ── Robust statistics ───────────────────────────────────────────
     bootstrap_ci: bool = False
@@ -183,6 +183,11 @@ def generate_default_yaml(path: str = "scintilla_config.yaml") -> str:
 
     The generated file includes comments explaining every option,
     making it easy for users to customise.
+
+    Parameters
+    ----------
+    path
+        Where to write the YAML file.
     """
     text = """\
 # ── scintilla analysis configuration ───────────────────────────────
@@ -262,7 +267,8 @@ n_features: 50
 random_seed: 42
 test_size: 0.2
 n_pca_comps: 30
-verbose: true
+# Progress messages: true/false force them on/off; null follows scintilla.settings.verbosity.
+verbose: null
 
 # ── Robust statistics ───────────────────────────────────────────────
 # Enable BCa bootstrap confidence intervals for metrics.
@@ -289,7 +295,7 @@ no_info_method: analytical
 mp_sigma_method: median
 # Number of cross-validation folds.
 cv_folds: 5
-"""
+    """
     p = Path(path)
     p.write_text(text, encoding="utf-8")
     return text

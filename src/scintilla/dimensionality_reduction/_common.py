@@ -26,6 +26,19 @@ def get_representation(
     """Return ``adata.obsm[use_rep]``, or a throw-away PCA of ``X`` when it is absent.
 
     ``n_comps`` is capped at ``min(n_obs, n_vars) - 1``.
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.
+    use_rep
+        Key in ``adata.obsm`` of the representation to use.
+    random_state
+        Random seed.
+    layer
+        Layer to use; ``None`` uses ``adata.X``.
+    n_comps
+        Number of components of the temporary PCA.
     """
     if use_rep in adata.obsm:
         return np.asarray(adata.obsm[use_rep])
@@ -39,7 +52,15 @@ def get_representation(
 
 
 def stand_in(rep: np.ndarray, obs_names: pd.Index) -> ad.AnnData:
-    """A minimal AnnData whose only content is the representation ``rep``."""
+    """Build a minimal AnnData whose only content is the representation ``rep``.
+
+    Parameters
+    ----------
+    rep
+        Representation (cells by dimensions).
+    obs_names
+        Cell names.
+    """
     tmp = ad.AnnData(
         X=np.zeros((rep.shape[0], 1), dtype=np.float32),
         obs=pd.DataFrame(index=obs_names),

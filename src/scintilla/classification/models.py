@@ -25,12 +25,36 @@ def _fit_and_eval(model, X_train, X_test, y_train, y_test) -> Tuple[object, Dict
 
 
 def lda_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
-    """Linear Discriminant Analysis classifier."""
+    """Linear Discriminant Analysis classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    """
     return _fit_and_eval(LinearDiscriminantAnalysis(), X_train, X_test, y_train, y_test)
 
 
 def qda_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
-    """Quadratic Discriminant Analysis classifier."""
+    """Quadratic Discriminant Analysis classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    """
     return _fit_and_eval(
         QuadraticDiscriminantAnalysis(reg_param=0.01), X_train, X_test, y_train, y_test
     )
@@ -39,7 +63,21 @@ def qda_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
 def svm_classification(
     X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
-    """Linear Support Vector Machine classifier."""
+    """Linear Support Vector Machine classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    random_state
+        Random seed.
+    """
     return _fit_and_eval(
         LinearSVC(random_state=random_state, max_iter=2000),
         X_train, X_test, y_train, y_test,
@@ -50,7 +88,23 @@ def random_forest_classification(
     X_train, X_test, y_train, y_test, n_estimators: int = 100,
     random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
-    """Random Forest classifier."""
+    """Random Forest classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    n_estimators
+        Number of trees.
+    random_state
+        Random seed.
+    """
     return _fit_and_eval(
         RandomForestClassifier(n_estimators=n_estimators, random_state=random_state),
         X_train, X_test, y_train, y_test,
@@ -60,7 +114,21 @@ def random_forest_classification(
 def logistic_regression_classification(
     X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
-    """Logistic Regression classifier."""
+    """Logistic Regression classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    random_state
+        Random seed.
+    """
     return _fit_and_eval(
         LogisticRegression(max_iter=500, random_state=random_state, solver="lbfgs"),
         X_train, X_test, y_train, y_test,
@@ -70,7 +138,21 @@ def logistic_regression_classification(
 def mlp_classification(
     X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
-    """Multi-Layer Perceptron classifier."""
+    """Multi-Layer Perceptron classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    random_state
+        Random seed.
+    """
     return _fit_and_eval(
         MLPClassifier(max_iter=500, random_state=random_state, hidden_layer_sizes=(100, 50)),
         X_train, X_test, y_train, y_test,
@@ -80,7 +162,21 @@ def mlp_classification(
 def knn_classification(
     X_train, X_test, y_train, y_test, n_neighbors: int = 5
 ) -> Tuple[object, Dict]:
-    """k-Nearest Neighbours classifier."""
+    """k-Nearest Neighbours classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    n_neighbors
+        Number of neighbours.
+    """
     return _fit_and_eval(
         KNeighborsClassifier(n_neighbors=n_neighbors),
         X_train, X_test, y_train, y_test,
@@ -90,7 +186,21 @@ def knn_classification(
 def xgboost_classification(
     X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
-    """XGBoost classifier."""
+    """XGBoost classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    random_state
+        Random seed.
+    """
     try:
         from xgboost import XGBClassifier
     except ImportError as exc:
@@ -100,7 +210,6 @@ def xgboost_classification(
     from sklearn.preprocessing import LabelEncoder
     le = LabelEncoder()
     y_tr_enc = le.fit_transform(y_train)
-    y_te_enc = le.transform(y_test)
     model = XGBClassifier(random_state=random_state, eval_metric="mlogloss", verbosity=0)
     model.fit(X_train, y_tr_enc)
     y_pred_enc = model.predict(X_test)
@@ -115,7 +224,21 @@ def xgboost_classification(
 def lightgbm_classification(
     X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
-    """LightGBM classifier."""
+    """LightGBM classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    random_state
+        Random seed.
+    """
     try:
         from lightgbm import LGBMClassifier
     except ImportError as exc:
@@ -134,6 +257,19 @@ def gradient_boosting_classification(
     Uses ``HistGradientBoostingClassifier`` which is orders of magnitude
     faster than the original ``GradientBoostingClassifier`` and supports
     native multi-core training.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    random_state
+        Random seed.
     """
     from sklearn.ensemble import HistGradientBoostingClassifier
     return _fit_and_eval(
@@ -143,7 +279,19 @@ def gradient_boosting_classification(
 
 
 def naive_bayes_classification(X_train, X_test, y_train, y_test) -> Tuple[object, Dict]:
-    """Gaussian Naive Bayes classifier."""
+    """Gaussian Naive Bayes classifier.
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    """
     from sklearn.naive_bayes import GaussianNB
     return _fit_and_eval(GaussianNB(), X_train, X_test, y_train, y_test)
 
@@ -151,7 +299,21 @@ def naive_bayes_classification(X_train, X_test, y_train, y_test) -> Tuple[object
 def stacking_ensemble_classification(
     X_train, X_test, y_train, y_test, random_state: int = RANDOM_SEED,
 ) -> Tuple[object, Dict]:
-    """Stacking ensemble classifier (LogReg + RF + SVM base, LogReg final)."""
+    """Stacking ensemble classifier (LogReg + RF + SVM base, LogReg final).
+
+    Parameters
+    ----------
+    X_train
+        Training feature matrix (cells by features).
+    X_test
+        Test feature matrix (cells by features).
+    y_train
+        Training labels.
+    y_test
+        Test labels.
+    random_state
+        Random seed.
+    """
     from sklearn.ensemble import StackingClassifier
     estimators = [
         ("lr", LogisticRegression(max_iter=500, random_state=random_state, solver="lbfgs")),

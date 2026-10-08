@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import anndata as ad
 import numpy as np
@@ -29,6 +29,9 @@ from scintilla.classification.models import (
 )
 from scintilla.config import DEFAULT_TEST_SIZE, RANDOM_SEED
 
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
+
 
 @verbosity_aware
 def supervised_analysis(
@@ -43,7 +46,7 @@ def supervised_analysis(
     models: Optional[list] = None,
     n_jobs: int = 1,
     verbose: Optional[bool] = None,
-    config=None,
+    config: Optional[AnalysisConfig] = None,
     random_state: Optional[int] = None,
     *,
     key_added: str = "pred",

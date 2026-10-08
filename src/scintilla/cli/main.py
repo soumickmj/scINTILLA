@@ -48,6 +48,13 @@ def main(argv=None):
     estimate_time.add_args(subparsers.add_parser("estimate-time", help="Estimate benchmark wall-clock time"))
     label_quality.add_args(subparsers.add_parser("label-quality", help="Per-label scores for every scINTILLA variant"))
 
+    for sub in subparsers.choices.values():
+        if sub.prog.endswith("generate-config"):
+            continue
+        sub.add_argument("--modality", default=None,
+                         help="Modality to analyse when the input is a .h5mu file (for example 'rna')")
+        sub.add_argument("--quiet", action="store_true", help="Suppress progress messages")
+
     args = parser.parse_args(argv)
     if args.command is None:
         parser.print_help()
@@ -71,6 +78,14 @@ def main(argv=None):
         "estimate-time": estimate_time.run,
         "label-quality": label_quality.run,
     }
+
+    # The command line is not interactive: draw without a display, and show progress.
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from scintilla.settings import settings
+
+    settings.verbosity = "warning" if getattr(args, "quiet", False) else "info"
     dispatch[args.command](args)
 
 

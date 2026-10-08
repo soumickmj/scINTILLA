@@ -23,44 +23,25 @@ def run(args):
     from pathlib import Path
 
     from scintilla.analysis_config import AnalysisConfig
-    from scintilla.classification.label_quality_variants import compute_label_quality_variants, review_ranks
-    from scintilla.classification.run import supervised_analysis
-    from scintilla.clustering.run import unsupervised_analysis
+    from scintilla.classification.label_quality import label_quality
+    from scintilla.classification.label_quality_variants import review_ranks
+    from scintilla.cli.commands import load_adata
     from scintilla.io.exporters import save_anndata, save_results_csv
-    from scintilla.io.loaders import auto_detect_format
 
-    if args.config:
-        cfg = AnalysisConfig.from_yaml(args.config)
-    else:
-        cfg = AnalysisConfig.fast() if args.fast else AnalysisConfig.default()
-    overrides = {"include_shap": False}
-    if args.seed is not None:
-        overrides["random_seed"] = args.seed
-    cfg = cfg.copy(**overrides)
-
-    adata = auto_detect_format(args.input)
-    obs = adata.obs
-    conf_ranks = {c[:-len("_confusion")] for c in obs
-                  if c.startswith("scintilla_top") and c.endswith("_confusion")}
-    frag_ranks = {c[:-len("_fragmentation")] for c in obs
-                  if c.startswith("scintilla_top") and c.endswith("_fragmentation")}
-    has_unsup = "scintilla_top1" in conf_ranks and conf_ranks == frag_ranks
-    has_sup = "pred_agreement" in obs and "pred_entropy" in obs
-
-    pca_needed = args.use_rep not in adata.obsm
-    if pca_needed and args.use_rep != "X_pca":
-        raise KeyError(f"adata.obsm has no '{args.use_rep}'")
-    if args.rerun or not has_unsup or pca_needed:
-        adata = unsupervised_analysis(adata, cell_type_col=args.cell_type_col, use_rep=args.use_rep,
-                                      run_pca_first=pca_needed, config=cfg, n_jobs=args.n_jobs,
-                                      verbose=args.verbose)["adata"]
-    if args.rerun or not has_sup:
-        supervised_analysis(adata, target_col=args.cell_type_col, use_rep=args.supervised_use_rep,
-                            check_consistency=True, include_shap=False, config=cfg,
-                            n_jobs=args.n_jobs, verbose=args.verbose)
-
-    scores = compute_label_quality_variants(adata, cell_type_col=args.cell_type_col,
-                                            use_rep=args.use_rep)
+    config = AnalysisConfig.from_yaml(args.config) if args.config else None
+    adata = load_adata(args)
+    scores = label_quality(
+        adata,
+        cell_type_col=args.cell_type_col,
+        use_rep=args.use_rep,
+        supervised_use_rep=args.supervised_use_rep,
+        config=config,
+        fast=args.fast,
+        random_state=args.seed,
+        n_jobs=args.n_jobs,
+        rerun=args.rerun,
+        verbose=True if args.verbose else None,
+    )
     out = Path(args.output)
     save_results_csv(scores, out)
     ranks_path = out.with_name(out.stem + "_ranks.csv")
