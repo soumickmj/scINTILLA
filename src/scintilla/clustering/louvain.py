@@ -42,8 +42,7 @@ def louvain_clustering(
         ) from exc
 
     try:
-        import F401
-        import louvain
+        import louvain  # noqa: F401
     except ImportError:
         pass  # scanpy will raise a more informative error if needed
 

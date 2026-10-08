@@ -34,8 +34,7 @@ def leiden_clustering(
     np.ndarray of cluster labels (int).
     """
     try:
-        import F401
-        import leidenalg
+        import leidenalg  # noqa: F401
         import scanpy as sc
     except ImportError as exc:
         raise ImportError(
