@@ -1,0 +1,61 @@
+cff-version: 1.2.0
+message: "If you use scINTILLA in your work, please cite the preprint below."
+title: "scINTILLA: Single-Cell Integrated Inference, Labelling, and Landscape Analysis"
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/soumickmj/scINTILLA"
+url: "https://github.com/soumickmj/scINTILLA"
+abstract: >-
+  scINTILLA scores the learnability and internal consistency of cell-type labels
+  in single-cell RNA-seq datasets by combining an unsupervised arm (a panel of
+  clustering algorithms, neighbourhood confusion and fragmentation) with a
+  supervised arm (classifier agreement, entropy and confidence), and benchmarks
+  methods across the analysis workflow.
+authors:
+  - family-names: Kanannejad
+    given-names: "S."
+  - family-names: Bongiorni
+    given-names: "N."
+  - family-names: Nordera
+    given-names: "E."
+  - family-names: Redaelli
+    given-names: "S."
+  - family-names: Rusconi
+    given-names: "I."
+  - family-names: Zanin
+    given-names: "R."
+  - family-names: Giustacchini
+    given-names: "A."
+  - family-names: Chatterjee
+    given-names: Soumick
+    affiliation: Human Technopole
+keywords:
+  - single-cell
+  - scRNA-seq
+  - cell-type annotation
+  - label quality
+  - benchmarking
+preferred-citation:
+  type: article
+  title: "scINTILLA: Single-Cell Integrated Inference, Labelling, and Landscape Analysis for Cell-Type Annotation Quality Assessment"
+  authors:
+    - family-names: Kanannejad
+      given-names: "S."
+    - family-names: Bongiorni
+      given-names: "N."
+    - family-names: Nordera
+      given-names: "E."
+    - family-names: Redaelli
+      given-names: "S."
+    - family-names: Rusconi
+      given-names: "I."
+    - family-names: Zanin
+      given-names: "R."
+    - family-names: Giustacchini
+      given-names: "A."
+    - family-names: Chatterjee
+      given-names: "S."
+  journal: bioRxiv
+  year: 2026
+  doi: "10.64898/2026.07.27.740477"
+  url: "https://www.biorxiv.org/content/10.64898/2026.07.27.740477v1"
