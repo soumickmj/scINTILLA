@@ -213,3 +213,6 @@ results/
 *.h5ad
 *.png
 !docs/**/*.png
+docs/_build/
+docs/generated/
+docs/jupyter_execute/

@@ -1,4 +1,6 @@
-# scINTILLA User Guide
+# User guide
+
+> **Updated for scintilla-py 0.2.** The examples use the scanpy-style namespaces (`si.pp`, `si.tl`, `si.pl`, `si.stats`, `si.benchmark`): results are written to `adata` under `key_added`, `copy=True` returns a modified copy, and plots are drawn separately from computation. The older flat names (`si.run_pca`, `si.unsupervised_analysis`, ...) remain available. See the [API reference](api.md) and the [changelog](changelog.md) for what changed.
 
 This guide covers every module in scINTILLA in depth: what it does, when to use it, all parameters with their defaults, and worked examples.
 
@@ -76,8 +78,8 @@ After the first PyPI release, use `uv add "scintilla-py[full]"` in your own
 uv project, or `uv pip install "scintilla-py[full]"` in a virtual environment.
 The distribution name is `scintilla-py`; Python code still uses
 `import scintilla`. The PyPI package named `scintilla` is unrelated.
-See [README installation instructions](README.md#installation) and
-[publishing instructions](PUBLISHING.md).
+See [installation instructions](index.md#installation) and
+[publishing instructions](https://github.com/soumickmj/scINTILLA/blob/master/PUBLISHING.md).
 
 ---
 
@@ -202,8 +204,9 @@ from scintilla.preprocessing.transformations import TRANSFORM_REGISTRY, arcsinh_
 # Via the registry
 adata_norm = TRANSFORM_REGISTRY["log_shift_size_factor"](adata)
 
-# With custom parameters
-adata_norm = arcsinh_transform(adata, alpha=0.1)
+# With custom parameters. The public function writes adata.layers["arcsinh_transform"]
+# and leaves adata.X alone (copy=True returns a modified copy instead).
+si.pp.arcsinh_transform(adata, alpha=0.1)
 ```
 
 **Parameterised transforms**
@@ -301,13 +304,11 @@ is_normal, report = check_normality(adata, sample_size=500, threshold=0.3)
 ### PCA
 
 ```python
-from scintilla.preprocessing.pca import run_pca
-
-adata = run_pca(adata, n_comps=30)
+si.pp.pca(adata, n_comps=30)
 # Result stored in adata.obsm["X_pca"]
 
 # Adaptive component selection — let the data decide how many components to keep
-adata = run_pca(adata, n_comps=50, auto_components="gavish_donoho")
+si.pp.pca(adata, n_comps=50, auto_components="gavish_donoho")
 # Components trimmed to the Gavish-Donoho optimal threshold
 ```
 
@@ -368,9 +369,9 @@ adata_reduced = build_reduced_dataset(adata, gene_list)
 ### Highly variable genes (HVG)
 
 ```python
-from scintilla.feature_selection import select_hvg
-
-adata_hvg = select_hvg(adata, n_top_genes=2000, method="seurat_v3")
+# Flags adata.var["highly_variable"]; subset=True returns a filtered copy instead
+si.pp.highly_variable_genes(adata, n_top_genes=2000, method="seurat_v3")
+adata_hvg = si.pp.highly_variable_genes(adata, n_top_genes=2000, subset=True)
 ```
 
 **`select_hvg` parameters**
@@ -539,13 +540,11 @@ scintilla feature-select data/pbmc3k.h5ad --n-per-pc 9 --output genes.csv
 ### Python API
 
 ```python
-from scintilla.dimensionality_reduction import run_umap, run_tsne, run_diffusion_map
-from scintilla.dimensionality_reduction.force_directed import run_force_directed
-
-adata = run_umap(adata, use_rep="X_pca", n_neighbors=15, min_dist=0.5)
-adata = run_tsne(adata, use_rep="X_pca", perplexity=30)
-adata = run_diffusion_map(adata, use_rep="X_pca", n_comps=10)
-adata = run_force_directed(adata)
+# Each call writes only adata.obsm[key_added] and returns None (copy=True returns a copy)
+si.tl.umap(adata, use_rep="X_pca", n_neighbors=15, min_dist=0.5)
+si.tl.tsne(adata, use_rep="X_pca", perplexity=30)
+si.tl.diffmap(adata, use_rep="X_pca", n_comps=10)
+si.tl.draw_graph(adata)
 ```
 
 **`run_umap` parameters**
@@ -660,7 +659,6 @@ result = unsupervised_analysis(
 | `adata` | AnnData | Input data + PCA + `scintilla_cluster` (if `store_labels=True`) |
 | `results_df` | DataFrame | `method`, `params`, `ari`, `ami`, `n_clusters`, `noise_fraction`, `status`, `failure_reason` |
 | `labels_dict` | dict | `{key: labels_array}` for every configuration tested |
-| `fig` | Figure | ARI comparison bar chart |
 | `best_method` | str | Method with the highest ARI |
 
 **Reading `status`.** Every method and grid point that was attempted keeps a
@@ -686,13 +684,13 @@ from scintilla.clustering.dbscan import dbscan_clustering, estimate_eps
 from scintilla.clustering.hierarchical import hierarchical_clustering
 from scintilla.clustering.spectral import spectral_clustering
 
-labels, centers, inertia = kmeans_clustering(X, n_clusters=8)
+labels, model, metrics = kmeans_clustering(X, n_clusters=8)
 labels = leiden_clustering(adata, resolution=0.5, use_rep="X_pca")
 labels = louvain_clustering(adata, resolution=0.5, use_rep="X_pca")
 hdbscan_df, labels = hdbscan_clustering(X, min_cluster_size_range=[20], min_samples_range=[5])
-labels = dbscan_clustering(X, eps=0.5, metric="euclidean")
-labels, linkage_matrix = hierarchical_clustering(X, n_clusters=8, metric="euclidean", linkage="ward")
-labels = spectral_clustering(X, n_clusters=8)
+labels, n_clusters, n_noise, silhouette = dbscan_clustering(X, eps=0.5, metric="euclidean")
+labels = hierarchical_clustering(X, n_clusters=8, metric="euclidean", linkage="ward")   # hierarchical_scipy() adds the linkage matrix
+labels, model, metrics = spectral_clustering(X, n_clusters=8)   # spectral_grid_search() for a grid
 
 # Data-driven DBSCAN eps estimation
 data_driven_eps = estimate_eps(X, min_samples=5)
@@ -757,7 +755,7 @@ scores = {k: v for k, v in stability.items() if k != "failures"}
 ```python
 from scintilla.clustering.benchmark import benchmark_clustering_methods
 
-results_df, labels_dict, fig = benchmark_clustering_methods(
+results_df, labels_dict = benchmark_clustering_methods(
     adata,
     cell_type_col="cell_type",
     n_clusters=None,
@@ -766,7 +764,7 @@ results_df, labels_dict, fig = benchmark_clustering_methods(
 )
 
 # With robust statistics options
-results_df, labels_dict, fig = benchmark_clustering_methods(
+results_df, labels_dict = benchmark_clustering_methods(
     adata,
     cell_type_col="cell_type",
     adaptive_resolution=True,      # NVI-based resolution selection for Leiden/Louvain
@@ -929,7 +927,7 @@ model, metrics = random_forest_classification(X_train, X_test, y_train, y_test)
 ```python
 from scintilla.classification.benchmark import benchmark_models_comprehensive
 
-results_df, fig = benchmark_models_comprehensive(
+results_df = benchmark_models_comprehensive(
     adata,
     target_col="cell_type",
     verbose=True,
@@ -937,7 +935,7 @@ results_df, fig = benchmark_models_comprehensive(
 print(results_df[["model", "space", "accuracy", "f1"]].head(20))
 
 # With BCa bootstrap confidence intervals
-results_df, fig = benchmark_models_comprehensive(
+results_df = benchmark_models_comprehensive(
     adata,
     target_col="cell_type",
     bootstrap_ci=True,          # add 95 % BCa CIs for each metric
@@ -947,7 +945,7 @@ results_df, fig = benchmark_models_comprehensive(
 # results_df now includes: accuracy_ci_lower, accuracy_ci_upper, f1_ci_lower, etc.
 
 # .632+ bootstrap estimator (avoids train/test leakage bias)
-results_df, fig = benchmark_models_comprehensive(
+results_df = benchmark_models_comprehensive(
     adata,
     target_col="cell_type",
     estimator="bootstrap_632plus",  # "cv" (default), "holdout", or "bootstrap_632plus"
@@ -1167,7 +1165,7 @@ markers = {
     "T Cell":   ["CD3D", "CD3E", "IL7R"],
     "B Cell":   ["MS4A1", "CD79A"],
 }
-adata = annotate_by_markers(adata, marker_dict=markers)
+annotate_by_markers(adata, marker_dict=markers)   # obs["predicted_cell_type"], obsm["predicted_cell_type_scores"]
 print(adata.obs["predicted_cell_type"].value_counts())
 
 # Find top marker genes per cluster
@@ -1183,9 +1181,9 @@ ora_results = ora_test(
 # Label transfer from reference
 # Genes are matched by name (>= 10 shared genes required), not by position;
 # any precomputed X_pca is ignored as it is not comparable across datasets.
-adata_query = transfer_labels(
+transfer_labels(
     reference_adata=adata_ref, query_adata=adata_query, label_col="cell_type"
-)
+)   # in place: adata_query.obs["cell_type_transferred"]
 ```
 
 **`find_marker_genes` parameters**
@@ -1235,13 +1233,14 @@ scintilla annotate data/pbmc3k_clustered.h5ad \
 ### Python API
 
 ```python
-from scintilla import combat_correct, batch_asw, benchmark_batch_correction
+from scintilla import batch_asw, benchmark_batch_correction
 
-# Apply ComBat
-adata_corrected = combat_correct(adata, batch_key="batch")
+# Harmony stores its corrected embedding in adata.obsm["X_pca_harmony"]; ComBat writes
+# adata.layers["combat"]
+si.tl.harmony(adata, "batch")
 
-# Evaluate batch mixing
-asw = batch_asw(adata_corrected, batch_key="batch", label_key="cell_type")
+# Evaluate batch mixing in the corrected embedding
+asw = batch_asw(adata, batch_key="batch", label_key="cell_type", embed_key="X_pca_harmony")
 
 # Benchmark all methods
 result = benchmark_batch_correction(
@@ -1529,7 +1528,7 @@ result = si.unsupervised_analysis(adata, cell_type_col="cell_type", random_state
 
 # A whole analysis.
 cfg = AnalysisConfig(random_seed=0)
-result = si.unsupervised_analysis(adata, cell_type_col="cell_type", config=cfg)
+result = si.tl.unsupervised_analysis(adata, cell_type_col="cell_type", config=cfg)
 ```
 
 Because every stochastic public function now accepts `random_state`, the
@@ -1804,7 +1803,7 @@ cfg = AnalysisConfig.robust()
 #        adaptive_resolution=True, auto_eps=True, no_info_method="permutation",
 #        mp_sigma_method="trimmed_mean"
 
-result = sc.unsupervised_analysis(adata, cell_type_col="cell_type", config=cfg)
+result = si.tl.unsupervised_analysis(adata, cell_type_col="cell_type", config=cfg)
 ```
 
 ---
@@ -1896,7 +1895,7 @@ scintilla generate-config --output custom_analysis.yaml
 ## Full Worked Example
 
 ```python
-import scintilla as sc
+import scintilla as si
 from scintilla import AnalysisConfig
 from scintilla.io.loaders import auto_detect_format
 from scintilla.preprocessing.pca import run_pca
@@ -1918,11 +1917,12 @@ results_df, best_name, adata_norm = benchmark_transformations(adata, verbose=Tru
 print(f"Best normalisation: {best_name}")
 
 # ── 4. PCA + UMAP ────────────────────────────────────────────────────
-adata_pca = run_pca(adata_norm, n_comps=30)
-adata_pca  = run_umap(adata_pca, use_rep="X_pca")
+si.pp.pca(adata_norm, n_comps=30)
+si.tl.umap(adata_norm, use_rep="X_pca")
+adata_pca = adata_norm
 
 # ── 5. Feature selection ─────────────────────────────────────────────
-adata_hvg = select_hvg(adata_pca, n_top_genes=2000)
+adata_hvg = si.pp.highly_variable_genes(adata_pca, n_top_genes=2000, subset=True)
 
 # ── 6. Cluster ───────────────────────────────────────────────────────
 # Use a custom config: only leiden + kmeans, with a tight resolution grid
@@ -1932,7 +1932,7 @@ cfg = AnalysisConfig(
     include_shap=False,
 )
 
-cluster_result = sc.unsupervised_analysis(
+cluster_result = si.tl.unsupervised_analysis(
     adata_hvg,
     cell_type_col="cell_type",
     run_pca_first=False,
@@ -1943,7 +1943,7 @@ cluster_result = sc.unsupervised_analysis(
 print("Best clustering:", cluster_result["best_method"])
 
 # ── 7. Classify ───────────────────────────────────────────────────────
-cls_result = sc.supervised_analysis(
+cls_result = si.tl.supervised_analysis(
     adata_hvg,
     target_col="cell_type",
     config=cfg,    # uses LogReg, RF, kNN (set in previous cfg); no SHAP

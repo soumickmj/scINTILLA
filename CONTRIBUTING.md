@@ -50,4 +50,4 @@ Docstrings use the numpydoc format.
 
 ## Code of conduct
 
-Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+Participation is governed by the [Code of Conduct](https://github.com/soumickmj/scINTILLA/blob/master/CODE_OF_CONDUCT.md).

@@ -30,7 +30,7 @@ def scalability_sweep(
     Parameters
     ----------
     method_fn:
-        Function to profile; called as method_fn(adata_sub, **kwargs).
+        Function to profile; called as ``method_fn(adata_sub, **kwargs)``.
     adata:
         Full AnnData object.
     fractions:
@@ -45,8 +45,13 @@ def scalability_sweep(
         columns.
     n_bootstrap:
         Number of bootstrap replicates for CI estimation.
-    **kwargs:
-        Additional arguments passed to method_fn.
+    random_state
+        Seed for the subsampling; defaults to ``config.random_seed`` or ``scintilla.config.RANDOM_SEED``.
+    config
+        Optional :class:`~scintilla.analysis_config.AnalysisConfig`; supplies the defaults of the
+        arguments above when they are omitted.
+    **kwargs
+        Additional arguments passed to ``method_fn``.
 
     Returns
     -------

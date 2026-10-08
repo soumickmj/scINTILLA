@@ -20,8 +20,8 @@ def box_m_test(
 ) -> Dict:
     """Full Box's M test implementation.
 
-    M = (n - g) * ln(|S_pooled|) - sum_i((n_i - 1) * ln(|S_i|))
-    df = p(p+1)(g-1)/2
+    ``M = (n - g) * ln(det(S_pooled)) - sum_i((n_i - 1) * ln(det(S_i)))`` and
+    ``df = p(p+1)(g-1)/2``.
 
     Parameters
     ----------

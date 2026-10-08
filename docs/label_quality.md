@@ -28,7 +28,7 @@ You get two files:
 The example runs from a Git checkout. After the first PyPI release, users
 can install `scintilla-py[full]` with `uv add` in their own analysis project
 and launch the same command with `uv run scintilla label-quality ...`.
-See [installation instructions](README.md#installation).
+See [installation instructions](index.md#installation).
 
 If you only look at one column, use **`scintilla_composite_frag__silhouette`**. It did best overall in the benchmark (section 4).
 
@@ -156,17 +156,20 @@ scintilla label-quality base.h5ad --cell-type-col label --use-rep X_emb --seed 0
 ### 5.2 Python
 
 ```python
-import scintilla as sc
+import scintilla as si
 from scintilla.classification.label_quality_variants import (
     compute_label_quality_variants, review_ranks, VARIANTS)
 
 # 1. the two standard analyses (skip them if already done)
-res = sc.unsupervised_analysis(adata, cell_type_col="cell_type", use_rep="X_pca", run_pca_first=False)
+res = si.tl.unsupervised_analysis(adata, cell_type_col="cell_type", use_rep="X_pca", run_pca_first=False)
 adata = res["adata"]
-sc.supervised_analysis(adata, target_col="cell_type", check_consistency=True, include_shap=False)
+si.tl.supervised_analysis(adata, target_col="cell_type", check_consistency=True, include_shap=False)
 
 # 2. every variant, one row per label
 scores = compute_label_quality_variants(adata, cell_type_col="cell_type", use_rep="X_pca")
+
+# ...or both steps and the scoring in one call; reuses the columns above if present
+scores = si.tl.label_quality(adata, cell_type_col="cell_type")
 ranks = review_ranks(scores)           # 1 = most suspicious
 
 # the 5 labels to look at first, by the best overall variant

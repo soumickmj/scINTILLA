@@ -1,84 +1,46 @@
-# Publishing scINTILLA to PyPI
+# Releasing scINTILLA
 
-The PyPI distribution name is **`scintilla-py`**, configured in
-`pyproject.toml`. Python imports and the CLI remain `scintilla`.
-The existing PyPI project named `scintilla` belongs to an unrelated project;
-changing capitalisation does not make that name available.
+The PyPI distribution is **`scintilla-py`**; the import name and the command-line tool stay
+`scintilla`. The existing PyPI project called `scintilla` is unrelated, and changing the
+capitalisation does not make that name available.
 
-## Release preparation
+Releases are published by the `release` GitHub workflow with **PyPI trusted publishing**, so no
+API token is stored anywhere.
 
-Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then
-work from the root of a clean checkout:
+## One-off set-up
 
-```bash
-uv sync --locked --python 3.11
-uv run --locked pytest
-uv run --locked ruff check --select F821,F822,F823,E9 scintilla tests
-uv build --no-sources --out-dir dist/0.1.0
-uv run --locked python -m twine check --strict dist/0.1.0/*
-uv publish --dry-run --trusted-publishing never dist/0.1.0/*
-```
+1. On PyPI, open the `scintilla-py` project, then *Publishing*, and add a trusted publisher:
+   owner `soumickmj`, repository `scINTILLA`, workflow `release.yaml`, environment `pypi`.
+2. In the GitHub repository, create an environment called `pypi` (optionally with required reviewers).
+3. Enable Read the Docs for the repository (it reads `.readthedocs.yaml`), and add the repository to
+   Codecov (put its token in the `CODECOV_TOKEN` secret).
 
-The first release retains version `0.1.0`. For later releases, update both
-`[project].version` in `pyproject.toml` and `scintilla.__version__` in
-`scintilla/__init__.py`, run `uv lock`, and replace `0.1.0` in the commands
-with the new version. Version-specific output directories keep old release
-artifacts out of the upload. Commit `uv.lock` alongside dependency changes.
+## Making a release
 
-The lockfile reproduces repository environments; wheel metadata declares
-the requirements that PyPI users resolve in their own environments.
-The `dev` dependency group supplies release checks and tests and is not a
-runtime dependency of the published package. `full` remains an optional
-extra.
+1. Make sure `CHANGELOG.md` has a section for the new version and that CI is green on `master`.
+2. Set the version in `src/scintilla/__init__.py` (the only place it is defined) and run
+   `uv lock` to refresh `uv.lock`.
+3. Check the artefacts locally:
 
-The `full` extra includes Louvain's backend and `setuptools<82`, which
-supplies its legacy `pkg_resources` import. This runtime constraint is
-separate from the isolated setuptools build backend.
+   ```bash
+   uv build --no-sources
+   uvx twine check --strict dist/*
+   uv run --with dist/*.whl --no-project python -c "import scintilla; print(scintilla.__version__)"
+   ```
 
-## Local publication with an API token
+4. Tag and publish a GitHub release (`v0.2.0`). Publishing the release triggers the workflow,
+   which builds the sdist and wheel, runs `twine check` and uploads them to PyPI.
+5. Archive the release on Zenodo (enable the GitHub integration once) and add the software DOI to
+   `CITATION.cff`.
 
-Create a [PyPI account](https://pypi.org/account/register/) and an
-[API token](https://pypi.org/help/#apitoken). The token used for a first
-upload must permit creating the new project; after the project exists,
-use a project-scoped token for subsequent releases.
+A published file name can never be reused on PyPI, so correct mistakes with a new version, not by
+re-uploading.
 
-Enter the token privately in your Bash terminal, then upload the checked
-artifacts:
+## Dependency notes
 
-```bash
-read -rsp "PyPI API token: " UV_PUBLISH_TOKEN
-export UV_PUBLISH_TOKEN
-uv publish --trusted-publishing never dist/0.1.0/*
-unset UV_PUBLISH_TOKEN
-```
-
-Store the token outside the repository. Uploading creates the PyPI project
-under the account that owns the token. Confirm the distribution name and
-release version before this step: PyPI release filenames cannot be reused
-for a different build.
-
-## TestPyPI
-
-TestPyPI has separate accounts, tokens and project names. Upload the same
-checked artifacts using a TestPyPI token and its upload endpoint:
-
-```bash
-read -rsp "TestPyPI API token: " UV_PUBLISH_TOKEN
-export UV_PUBLISH_TOKEN
-uv publish --trusted-publishing never \
-    --publish-url https://test.pypi.org/legacy/ dist/0.1.0/*
-unset UV_PUBLISH_TOKEN
-```
-
-For installation testing, download your project's wheel from its
-TestPyPI project page and install that local wheel with `uv pip install`
-inside a fresh `uv venv`. Dependencies then resolve from normal PyPI.
-
-## Release contents
-
-The source archive includes README, licence, user guide, label-quality
-guide, `uv.lock` and these publishing instructions. `scverse_plan.md` is deliberately
-excluded from release archives.
-
-References: [uv package publishing](https://docs.astral.sh/uv/guides/package/),
-[PyPI Trusted Publishers](https://docs.pypi.org/trusted-publishers/).
+* `uv.lock` reproduces the repository environment; the wheel metadata declares the ranges that users
+  resolve in their own environments. Commit `uv.lock` together with every dependency change.
+* The `full` extra includes Louvain's backend together with `setuptools<82`, which supplies its legacy
+  `pkg_resources` import. This runtime constraint is separate from the build backend (hatchling).
+* The lower bounds in `pyproject.toml` are checked in CI by installing the oldest allowed versions
+  (`uv pip install --resolution lowest-direct -e ".[test]"`).
