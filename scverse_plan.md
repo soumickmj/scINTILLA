@@ -1,4 +1,4 @@
-# scINTILLA → scverse: audit, verdict, and route to listing (revision 2)
+# scINTILLA → scverse: audit, verdict, and route to listing (revision 3)
 
 ## Context
 
@@ -10,10 +10,11 @@ classification, differential expression, annotation and batch correction. The qu
 is whether it belongs in scverse, and if so in which tier. The answer is the
 **Ecosystem** tier (Route A below).
 
-This is **revision 2** of the plan. Revision 1 was written against commit `bf50df2`.
-Revision 2 was re-verified against `a6ee153` (the head of `master` when the `scverse`
-branch was cut). Every status below was checked directly in the working tree, in the
-PyPI JSON API, and in the `scverse/ecosystem-packages` registry.
+This is **revision 3** of the plan. Revision 1 was written against commit `bf50df2`.
+Revision 2 re-verified it against `a6ee153` (the head of `master` when the `scverse` branch was
+cut). Revision 3 (this file) records the outcome of the work done on the `scverse` branch:
+Parts 3 and 4 keep the revision 2 audit, and **Part 8 at the end is the current status**, with
+what was implemented, what the implementation turned up, and what is left for you.
 
 Status legend used throughout: **Done** (verified fixed in the tree), **Partly**,
 **Open**, **Changed** (the plan item itself needed rewriting), **Dropped**.
@@ -203,7 +204,7 @@ full-rework decision; there are no known downstream users of 0.1.0).
 
 See §3.2. Residual: make `_timed_call` log the swallowed exception at debug level.
 
-### Phase 1: Restructure onto the scverse template. **Open**
+### Phase 1: Restructure onto the scverse template. **Done on `scverse`**
 
 The cookiecutter template itself cannot be generated offline and `cruft` needs the
 template repository, so the scaffolding is ported by hand to match what the template
@@ -229,7 +230,7 @@ commit that was never applied).
 6. Add `results/`, `*.h5ad`, `*.png` to `.gitignore`.
 7. **Not done on this branch (by instruction):** renaming `master` to `main`.
 
-### Phase 2: AnnData-first public API. **Open** (full rework)
+### Phase 2: AnnData-first public API. **Done on `scverse`** (full rework)
 
 Shared infrastructure, one private module `scintilla/_compat.py` plus
 `scintilla/_logging.py`:
@@ -274,7 +275,7 @@ Per-function contract (applied to every public function in `preprocessing`,
 - **Reproducibility guard:** default `key_added` values reproduce the existing `obs`
   column names and the label-quality outputs byte for byte (Phase 3 pins this).
 
-### Phase 3: Tests. **Partly done, extend**
+### Phase 3: Tests. **Done on `scverse`** (356 tests, 82 % coverage)
 
 - Keep the 138 existing regression tests (they are the Phase 0 acceptance tests).
 - Add `tests/conftest.py` with a synthetic AnnData (300 cells × 200 genes, known cluster
@@ -293,7 +294,7 @@ Per-function contract (applied to every public function in `preprocessing`,
 - `@pytest.mark.slow` on benchmark sweeps; `pytest.importorskip` for optional
   dependencies. Target at least 70 % line coverage.
 
-### Phase 4: Documentation site. **Open**
+### Phase 4: Documentation site. **Done on `scverse`** (switching on Read the Docs is yours)
 
 `docs/` with `conf.py`, `index.md`, `api.md` (autosummary grouped `pp`/`tl`/`pl`/`stats`/
 `benchmark`), `contributing.md`, `changelog.md`, `references.bib`, `notebooks/`.
@@ -306,7 +307,7 @@ after merge (they need account access).
 
 ### Phase 5: Release. **Changed**
 
-1. Single-source version, `0.2.0`, detailed `CHANGELOG.md` entry. **Done on this branch.**
+1. Single-source version, `0.2.0`, detailed `CHANGELOG.md` entry. **Done on the `scverse` branch.**
 2. Tag `v0.2.0` and cut a GitHub release after the branch is merged. Reviewers check
    for this specifically. **Yours** (needs repository rights).
 3. Configure the trusted publisher on PyPI for `release.yaml`, then publish 0.2.0.
@@ -429,3 +430,71 @@ and run the notebooks against it.
 
 **Phase 6** run the exact `test_command` from `meta.yaml` in a clean checkout and
 validate the YAML with the registry's schema CI.
+
+---
+
+## Part 8: Status after the `scverse` branch (revision 3)
+
+### 8.1 What was implemented
+
+| Phase | Outcome |
+|---|---|
+| 0 | Already on `master`. Residual item done: `_timed_call` now logs at debug level. |
+| 1 | `src/` layout, hatchling, `requires-python >= 3.11`, dependency lower bounds verified by installing the oldest allowed versions on Python 3.11, authors from the preprint, extras (`stats`, `viz`, `full`, `test`, `doc`), ruff/pytest/coverage config, 5 GitHub workflows (test on oldest and newest versions, build, docs, trusted-publishing release, weekly slow tests), issue/PR templates, pre-commit, Read the Docs, Codecov, `CITATION.cff`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, `py.typed`. **`pingouin` (GPL-3.0) removed**: its single use was replaced by a closed-form ICC(1). `.cruft.json` was deliberately not added (it would claim a template commit that was never applied). |
+| 2 | `pp`/`tl`/`pl`/`stats`/`benchmark` namespaces; the `copy`/`key_added`/`random_state`/`layer` contract; layers for transformations; provenance in `uns["scintilla"]`; logging plus `settings.verbosity`; MuData input; sparse-safe EDA and zero-preserving transforms; benchmarks return data and plots are separate; union return types split; numpydoc `Parameters` on every public function; `tl.label_quality` and `pp.select_features`. The label-quality numbers are pinned to the 0.1.0 values by a regression test. |
+| 3 | 138 → 356 tests, 26 files, 82 % line coverage (the plan asked for 70 %). Per-area contract tests, dense/CSR parity, seed reproducibility, statistical anchors, every CLI command, every benchmark estimator, an integration test on `pbmc68k_reduced`. The suite also passes on the **oldest** allowed dependencies (Python 3.11) and from the built wheel in a minimal environment. |
+| 4 | Sphinx + myst-nb site that builds with `-W`; API reference by namespace; two tutorials executed at build time; the old README, GUIDE and label-quality pages moved to `docs/` with their examples updated; a short README with badges; `demo_notebook.ipynb` removed. |
+| 5 | Version `0.2.0`, `CHANGELOG.md` with a migration table, `PUBLISHING.md` rewritten for trusted publishing; sdist and wheel pass `twine check --strict`. |
+
+### 8.2 What implementing the plan turned up (not in revisions 1 or 2)
+
+These were found by the new tests and by running against the oldest dependencies; each is fixed on
+the branch and recorded in the changelog.
+
+1. **Batch-correction benchmark scored the wrong embedding.** Every method was evaluated on the
+   uncorrected `obsm["X_pca"]` when the input had one, and Harmony's output was never looked at, so
+   the leaderboard could not distinguish methods. Existing 0.1 leaderboards for this benchmark should
+   be recomputed. This is the one finding with scientific consequences; the label-quality scorers are
+   not affected.
+2. `marchenko_pastur_cutoff(sigma_method="trimmed_mean")` mis-scaled the noise estimate (factor
+   `1 + gamma`) and kept 32 components where 5 were planted.
+3. Plotting code broke on matplotlib 3.9 and later (`plt.cm.get_cmap` was removed; six call sites in five modules).
+4. `select_hvg`'s default flavour needs `scikit-misc`, which was never declared; `score_genes(
+   ctrl_as_ref=...)` needs scanpy 1.10.3, not 1.10.0 as revision 1 assumed; `draw_graph` needs
+   `python-igraph` and silently stored a different layout than it claimed.
+5. Leiden, Louvain and the embedding functions wrote a neighbour graph, a PCA and a `leiden` column into
+   the caller's object; `benchmark-all` hid stage failures unless `--verbose`; `tsne` and `select_hvg`
+   caught every exception. The `leiden` column had become part of the "default" label-quality columns
+   by accident; it is gone, and the pinned scores are identical.
+6. The registry now words requirement 6 as "website **or README**", so a hosted docs site is no longer
+   a gate (revision 2 already noted this); the site exists anyway.
+
+### 8.3 Deliberate scope decisions
+
+* The default `obs` column names of the label-quality pipeline are unchanged, so published analyses
+  reproduce. `key_added` renames them for the pipelines, but the label-quality scorers and plots read
+  the default names.
+* 34 algorithm-level matrix accesses still densify (LDA/QDA, Box's M, hierarchical linkage, most
+  scikit-learn classifiers, SHAP). They all go through one helper that logs why. Making those
+  algorithms sparse-native would change the science and is out of scope for a packaging release.
+* `master` was not touched and not renamed; the `main` rename is yours, after merging.
+* `scverse_plan.md` is still tracked in git although `.gitignore` lists it. Remove it from the index
+  (`git rm --cached scverse_plan.md`) before the registry submission if you do not want to publish it.
+
+### 8.4 What is left, and who has to do it
+
+| # | Task | Why it is not done here |
+|---|---|---|
+| 1 | Review and merge the `scverse` branch; decide on `master` → `main` | Repository decision |
+| 2 | Tag `v0.2.0` and cut a GitHub release (and, if you like, tag `v0.1.0` on `a6ee153` so the changelog links resolve) | Needs repository rights; reviewers check for it |
+| 3 | PyPI: add the trusted publisher (`release.yaml`, environment `pypi`), then publish 0.2.0 | Needs your PyPI account |
+| 4 | Read the Docs: import the project (name `scintilla-py`); Codecov: add the repository and the token | Needs your accounts |
+| 5 | Zenodo: enable the GitHub integration before the release, then put the DOI in `CITATION.cff` | Needs your account |
+| 6 | Full first names for the seven co-authors in `pyproject.toml` and `CITATION.cff` (the preprint gives initials only), and ORCIDs if wanted | Not available to me |
+| 7 | Optional: conda-forge feedstock; an announcement on Zulip/Discourse | Phase 6 step 1 |
+| 8 | Registry pull request (`packages/scintilla-py/meta.yaml`, Phase 6), after 2 to 5 | Needs a fork under your account; validate against the registry's schema CI |
+
+The `test_command` in the draft `meta.yaml` is `pip install ".[test]" && pytest -m "not slow"`. The
+`test` extra installs only the minimal dependencies, so tests that need an optional backend skip; use
+`".[test,full]"` if you want the registry run to exercise them.
+

@@ -20,8 +20,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { python: "3.11", resolution: lowest-direct, extras: "--extra test" }
-          - { python: "3.13", resolution: highest, extras: "--extra test --extra full" }
+          # The oldest versions the package claims to support, with only the minimal dependencies.
+          - { python: "3.11", resolution: lowest-direct, extras: "test" }
+          # The newest versions, with every optional backend installed.
+          - { python: "3.13", resolution: highest, extras: "test,full" }
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -29,7 +31,11 @@ jobs:
           python-version: ${{ matrix.python }}
           enable-cache: true
       - name: Install
-        run: uv sync --resolution ${{ matrix.resolution }} ${{ matrix.extras }} --no-dev
+        # uv pip (not uv sync) resolves only the requested extras: lowest-direct on the whole
+        # project would also pull ancient versions of the unbounded optional backends.
+        run: |
+          uv venv
+          uv pip install --resolution ${{ matrix.resolution }} -e ".[${{ matrix.extras }}]"
       - name: Test
         run: uv run --no-sync pytest --cov --cov-report=xml
       - name: Upload coverage
@@ -49,7 +55,9 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - run: uv sync --extra test --extra full --no-dev
+      - run: |
+          uv venv
+          uv pip install -e ".[test,full]"
       - run: uv run --no-sync pytest -m slow
 
   lint:
