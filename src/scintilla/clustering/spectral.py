@@ -5,24 +5,13 @@ from __future__ import annotations
 import warnings
 from typing import Dict, List, Optional, Tuple
 
-import anndata as ad
 import numpy as np
 import pandas as pd
 from sklearn.cluster import SpectralClustering
 from sklearn.metrics import silhouette_score
 
+from scintilla.clustering._common import resolve_matrix, store_labels
 from scintilla.config import RANDOM_SEED
-from scintilla.io.loaders import ensure_anndata
-
-
-def _as_matrix(adata) -> np.ndarray:
-    """Float64 matrix of an AnnData/DataFrame/array (sparse stays sparse)."""
-    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
-        X = ensure_anndata(adata).X
-        if hasattr(X, "toarray"):
-            return X.astype(np.float64)  # preserve sparsity
-        return np.asarray(X, dtype=np.float64)
-    return np.asarray(adata, dtype=np.float64)
 
 
 def spectral_clustering(
@@ -31,6 +20,9 @@ def spectral_clustering(
     affinity: str = "rbf",
     n_clusters_range: Optional[List[int]] = None,
     random_state: int = RANDOM_SEED,
+    *,
+    use_rep: Optional[str] = None,
+    key_added: Optional[str] = None,
 ) -> Tuple[np.ndarray, object, Dict]:
     """Run Spectral Clustering for one value of ``n_clusters``.
 
@@ -47,6 +39,11 @@ def spectral_clustering(
         shape, so use :func:`spectral_grid_search`.
     random_state
         Random seed.
+    use_rep
+        Key in ``adata.obsm`` of the representation to cluster (AnnData input only);
+        ``None`` clusters ``adata.X``.
+    key_added
+        If given, also store the labels in ``adata.obs[key_added]`` (AnnData input only).
 
     Returns
     -------
@@ -64,9 +61,10 @@ def spectral_clustering(
         )
         return spectral_grid_search(  # type: ignore[return-value]
             adata, n_clusters_range=n_clusters_range, affinity=affinity, random_state=random_state,
+            use_rep=use_rep, key_added=key_added,
         )
 
-    X = _as_matrix(adata)
+    X = resolve_matrix(adata, use_rep)
     model = SpectralClustering(
         n_clusters=n_clusters, affinity=affinity, random_state=random_state
     )
@@ -79,6 +77,8 @@ def spectral_clustering(
         except ValueError as exc:
             metrics["silhouette"] = float("nan")
             warnings.warn(f"Spectral silhouette failed: {exc}", stacklevel=2)
+    store_labels(adata, labels, key_added, "spectral", n_clusters=n_clusters, affinity=affinity, use_rep=use_rep,
+                 random_state=random_state)
     return labels, model, metrics
 
 
@@ -87,6 +87,9 @@ def spectral_grid_search(
     n_clusters_range: Optional[List[int]] = None,
     affinity: str = "rbf",
     random_state: int = RANDOM_SEED,
+    *,
+    use_rep: Optional[str] = None,
+    key_added: Optional[str] = None,
 ) -> Tuple[pd.DataFrame, np.ndarray]:
     """Run Spectral Clustering over a grid of ``n_clusters`` and keep the best silhouette.
 
@@ -100,6 +103,11 @@ def spectral_grid_search(
         Affinity kernel.
     random_state
         Random seed.
+    use_rep
+        Key in ``adata.obsm`` of the representation to cluster (AnnData input only);
+        ``None`` clusters ``adata.X``.
+    key_added
+        If given, also store the best labels in ``adata.obs[key_added]`` (AnnData input only).
 
     Returns
     -------
@@ -111,7 +119,7 @@ def spectral_grid_search(
     """
     from scintilla.config import SPECTRAL_N_CLUSTERS_RANGE
 
-    X = _as_matrix(adata)
+    X = resolve_matrix(adata, use_rep)
     if n_clusters_range is None:
         n_clusters_range = SPECTRAL_N_CLUSTERS_RANGE
 
@@ -147,4 +155,6 @@ def spectral_grid_search(
                 "status": "failed", "failure_reason": str(exc),
             })
 
+    store_labels(adata, best_labels, key_added, "spectral", affinity=affinity, use_rep=use_rep,
+                 random_state=random_state)
     return pd.DataFrame(records), best_labels

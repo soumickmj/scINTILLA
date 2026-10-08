@@ -94,7 +94,7 @@ def select_features(
     adata.var[key_added] = mask
     adata.var[key_added + "_score"] = score
     record_params(
-        adata, "select_features", target_col=target_col, method=method, n_features=n_features,
+        adata, key_added, target_col=target_col, method=method, n_features=n_features,
         layer=layer, random_state=random_state, key_added=key_added,
     )
     return finish(adata, give_back)

@@ -58,6 +58,6 @@ def run_diffusion_map(
     sc.tl.diffmap(tmp, n_comps=n_comps, random_state=random_state)
     adata.obsm[key_added] = tmp.obsm["X_diffmap"]
     record_params(
-        adata, "diffmap", n_comps=n_comps, use_rep=use_rep, random_state=random_state, key_added=key_added
+        adata, key_added, n_comps=n_comps, use_rep=use_rep, random_state=random_state, key_added=key_added
     )
     return finish(adata, give_back)

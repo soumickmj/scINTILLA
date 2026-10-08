@@ -142,20 +142,21 @@ def ensure_anndata(
         return ad.AnnData(X=adata.astype(np.float32))
 
     if isinstance(adata, pd.DataFrame):
+        frame = adata
         # Separate metadata columns from feature columns
-        meta_cols = list(adata.select_dtypes(exclude=[np.number]).columns)
-        if target_col is not None and target_col in adata.columns and target_col not in meta_cols:
+        meta_cols = list(frame.select_dtypes(exclude=[np.number]).columns)
+        if target_col is not None and target_col in frame.columns and target_col not in meta_cols:
             meta_cols.append(target_col)
 
-        feature_cols = [c for c in adata.columns if c not in meta_cols]
-        X = adata[feature_cols].values.astype(np.float32)
-        obs = adata[meta_cols].copy() if meta_cols else pd.DataFrame(index=adata.index)
-        adata = ad.AnnData(
+        feature_cols = [c for c in frame.columns if c not in meta_cols]
+        X = frame[feature_cols].values.astype(np.float32)
+        obs = frame[meta_cols].copy() if meta_cols else pd.DataFrame(index=frame.index)
+        obs.index = frame.index.astype(str)
+        out = ad.AnnData(
             X=X,
             obs=obs,
             var=pd.DataFrame(index=feature_cols),
         )
-        adata.obs.index = adata.index.astype(str)
-        return adata
+        return out
 
     raise TypeError(f"Cannot convert {type(adata)} to AnnData.")

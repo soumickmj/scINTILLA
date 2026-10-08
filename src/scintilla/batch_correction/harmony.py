@@ -79,7 +79,7 @@ def harmony_correct(
         )
     adata.obsm[key_added] = embedding
     record_params(
-        adata, "harmony", batch_key=batch_key, n_components=n_components, random_state=random_state,
+        adata, key_added, batch_key=batch_key, n_components=n_components, random_state=random_state,
         use_rep=use_rep, key_added=key_added,
     )
     return finish(adata, give_back)

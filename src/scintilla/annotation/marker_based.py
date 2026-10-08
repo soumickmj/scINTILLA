@@ -106,7 +106,7 @@ def annotate_by_markers(
     adata.obs[key_added] = [cell_types[i] for i in best_idx]
     adata.obsm[key_added + "_scores"] = pd.DataFrame(scores, index=adata.obs_names, columns=cell_types)
     record_params(
-        adata, "annotate_by_markers", method=method, threshold=threshold, layer=layer,
+        adata, key_added, method=method, threshold=threshold, layer=layer,
         random_state=random_state, key_added=key_added, cell_types=cell_types,
     )
     return finish(adata, give_back)

@@ -61,5 +61,5 @@ def run_force_directed(
     produced = [k for k in tmp.obsm if str(k).startswith("X_draw_graph_")]
     layout = produced[0].removeprefix("X_draw_graph_")
     adata.obsm[key_added] = tmp.obsm[produced[0]]
-    record_params(adata, "draw_graph", layout=layout, use_rep=use_rep, random_state=random_state, key_added=key_added)
+    record_params(adata, key_added, layout=layout, use_rep=use_rep, random_state=random_state, key_added=key_added)
     return finish(adata, give_back)

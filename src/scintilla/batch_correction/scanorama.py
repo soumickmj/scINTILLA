@@ -75,5 +75,5 @@ def scanorama_correct(
     idx_map = {name: i for i, name in enumerate(order)}
     reorder = [idx_map[name] for name in adata.obs_names]
     adata.obsm[key_added] = emb[reorder]
-    record_params(adata, "scanorama", batch_key=batch_key, random_state=random_state, layer=layer, key_added=key_added)
+    record_params(adata, key_added, batch_key=batch_key, random_state=random_state, layer=layer, key_added=key_added)
     return finish(adata, give_back)

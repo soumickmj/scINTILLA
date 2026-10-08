@@ -53,5 +53,5 @@ def combat_correct(
     work = ad.AnnData(X=X, obs=pd.DataFrame({batch_key: adata.obs[batch_key].to_numpy()}, index=adata.obs_names))
     sc.pp.combat(work, key=batch_key)
     adata.layers[key_added] = work.X
-    record_params(adata, "combat", batch_key=batch_key, layer=layer, key_added=key_added)
+    record_params(adata, key_added, batch_key=batch_key, layer=layer, key_added=key_added)
     return finish(adata, give_back)

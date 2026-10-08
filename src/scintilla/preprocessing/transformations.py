@@ -503,7 +503,7 @@ def _make_public(name: str, pure: Callable, *, changes_vars: bool = False) -> Ca
             target.X = result.X
         else:
             target.layers[key_added or name] = result.X
-        record_params(target, name, layer=layer, key_added=None if replace_x else (key_added or name), **params)
+        record_params(target, name if replace_x else (key_added or name), layer=layer, replace_x=replace_x, **params)
         return target if copy else None
 
     extra_doc = "".join(

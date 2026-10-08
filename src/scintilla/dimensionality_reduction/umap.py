@@ -67,7 +67,7 @@ def run_umap(
     sc.tl.umap(tmp, min_dist=min_dist, n_components=n_components, random_state=random_state)
     adata.obsm[key_added] = tmp.obsm["X_umap"]
     record_params(
-        adata, "umap", n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components,
+        adata, key_added, n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components,
         use_rep=use_rep, random_state=random_state, key_added=key_added,
     )
     return finish(adata, give_back)

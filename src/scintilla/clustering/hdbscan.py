@@ -8,8 +8,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 import pandas as pd
 
-from scintilla._compat import get_matrix
-from scintilla.io.loaders import ensure_anndata
+from scintilla.clustering._common import resolve_matrix, store_labels
 
 
 def hdbscan_clustering(
@@ -17,6 +16,9 @@ def hdbscan_clustering(
     min_cluster_size_range: List[int] = None,
     min_samples_range: List[Optional[int]] = None,
     metric: str = "euclidean",
+    *,
+    use_rep: Optional[str] = None,
+    key_added: Optional[str] = None,
 ) -> Tuple[pd.DataFrame, np.ndarray]:
     """Run HDBSCAN over a parameter grid.
 
@@ -30,6 +32,11 @@ def hdbscan_clustering(
         List of min_samples values to try.
     metric:
         Distance metric.
+    use_rep:
+        Key in ``adata.obsm`` of the representation to cluster (AnnData input only);
+        ``None`` clusters ``adata.X``.
+    key_added:
+        If given, also store the best labels in ``adata.obs[key_added]`` (AnnData input only).
 
     Returns
     -------
@@ -60,14 +67,8 @@ def hdbscan_clustering(
                 "Install with: pip install hdbscan  or  pip install scikit-learn>=1.3"
             ) from exc
 
-    import anndata as ad
 
-    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(adata)
-        X = get_matrix(adata, reason="hdbscan needs a dense matrix")
-        X = X.astype(np.float64)
-    else:
-        X = np.asarray(adata, dtype=np.float64)
+    X = resolve_matrix(adata, use_rep, dense=True)
 
     records = []
     best_labels = np.full(X.shape[0], -1, dtype=int)
@@ -119,4 +120,5 @@ def hdbscan_clustering(
                 })
 
     results_df = pd.DataFrame(records)
+    store_labels(adata, best_labels, key_added, "hdbscan", metric=metric, use_rep=use_rep)
     return results_df, best_labels

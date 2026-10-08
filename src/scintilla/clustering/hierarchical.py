@@ -12,9 +12,8 @@ from scipy.cluster.hierarchy import fcluster, linkage
 from scipy.spatial.distance import pdist
 from sklearn.cluster import AgglomerativeClustering
 
-from scintilla._compat import get_matrix
+from scintilla.clustering._common import resolve_matrix, store_labels
 from scintilla.clustering.utils import cophenetic_correlation
-from scintilla.io.loaders import ensure_anndata
 
 
 def hierarchical_sklearn(
@@ -92,6 +91,9 @@ def hierarchical_clustering(
     metric: str = "euclidean",
     linkage: str = "complete",
     mode: str = "sklearn",
+    *,
+    use_rep: Optional[str] = None,
+    key_added: Optional[str] = None,
 ) -> Union[np.ndarray, Tuple]:
     """Hierarchical (agglomerative) clustering; returns the cluster labels.
 
@@ -105,6 +107,11 @@ def hierarchical_clustering(
         Distance metric.
     linkage
         Linkage method.
+    use_rep
+        Key in ``adata.obsm`` of the representation to cluster (AnnData input only);
+        ``None`` clusters ``adata.X``.
+    key_added
+        If given, also store the labels in ``adata.obs[key_added]`` (AnnData input only).
     mode
         ``"sklearn"`` (default) returns the labels.  ``"scipy"`` is deprecated because it
         changes the return type to ``(labels, Z, cpcc)``; call :func:`hierarchical_scipy`
@@ -115,12 +122,7 @@ def hierarchical_clustering(
     numpy.ndarray
         Cluster labels (``mode="sklearn"``).
     """
-    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(adata)
-        X = get_matrix(adata, reason="hierarchical clustering needs a dense matrix")
-        X = X.astype(np.float64)
-    else:
-        X = np.asarray(adata, dtype=np.float64)
+    X = resolve_matrix(adata, use_rep, dense=True)
 
     if mode == "scipy":
         warnings.warn(
@@ -130,4 +132,7 @@ def hierarchical_clustering(
             stacklevel=2,
         )
         return hierarchical_scipy(X, metric=metric, linkage_method=linkage, n_clusters=n_clusters)
-    return hierarchical_sklearn(X, n_clusters=n_clusters, metric=metric, linkage_method=linkage)
+    labels = hierarchical_sklearn(X, n_clusters=n_clusters, metric=metric, linkage_method=linkage)
+    store_labels(adata, labels, key_added, "hierarchical", n_clusters=n_clusters, metric=metric, linkage=linkage,
+                 use_rep=use_rep)
+    return labels

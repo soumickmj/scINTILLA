@@ -85,7 +85,7 @@ def select_hvg(
     adata.var[key_added] = stand_in.var["highly_variable"].to_numpy()
     if "highly_variable_rank" in stand_in.var:
         adata.var[key_added + "_rank"] = stand_in.var["highly_variable_rank"].to_numpy()
-    record_params(adata, "hvg", method=method, n_top_genes=n_top, span=span, layer=layer, key_added=key_added)
+    record_params(adata, key_added, method=method, n_top_genes=n_top, span=span, layer=layer, key_added=key_added)
 
     if subset:
         return adata[:, adata.var[key_added].to_numpy()].copy()

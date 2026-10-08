@@ -80,4 +80,4 @@ def test_transfer_is_in_place_by_default_and_honours_key_added() -> None:
 
     assert query.obs["mapped"].tolist() == ["alpha", "beta"]
     assert "cell_type_transferred" not in query.obs
-    assert query.uns["scintilla"]["transfer_labels"]["params"]["n_shared_genes"] == 10
+    assert query.uns["scintilla"]["mapped"]["params"]["n_shared_genes"] == 10

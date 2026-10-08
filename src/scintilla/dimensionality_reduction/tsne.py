@@ -70,7 +70,7 @@ def run_tsne(
         )
     adata.obsm[key_added] = embedding
     record_params(
-        adata, "tsne", n_components=n_components, perplexity=perplexity, use_rep=use_rep,
+        adata, key_added, n_components=n_components, perplexity=perplexity, use_rep=use_rep,
         random_state=random_state, key_added=key_added,
     )
     return finish(adata, give_back)

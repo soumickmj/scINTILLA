@@ -85,9 +85,10 @@ def marchenko_pastur_cutoff(
           the MP median is above the lower edge, leading to a
           conservative (fewer components) threshold.
         - ``"trimmed_mean"`` — iteratively estimate σ² from the
-          trimmed mean of eigenvalues in the bulk (below the current
-          λ+ estimate).  More accurate for datasets where the
-          signal-to-noise ratio is moderate.
+          mean of the eigenvalues in the bulk (below the current
+          λ+ estimate), so that the signal components do not inflate it.
+          More accurate than the median rule when the signal-to-noise
+          ratio is moderate.  Assumes ``p < n``.
 
     Returns
     -------
@@ -121,9 +122,11 @@ def marchenko_pastur_cutoff(
             bulk = eigenvalues[eigenvalues <= lp]
             if len(bulk) < 2:
                 break
-            sigma2_new = float(np.mean(bulk)) / ((1 + np.sqrt(gamma)) ** 2 / 4 + (1 - np.sqrt(gamma)) ** 2 / 4 + 0.5)
-            # Simpler: mean of bulk ≈ sigma² * (1 + gamma) for MP
-            sigma2_new = float(np.mean(bulk)) / (1 + gamma) if gamma < 1 else float(np.mean(bulk))
+            # The eigenvalues here are squared singular values, i.e. n times the
+            # eigenvalues of the sample covariance, whose bulk mean is sigma^2.  The
+            # bulk mean of the squared singular values therefore estimates n*sigma^2
+            # directly, which is the scale lambda_plus is expressed in.
+            sigma2_new = float(np.mean(bulk))
             if abs(sigma2_new - sigma2) / (sigma2 + 1e-10) < 0.01:
                 sigma2 = sigma2_new
                 break

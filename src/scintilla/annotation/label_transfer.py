@@ -105,7 +105,7 @@ def transfer_labels(
     key_added = key_added or label_col + "_transferred"
     query_adata.obs[key_added] = transferred
     record_params(
-        query_adata, "transfer_labels", label_col=label_col, method=method, n_neighbors=n_neighbors,
+        query_adata, key_added, label_col=label_col, method=method, n_neighbors=n_neighbors,
         n_shared_genes=len(shared_genes), random_state=random_state, key_added=key_added,
     )
     return finish(query_adata, give_back)

@@ -150,7 +150,7 @@ def run_pca(
             ] = value
 
     record_params(
-        adata, "pca", n_comps=n_comps, n_comps_kept=n_final, variance_threshold=variance_threshold,
+        adata, key_added, n_comps=n_comps, n_comps_kept=n_final, variance_threshold=variance_threshold,
         auto_components=auto_components, mp_sigma_method=mp_sigma_method, random_state=random_state,
         layer=layer, key_added=key_added,
     )

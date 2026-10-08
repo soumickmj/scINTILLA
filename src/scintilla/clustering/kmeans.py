@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import anndata as ad
 import numpy as np
@@ -11,8 +11,8 @@ from sklearn.cluster import BisectingKMeans, KMeans
 from sklearn.metrics import silhouette_score
 from sklearn.preprocessing import normalize
 
+from scintilla.clustering._common import resolve_matrix, store_labels
 from scintilla.config import RANDOM_SEED
-from scintilla.io.loaders import ensure_anndata
 
 
 def kmeans_clustering(
@@ -22,6 +22,9 @@ def kmeans_clustering(
     spherical: bool = False,
     bisecting: bool = False,
     random_state: int = RANDOM_SEED,
+    *,
+    use_rep: Optional[str] = None,
+    key_added: Optional[str] = None,
 ) -> Tuple[np.ndarray, object, Dict]:
     """Run K-Means (or variants) and return labels, model, metrics.
 
@@ -37,6 +40,13 @@ def kmeans_clustering(
         If True, L2-normalise rows before clustering.
     bisecting:
         If True, use BisectingKMeans.
+    random_state:
+        Random seed.
+    use_rep:
+        Key in ``adata.obsm`` of the representation to cluster (AnnData input only);
+        ``None`` clusters ``adata.X``.
+    key_added:
+        If given, also store the labels in ``adata.obs[key_added]`` (AnnData input only).
 
     Returns
     -------
@@ -44,15 +54,7 @@ def kmeans_clustering(
     model : fitted sklearn model
     metrics : dict with 'inertia' and 'silhouette'
     """
-    if isinstance(adata, (pd.DataFrame, ad.AnnData)):
-        adata = ensure_anndata(adata)
-        X = adata.X
-        if hasattr(X, "toarray"):
-            X = X.astype(np.float64)  # preserve sparsity
-        else:
-            X = np.asarray(X, dtype=np.float64)
-    else:
-        X = np.asarray(adata, dtype=np.float64)
+    X = resolve_matrix(adata, use_rep)
 
     if spherical:
         X = normalize(X, norm="l2")
@@ -77,4 +79,6 @@ def kmeans_clustering(
     sil = float(silhouette_score(X, labels)) if len(np.unique(labels)) >= 2 else np.nan
 
     metrics = {"inertia": inertia, "silhouette": sil}
+    store_labels(adata, labels, key_added, "kmeans", n_clusters=n_clusters, init=init, spherical=spherical,
+                 bisecting=bisecting, use_rep=use_rep, random_state=random_state)
     return labels, model, metrics
