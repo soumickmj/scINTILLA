@@ -144,6 +144,15 @@ def unsupervised_analysis(
                 scores[i] = np.sum(same_cluster & ~same_type) / k
             adata.obs[f"scintilla_top{rank}_confusion"] = scores
 
+            # Per-cell fragmentation: share of the cell's label lying outside its cluster.
+            # Confusion only sees labels sharing a cluster (over-splitting); fragmentation
+            # sees one label spread over several clusters (merged or contaminated labels).
+            # Its per-label mean is the Gini-Simpson impurity 1 - sum_c p_c^2.
+            pairs = pd.DataFrame({"type": celltypes, "cluster": clusters})
+            n_same = pairs.groupby(["type", "cluster"])["type"].transform("size").to_numpy()
+            n_type = pairs.groupby("type")["type"].transform("size").to_numpy()
+            adata.obs[f"scintilla_top{rank}_fragmentation"] = 1.0 - n_same / n_type
+
         # Also keep the overall best as the default column
         best_row = top.iloc[0]
         best_full_key = f"{best_row['method']}_{best_row['params']}"
