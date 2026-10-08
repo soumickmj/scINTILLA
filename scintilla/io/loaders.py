@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import anndata as ad
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    import mudata
 
 
 def load_h5ad(path: Union[str, Path]) -> ad.AnnData:

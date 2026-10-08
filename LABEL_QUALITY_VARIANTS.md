@@ -2,14 +2,14 @@
 
 scINTILLA gives every cell-type label in a dataset a **quality score**. A low score means "this label may be wrong: have a look". The benchmark tested several versions (variants) of this score. This page explains what each variant is, how to compute all of them with one command, and how to read the output.
 
-Branch: `feature/label-quality-variants` (built on `feature/fragmentation-score`). `master` is unchanged.
+Original scoring, fragmentation scoring and all label-quality variants are available together on `master`. The development branches remain in Git history.
 
 ---
 
 ## 1. The short version
 
 ```bash
-git checkout feature/label-quality-variants
+git checkout master
 pip install -e ".[full]"
 
 scintilla label-quality my_data.h5ad \
@@ -169,7 +169,11 @@ print(scores["scintilla_composite_frag__silhouette"].nsmallest(5))
 print(VARIANTS)                         # one-line description of every column
 ```
 
-Requirements: the clustering step must come from this branch (or from `feature/fragmentation-score`), because older code does not write the `scintilla_top*_fragmentation` columns. The function stops with a clear error if they are missing.
+Requirements: use the current clustering pipeline, because older code does not write the `scintilla_top*_fragmentation` columns. The function stops with a clear error if they are missing; the CLI runs missing analyses automatically.
+
+The single-score API, `compute_label_quality_score`, includes fragmentation by default when fragmentation columns are present. Pass `fragmentation_weight=0.0` to reproduce the original composite. That API reuses an existing score unless `force=True`; use `force=True` when changing weights or scoring an older analysed file. `compute_label_quality_variants` always recomputes its composites.
+
+Use `--rerun` after changing labels, representations, or analysis settings. A rerun replaces the previous clustering and classifier metrics, including surplus ranks and outputs from models that no longer succeed. Missing active metrics remain missing in scores; disabled arms do not contaminate ablations. New output directories are created automatically.
 
 ---
 

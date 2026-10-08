@@ -3,6 +3,7 @@
 import anndata as ad
 import numpy as np
 import pandas as pd
+import pytest
 
 from scintilla.classification.visualise import compute_label_quality_score
 
@@ -72,3 +73,42 @@ def test_zero_fragmentation_weight_reproduces_original_score():
 
     pd.testing.assert_series_equal(before.sort_index(), after.sort_index())
     assert with_frag["c"] < after["c"]
+
+
+@pytest.mark.parametrize("n_cells", [2, 20, 50, 51])
+def test_confusion_handles_datasets_at_neighbor_count_boundary(monkeypatch, n_cells):
+    labels = ["a"] * (n_cells // 2) + ["b"] * (n_cells - n_cells // 2)
+    adata = _cluster(monkeypatch, labels, labels)
+    assert (adata.obs.scintilla_top1_confusion == 0.0).all()
+    assert (adata.obs.scintilla_top1_fragmentation == 0.0).all()
+
+
+def test_clustering_rerun_replaces_previous_top_rank_metrics(monkeypatch):
+    from scintilla.clustering import run
+
+    labels = ["a"] * 60 + ["b"] * 60
+    adata = _cluster(monkeypatch, labels, labels)
+    adata.obs["scintilla_top2_old|p"] = pd.Categorical(["0"] * 120)
+    adata.obs["scintilla_top2_confusion"] = 0.9
+    adata.obs["scintilla_top2_fragmentation"] = 0.8
+    adata.obs["scintilla_label_quality"] = 0.1
+    adata.obs["user_annotation"] = "keep"
+    run.unsupervised_analysis(adata, cell_type_col="cell_type", run_pca_first=False,
+                              use_rep="X_emb", verbose=False)
+    assert not any(c.startswith("scintilla_top2_") for c in adata.obs)
+    assert "scintilla_label_quality" not in adata.obs
+    assert (adata.obs.user_annotation == "keep").all()
+
+
+def test_failed_clustering_rerun_does_not_leave_old_label_metrics(monkeypatch):
+    from scintilla.clustering import run
+
+    adata = _cluster(monkeypatch, ["a"] * 60 + ["b"] * 60, ["0"] * 60 + ["1"] * 60)
+    def failed_benchmark(*args, **kwargs):
+        return pd.DataFrame({"method": ["failed"], "params": ["p"], "ari": [np.nan]}), {}, None
+    monkeypatch.setattr(run, "benchmark_clustering_methods", failed_benchmark)
+    result = run.unsupervised_analysis(adata, cell_type_col="cell_type", run_pca_first=False,
+                                       use_rep="X_emb", verbose=False)
+    assert result["best_method"] is None
+    assert not any(c.startswith("scintilla_top") for c in adata.obs)
+    assert "scintilla_cluster" not in adata.obs

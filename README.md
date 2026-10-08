@@ -759,6 +759,20 @@ scintilla classify data/pbmc3k.h5ad \
 
 ---
 
+### Label-quality variants
+
+Original scoring, fragmentation scoring and all label-quality variants are included in this package on `master`.
+
+```bash
+scintilla label-quality data/pbmc3k.h5ad \
+    --cell-type-col cell_type --use-rep X_pca \
+    --output results/label_quality.csv
+```
+
+This writes per-label scores and review ranks. See [the label-quality guide](LABEL_QUALITY_VARIANTS.md) for the Python API, score definitions, and rerun options. For the original composite through `compute_label_quality_score`, pass `fragmentation_weight=0.0, force=True`.
+
+---
+
 ## Differential Expression
 
 scINTILLA supports four DE methods plus rank-genes-groups analysis from scanpy.

@@ -182,7 +182,8 @@ def compute_label_quality_score(
     The score is computed per cell type (from confusion, fragmentation and
     consistency metrics), then mapped back to every cell.  If
     ``adata.obs[obs_key]`` already exists the computation is skipped unless
-    *force* is True.
+    *force* is True. Use ``force=True`` after changing metrics or weights,
+    including when loading a score produced before fragmentation existed.
 
     Supervised metrics (``pred_agreement``, ``pred_entropy``,
     ``pred_avg_confidence``) receive *supervised_weight* while unsupervised
@@ -220,7 +221,7 @@ def compute_label_quality_score(
         Per-cell-type quality score (index = cell type, sorted ascending).
     """
     if obs_key in adata.obs.columns and not force:
-        quality_map = adata.obs.groupby(cell_type_col)[obs_key].first()
+        quality_map = adata.obs.groupby(cell_type_col, observed=True)[obs_key].first()
         return quality_map.sort_values(ascending=True)
 
     obs = adata.obs
@@ -228,6 +229,8 @@ def compute_label_quality_score(
     # Auto-detect confusion and fragmentation columns
     if confusion_cols is None:
         confusion_cols = sorted([c for c in obs.columns if c.startswith("scintilla_top") and c.endswith("_confusion")])
+    if unsupervised_weight == 0:
+        confusion_cols = []
     if fragmentation_weight == 0:
         fragmentation_cols = []
     elif fragmentation_cols is None:
@@ -236,15 +239,15 @@ def compute_label_quality_score(
     # Gather all metric columns
     consistency_cols = []
     for c in ["pred_agreement", "pred_entropy", "pred_avg_confidence"]:
-        if c in obs.columns:
+        if supervised_weight != 0 and c in obs.columns:
             consistency_cols.append(c)
 
     all_metric_cols = confusion_cols + fragmentation_cols + consistency_cols
     if not all_metric_cols:
-        raise ValueError("No confusion or consistency columns found in adata.obs.")
+        raise ValueError("No active confusion, fragmentation or consistency columns found in adata.obs.")
 
     # Group by cell type and compute means
-    grouped = obs.groupby(cell_type_col)[all_metric_cols].mean()
+    grouped = obs.groupby(cell_type_col, observed=True)[all_metric_cols].mean()
 
     # Normalise each metric to [0, 1] for composite scoring
     normed = grouped.copy()
@@ -254,7 +257,7 @@ def compute_label_quality_score(
         if vmax > vmin:
             normed[col] = (vals - vmin) / (vmax - vmin)
         else:
-            normed[col] = 0.0
+            normed[col] = vals.where(vals.isna(), 0.0)
 
     # Compute quality score: high = good label quality
     # Supervised metrics get higher weight than unsupervised confusion

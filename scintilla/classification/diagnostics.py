@@ -5,6 +5,7 @@ from __future__ import annotations
 import warnings
 from typing import Dict, Union
 
+import anndata as ad
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -14,7 +15,7 @@ from scintilla.io.loaders import ensure_anndata
 
 
 def check_normality_for_classifier(
-    data: Union[pd.DataFrame, "anndata.AnnData"],
+    data: Union[pd.DataFrame, ad.AnnData],
     target_col: str,
     alpha: float = 0.05,
     random_state: int = RANDOM_SEED,
@@ -25,8 +26,6 @@ def check_normality_for_classifier(
     Tests a random sample of up to 20 genes per group (seeded for
     reproducibility) rather than always testing the first 20.
     """
-    import anndata as ad  # noqa: PLC0415
-
     adata = ensure_anndata(data, target_col=target_col)
     if target_col not in adata.obs.columns:
         raise KeyError(f"Column '{target_col}' not found in obs.")
@@ -67,7 +66,7 @@ def check_normality_for_classifier(
 
 
 def covariance_homogeneity_test(
-    data: Union[pd.DataFrame, "anndata.AnnData"],
+    data: Union[pd.DataFrame, ad.AnnData],
     target_col: str,
 ) -> Dict:
     """Box's M test for homogeneity of covariance matrices.

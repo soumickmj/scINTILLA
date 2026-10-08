@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Optional, Union
 
 import anndata as ad
@@ -110,6 +111,13 @@ def unsupervised_analysis(
     valid = results_df.dropna(subset=["ari"])
     best_method = valid.sort_values("ari", ascending=False).iloc[0]["method"] if not valid.empty else None
 
+    if store_labels:
+        # Replace outputs of the previous analysis, including surplus ranks
+        # when fewer methods succeed in this run. Never score mixed runs.
+        stale = [c for c in adata.obs if re.match(r"^scintilla_top\d+_", c)
+                 or c in {"scintilla_cluster", "scintilla_label_quality"}]
+        adata.obs.drop(columns=stale, inplace=True)
+
     # Store labels in adata.obs for easy downstream use
     if store_labels and not valid.empty:
         true_labels = adata.obs[cell_type_col].values
@@ -119,7 +127,9 @@ def unsupervised_analysis(
             X_rep = adata.obsm[rep]
         else:
             X_rep = adata.X if not hasattr(adata.X, "toarray") else adata.X.toarray()
-        nn = NearestNeighbors(n_neighbors=50)
+        if adata.n_obs < 2:
+            raise ValueError("Confusion scoring requires at least two cells.")
+        nn = NearestNeighbors(n_neighbors=min(50, adata.n_obs - 1))
         nn.fit(X_rep)
         nn_indices = nn.kneighbors(return_distance=False)
 

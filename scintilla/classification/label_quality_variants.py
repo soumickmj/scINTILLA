@@ -116,7 +116,8 @@ def compute_label_quality_variants(
     obs = adata.obs
     conf_cols = sorted(c for c in obs if c.startswith("scintilla_top") and c.endswith("_confusion"))
     frag_cols = sorted(c for c in obs if c.startswith("scintilla_top") and c.endswith("_fragmentation"))
-    missing = [name for name, ok in [("scintilla_top*_confusion", conf_cols),
+    missing = [name for name, ok in [("scintilla_top1_confusion", "scintilla_top1_confusion" in obs),
+                                     ("scintilla_top*_confusion", conf_cols),
                                      ("scintilla_top*_fragmentation", frag_cols),
                                      ("pred_agreement", "pred_agreement" in obs),
                                      ("pred_entropy", "pred_entropy" in obs)] if not ok]
@@ -125,6 +126,7 @@ def compute_label_quality_variants(
                          "supervised_analysis(check_consistency=True) on this branch first.")
 
     tmp_key = "_scintilla_variant_tmp"
+    saved_tmp = obs[tmp_key].copy(deep=True) if tmp_key in obs else None
 
     def q(**weights):
         return compute_label_quality_score(adata, cell_type_col=cell_type_col, force=True,
@@ -139,7 +141,9 @@ def compute_label_quality_variants(
             "scintilla_unsup_frag_only": q(supervised_weight=0.0),
         })
     finally:
-        if tmp_key in adata.obs:
+        if saved_tmp is not None:
+            adata.obs[tmp_key] = saved_tmp
+        elif tmp_key in adata.obs:
             del adata.obs[tmp_key]
 
     g = obs.groupby(cell_type_col, observed=True)

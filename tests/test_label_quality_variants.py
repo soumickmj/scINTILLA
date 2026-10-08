@@ -94,3 +94,131 @@ def test_missing_fragmentation_columns_raise():
     x.obs = x.obs.drop(columns=["scintilla_top1_fragmentation", "scintilla_top2_fragmentation"])
     with pytest.raises(ValueError, match="fragmentation"):
         compute_label_quality_variants(x)
+
+
+def test_unused_label_categories_do_not_create_phantom_scores():
+    x = _adata()
+    x.obs["cell_type"] = pd.Categorical(x.obs["cell_type"], categories=list("abcde"))
+    scores = compute_label_quality_variants(x)
+    assert set(scores.index) == set("abcd")
+    assert scores.notna().all().all()
+
+
+def test_supervised_ablation_ignores_missing_confusion_values():
+    x = _adata()
+    x.obs.loc[x.obs.cell_type == "a", "scintilla_top1_confusion"] = np.nan
+    scores = compute_label_quality_variants(x)
+    assert scores.loc["a", "scintilla_sup_only"] == pytest.approx(0.825)
+
+
+def test_unsupervised_ablation_ignores_missing_supervised_values():
+    x = _adata()
+    x.obs.loc[x.obs.cell_type == "a", "pred_agreement"] = np.nan
+    scores = compute_label_quality_variants(x)
+    assert scores.loc["a", "scintilla_unsup_only"] == pytest.approx(13 / 24)
+
+
+def test_variant_computation_preserves_existing_temporary_column():
+    x = _adata()
+    x.obs["_scintilla_variant_tmp"] = pd.Categorical(np.tile(["keep", "me"], 10))
+    before = x.obs.copy(deep=True)
+    compute_label_quality_variants(x)
+    pd.testing.assert_frame_equal(x.obs, before)
+
+
+def test_missing_top1_confusion_reports_pipeline_prerequisite():
+    x = _adata()
+    del x.obs["scintilla_top1_confusion"]
+    with pytest.raises(ValueError, match="scintilla_top1_confusion"):
+        compute_label_quality_variants(x)
+
+
+def test_missing_active_fragmentation_does_not_improve_quality():
+    x = _adata()
+    for col in ["scintilla_top1_fragmentation", "scintilla_top2_fragmentation"]:
+        x.obs[col] = np.nan
+    scores = compute_label_quality_variants(x)
+    assert scores.scintilla_composite.notna().all()
+    assert scores.scintilla_composite_frag.isna().all()
+
+
+def test_variant_error_preserves_existing_observation_columns():
+    x = _adata()
+    x.obs["_scintilla_variant_tmp"] = "keep"
+    del x.obsm["X_pca"]
+    before = x.obs.copy(deep=True)
+    with pytest.raises(KeyError, match="X_pca"):
+        compute_label_quality_variants(x)
+    pd.testing.assert_frame_equal(x.obs, before)
+
+
+def _run_label_quality_cli(tmp_path, x, *options):
+    from scintilla import AnalysisConfig
+    from scintilla.cli.main import main
+
+    source = tmp_path / "input.h5ad"
+    config = tmp_path / "config.yaml"
+    output = tmp_path / "scores.csv"
+    saved = tmp_path / "analysed.h5ad"
+    x.write_h5ad(source)
+    AnalysisConfig(clustering_methods=["kmeans"], classifiers=["LogReg"],
+                   verbose=False).to_yaml(config)
+    main(["label-quality", str(source), "--config", str(config),
+          "--output", str(output), "--save-h5ad", str(saved), *options])
+    scores = pd.read_csv(output, index_col=0)
+    assert scores.notna().all().all()
+    assert (tmp_path / "scores_ranks.csv").exists()
+    return ad.read_h5ad(saved)
+
+
+def test_cli_reruns_clustering_for_unrelated_fragmentation_column(tmp_path):
+    x = _adata()
+    x.obs = x.obs.drop(columns=["scintilla_top1_fragmentation", "scintilla_top2_fragmentation"])
+    x.obs["user_fragmentation"] = 0.3
+    saved = _run_label_quality_cli(tmp_path, x)
+    assert "scintilla_top1_fragmentation" in saved.obs
+    assert (saved.obs.user_fragmentation == 0.3).all()
+
+
+def test_cli_reruns_clustering_for_unmatched_fragmentation_ranks(tmp_path):
+    x = _adata()
+    del x.obs["scintilla_top2_fragmentation"]
+    saved = _run_label_quality_cli(tmp_path, x)
+    conf = {c.replace("_confusion", "") for c in saved.obs if c.startswith("scintilla_top") and c.endswith("_confusion")}
+    frag = {c.replace("_fragmentation", "") for c in saved.obs if c.startswith("scintilla_top") and c.endswith("_fragmentation")}
+    assert conf == frag
+
+
+def test_cli_creates_missing_pca_even_with_cached_metrics(tmp_path):
+    pytest.importorskip("scanpy")
+    x = _adata()
+    x = ad.AnnData(X=np.random.default_rng(0).normal(size=(20, 6)), obs=x.obs.copy())
+    saved = _run_label_quality_cli(tmp_path, x)
+    assert "X_pca" in saved.obsm
+
+
+def test_cli_creates_output_directories_for_cached_scores(tmp_path):
+    from scintilla.cli.main import main
+
+    source = tmp_path / "input.h5ad"
+    _adata().write_h5ad(source)
+    output = tmp_path / "new" / "scores.csv"
+    saved = tmp_path / "other" / "analysed.h5ad"
+    main(["label-quality", str(source), "--output", str(output), "--save-h5ad", str(saved)])
+    assert output.exists()
+    assert output.with_name("scores_ranks.csv").exists()
+    assert saved.exists()
+
+
+def test_cli_analyses_raw_input_without_cached_metrics(tmp_path):
+    pytest.importorskip("scanpy")
+    labels = np.repeat(list("abcd"), 10)
+    X = np.random.default_rng(0).normal(size=(40, 6))
+    X += np.repeat(np.arange(4), 10)[:, None] * 3
+    x = ad.AnnData(X=X, obs=pd.DataFrame({"cell_type": labels},
+                                        index=[f"c{i}" for i in range(40)]))
+    saved = _run_label_quality_cli(tmp_path, x)
+    assert "X_pca" in saved.obsm
+    assert "scintilla_top1_fragmentation" in saved.obs
+    assert "pred_agreement" in saved.obs
+    assert "pred_entropy" in saved.obs

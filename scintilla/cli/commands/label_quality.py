@@ -27,6 +27,7 @@ def run(args):
         compute_label_quality_variants, review_ranks)
     from scintilla.classification.run import supervised_analysis
     from scintilla.clustering.run import unsupervised_analysis
+    from scintilla.io.exporters import save_anndata, save_results_csv
     from scintilla.io.loaders import auto_detect_format
 
     if args.config:
@@ -40,13 +41,17 @@ def run(args):
 
     adata = auto_detect_format(args.input)
     obs = adata.obs
-    has_unsup = any(c.endswith("_fragmentation") for c in obs) and "scintilla_top1_confusion" in obs
+    conf_ranks = {c[:-len("_confusion")] for c in obs
+                  if c.startswith("scintilla_top") and c.endswith("_confusion")}
+    frag_ranks = {c[:-len("_fragmentation")] for c in obs
+                  if c.startswith("scintilla_top") and c.endswith("_fragmentation")}
+    has_unsup = "scintilla_top1" in conf_ranks and conf_ranks == frag_ranks
     has_sup = "pred_agreement" in obs and "pred_entropy" in obs
 
-    if args.rerun or not has_unsup:
-        pca_needed = args.use_rep not in adata.obsm
-        if pca_needed and args.use_rep != "X_pca":
-            raise KeyError(f"adata.obsm has no '{args.use_rep}'")
+    pca_needed = args.use_rep not in adata.obsm
+    if pca_needed and args.use_rep != "X_pca":
+        raise KeyError(f"adata.obsm has no '{args.use_rep}'")
+    if args.rerun or not has_unsup or pca_needed:
         adata = unsupervised_analysis(adata, cell_type_col=args.cell_type_col, use_rep=args.use_rep,
                                       run_pca_first=pca_needed, config=cfg, n_jobs=args.n_jobs,
                                       verbose=args.verbose)["adata"]
@@ -58,10 +63,10 @@ def run(args):
     scores = compute_label_quality_variants(adata, cell_type_col=args.cell_type_col,
                                             use_rep=args.use_rep)
     out = Path(args.output)
-    scores.to_csv(out)
+    save_results_csv(scores, out)
     ranks_path = out.with_name(out.stem + "_ranks.csv")
-    review_ranks(scores).to_csv(ranks_path)
+    save_results_csv(review_ranks(scores), ranks_path)
     print(f"Scores ({len(scores)} labels x {scores.shape[1]} variants): {out}")
     print(f"Review ranks (1 = most suspicious): {ranks_path}")
     if args.save_h5ad:
-        adata.write_h5ad(args.save_h5ad)
+        save_anndata(adata, args.save_h5ad)

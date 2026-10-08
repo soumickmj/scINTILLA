@@ -21,6 +21,7 @@ dependencies = [
     "plotly",
     "scikit-posthocs",
     "pingouin",
+    "PyYAML",
 ]
 
 [project.optional-dependencies]

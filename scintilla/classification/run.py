@@ -145,6 +145,7 @@ def supervised_analysis(
     # missing xgboost/lightgbm is an omission rather than a failed row.
     from scintilla.classification.benchmark import _resolve_optional_models  # noqa: PLC0415
     all_model_fns.update(_resolve_optional_models())
+    known_model_names = set(all_model_fns) | {"XGBoost", "LightGBM"}
 
     # Resolve which models to run: explicit param > config > all
     _selected_models = models
@@ -240,10 +241,17 @@ def supervised_analysis(
                 print(f"  Feature importance failed: {e}")
 
     # ── Per-cell consistency check across all models ────────────────
+    if check_consistency:
+        generated = {f"pred_{name}{suffix}" for name in known_model_names
+                     for suffix in ("", "_confidence")}
+        generated.update({"pred_consensus", "pred_agreement", "pred_entropy",
+                          "pred_avg_confidence", "scintilla_label_quality"})
+        adata.obs.drop(columns=[c for c in generated if c in adata.obs and c != target_col],
+                       inplace=True)
     if check_consistency and all_results:
         if verbose:
             print("Computing per-cell prediction consistency...")
-        X_all = X if not scale else StandardScaler().fit(X).transform(X)
+        X_all = X if not scale else scaler.transform(X)
 
         # Collect predictions & probabilities from each model on all cells
         from sklearn.preprocessing import LabelEncoder  # noqa: PLC0415
