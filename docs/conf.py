@@ -1,11 +1,7 @@
 """Sphinx configuration for the scintilla-py documentation."""
 
 import os
-import sys
 from datetime import datetime
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent / "extensions")) if (Path(__file__).parent / "extensions").exists() else None
 
 import scintilla
 
