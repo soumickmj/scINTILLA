@@ -1,10 +1,11 @@
 version: 2
 updates:
-  # Python dependencies (uv.lock and pyproject.toml): one grouped pull request per week.
+  # Python dependencies (uv.lock): one grouped pull request a month, and never more than one open.
   - package-ecosystem: "uv"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 1
     groups:
       python-dependencies:
         patterns: ["*"]
@@ -12,10 +13,15 @@ updates:
       # The lower bounds are API requirements checked by the oldest-versions CI job, not pins.
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # louvain 0.8.2 (the latest) needs python-igraph < 0.12, while leidenalg >= 0.12 needs
+      # python-igraph >= 1. The lock therefore cannot move them; revisit when louvain supports igraph 1.
+      - dependency-name: "leidenalg"
+      - dependency-name: "python-igraph"
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 1
     groups:
       actions:
         patterns: ["*"]

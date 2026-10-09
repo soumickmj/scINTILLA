@@ -57,8 +57,9 @@ workflow using PyPI trusted publishing, so no API token is stored anywhere.
 
 **One-off set-up**
 
-1. On PyPI, open the `scintilla-py` project, then *Publishing*, and add a trusted publisher: owner
-   `soumickmj`, repository `scINTILLA`, workflow `release.yaml`, environment `pypi`.
+1. On PyPI, open the `scintilla-py` project, then *Manage*, then *Publishing*, and add a trusted publisher
+   (GitHub): owner `soumickmj`, repository `scINTILLA`, workflow `release.yaml`, environment `pypi`. Until
+   this exists the upload step fails with `invalid-publisher`.
 2. In the GitHub repository, create an environment called `pypi` (optionally with required reviewers).
 3. Enable Read the Docs for the repository (it reads `.readthedocs.yaml`) and add the repository to
    Codecov, putting its token in the `CODECOV_TOKEN` secret.
@@ -75,7 +76,8 @@ workflow using PyPI trusted publishing, so no API token is stored anywhere.
    uv run --with dist/*.whl --no-project python -c "import scintilla; print(scintilla.__version__)"
    ```
 
-4. Tag and publish a GitHub release (for example `v0.2.1`). Publishing it starts the workflow, which
+4. Tag and publish a GitHub release named after the version with a leading `v` (`v0.2.1` for 0.2.1; the
+   workflow refuses any other tag). Publishing it starts the workflow, which
    builds the sdist and wheel, runs `twine check` and uploads them to PyPI.
 5. Archive the release on Zenodo (enable the GitHub integration once) and add the software DOI to
    `CITATION.cff`.

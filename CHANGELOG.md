@@ -28,8 +28,11 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   a dense array larger than this many GiB. The message names the size, the reason (for instance
   "classifier training") and the usual remedy (`use_rep="X_pca"` or `supervised_use_rep="X_pca"`). Raise
   the threshold, or set it to `float("inf")`, to silence it on a machine with plenty of memory.
-- The workflows can now be started by hand (`workflow_dispatch`) and also run on pushes to the `scverse`
-  branch (to be removed once that branch is merged).
+- The release workflow refuses a tag that is not `v` followed by the package version (a release tagged `v1`
+  would have published 0.2.1). An empty `.nojekyll` file keeps GitHub Pages from running Jekyll on the
+  repository, which is not used for the documentation (Read the Docs builds it).
+- The workflows can now be started by hand (`workflow_dispatch`), which is how a branch can be checked
+  before a pull request is opened.
 
 ### Changed
 
@@ -47,6 +50,12 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   still sparse and allocates one dense copy instead of two.
 - Test dependencies have lower bounds (`pytest-cov>=4`, `jsonschema>=4.18`); without them the
   `lowest-direct` CI job resolved `jsonschema` to version 0.2, which is Python 2 era code and cannot be built.
+- The GitHub Actions used by the workflows moved to their current major versions (`actions/checkout` 7,
+  `astral-sh/setup-uv` 7, `codecov/codecov-action` 7), which also removes the Node.js 20 deprecation warning.
+- Dependabot now opens at most one pull request a month for each ecosystem, instead of weekly. It no longer
+  tries to move `leidenalg` and `python-igraph`: `louvain` 0.8.2, the latest release, needs
+  `python-igraph<0.12`, whereas `leidenalg` 0.12 needs `python-igraph>=1`, so the lock file cannot hold the
+  newest of both and Dependabot's `uv` job failed on every run.
 - The documentation address is now `https://scintilla.readthedocs.io/`, matching the import name and the
   repository (the PyPI distribution stays `scintilla-py`). The README badge, the project URLs in
   `pyproject.toml` and the registry entry were updated. The 0.2.0 release on PyPI still links to the
