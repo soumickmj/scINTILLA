@@ -42,4 +42,6 @@ def test_label_quality_scores_match_recorded_baseline(pipeline_output):
     expected = pd.read_csv(DATA / "label_quality_baseline.csv", index_col=0)
     assert list(scores.columns) == list(expected.columns)
     assert [str(i) for i in scores.index] == [str(i) for i in expected.index]
-    np.testing.assert_allclose(scores.to_numpy(float), expected.to_numpy(float), rtol=1e-6, atol=1e-9)
+    # The PCA and the silhouette are float32, so another BLAS build moves the last digits (seen: 3e-6
+    # relative on one silhouette value). A real change in a scorer is many orders larger.
+    np.testing.assert_allclose(scores.to_numpy(float), expected.to_numpy(float), rtol=1e-5, atol=1e-9)

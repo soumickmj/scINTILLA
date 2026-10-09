@@ -69,6 +69,9 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   changed the UMAP and t-SNE coordinates in the last digits and the scores by up to 0.003. It now
   embeds the stored representation again and agrees with 0.1.0 exactly; `tests/test_contract_embeddings_clustering.py`
   has a regression test.
+- The pinned label-quality baseline test used a relative tolerance of 1e-6, tighter than the float32 PCA and
+  silhouette it checks; one silhouette value differed by 3e-6 on a different BLAS build. The tolerance is now 1e-5
+  (the recorded values are unchanged).
 - Import ordering in one test module that the current Ruff release rejects (CI lint job).
 - The documentation build failed in CI because the `mudata` intersphinx inventory returned HTTP 404; see *Changed*.
 
