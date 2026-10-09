@@ -1,0 +1,210 @@
+"""Dispatcher for unsupervised analysis pipeline."""
+
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING, Optional, Union
+
+import anndata as ad
+import numpy as np
+import pandas as pd
+from sklearn.neighbors import NearestNeighbors
+
+from scintilla._compat import get_matrix, record_params, resolve_adata
+from scintilla._logging import resolve_verbose, verbosity_aware
+from scintilla.clustering.benchmark import benchmark_clustering_methods
+from scintilla.config import DEFAULT_N_PCA_COMPS, RANDOM_SEED
+from scintilla.preprocessing.pca import run_pca
+
+if TYPE_CHECKING:
+    from scintilla.analysis_config import AnalysisConfig
+
+_OMITTED = object()
+
+
+@verbosity_aware
+def unsupervised_analysis(
+    adata: Union[ad.AnnData, pd.DataFrame],
+    cell_type_col: str,
+    use_rep: Optional[str] = None,
+    n_clusters: Optional[int] = None,
+    run_pca_first: bool = True,
+    n_pca_comps: Optional[int] = None,
+    store_labels: bool = True,
+    n_jobs: int = 1,
+    verbose: Optional[bool] = None,
+    config: Optional[AnalysisConfig] = None,
+    auto_pca_components=_OMITTED,
+    mp_sigma_method=_OMITTED,
+    random_state: Optional[int] = None,
+    *,
+    key_added: str = "scintilla",
+    copy: bool = False,
+) -> dict:
+    """Run a full unsupervised (clustering) analysis pipeline.
+
+    Benchmarks a panel of clustering algorithms against the labels in
+    ``adata.obs[cell_type_col]`` and, for the six best clusterings, writes per-cell
+    scores to ``adata.obs``.  These are the unsupervised inputs of the label-quality
+    score (see :func:`scintilla.tl.label_quality`).
+
+    Parameters
+    ----------
+    adata
+        Annotated data matrix.  Modified in place unless ``copy=True``.
+    cell_type_col
+        Column in ``adata.obs`` with the cell-type labels to assess.
+    use_rep
+        Representation key for the neighbour graph.  If ``None`` and
+        ``run_pca_first``, ``"X_pca"`` is used.
+    n_clusters
+        Number of clusters (defaults to the number of unique cell types).
+    run_pca_first
+        Whether to run PCA before clustering (stored in ``obsm["X_pca"]``).
+    n_pca_comps
+        Number of PCA components.
+    store_labels
+        If ``True``, write the cluster labels and per-cell scores to ``adata.obs``.
+    n_jobs
+        Number of parallel clustering methods.
+    verbose
+        Log progress at INFO level for this call.  ``None`` follows
+        :data:`scintilla.settings.verbosity` (and ``config.verbose``).
+    config
+        Optional :class:`~scintilla.analysis_config.AnalysisConfig` controlling which
+        clustering methods run.
+    auto_pca_components, mp_sigma_method
+        Adaptive PCA settings; default to the values in ``config``.
+    random_state
+        Random seed; defaults to ``config.random_seed`` or ``scintilla.config.RANDOM_SEED``.
+    key_added
+        Prefix of the ``obs`` columns written.  With the default ``"scintilla"`` they are
+        ``scintilla_top{k}_{method}|{params}`` (labels), ``scintilla_top{k}_confusion``,
+        ``scintilla_top{k}_fragmentation`` and ``scintilla_cluster``; the supervised and
+        label-quality functions read these names.
+    copy
+        Work on a copy of ``adata`` (returned as ``result["adata"]``).
+
+    Returns
+    -------
+    dict
+        ``adata`` (the annotated object), ``results_df`` (benchmark table, including
+        failed methods), ``labels_dict`` (maps every *method_params* key to its label
+        array) and ``best_method``.  Plot the table with
+        :func:`scintilla.pl.clustering_benchmark`.
+    """
+    adata = resolve_adata(adata, copy=copy)
+
+    if n_pca_comps is None:
+        n_pca_comps = getattr(config, "n_pca_comps", DEFAULT_N_PCA_COMPS) if config is not None else DEFAULT_N_PCA_COMPS
+    verbose = resolve_verbose(verbose, config)
+    if random_state is None:
+        random_state = getattr(config, "random_seed", RANDOM_SEED) if config is not None else RANDOM_SEED
+    if auto_pca_components is _OMITTED:
+        auto_pca_components = getattr(config, "auto_pca_components", None) if config is not None else None
+    if mp_sigma_method is _OMITTED:
+        mp_sigma_method = getattr(config, "mp_sigma_method", "median") if config is not None else "median"
+
+    if run_pca_first:
+        run_pca(
+            adata,
+            n_comps=n_pca_comps,
+            auto_components=auto_pca_components,
+            mp_sigma_method=mp_sigma_method,
+            random_state=random_state,
+        )
+        rep = "X_pca"
+    else:
+        rep = use_rep or "X_pca"
+
+    _auto_eps = False
+    _adaptive_resolution = False
+    if config is not None:
+        _auto_eps = getattr(config, "auto_eps", False)
+        _adaptive_resolution = getattr(config, "adaptive_resolution", False)
+
+    results_df, labels_dict = benchmark_clustering_methods(
+        adata,
+        cell_type_col=cell_type_col,
+        use_rep=rep,
+        n_clusters=n_clusters,
+        adaptive_resolution=_adaptive_resolution,
+        auto_eps=_auto_eps,
+        n_jobs=n_jobs,
+        verbose=verbose,
+        config=config,
+        random_state=random_state,
+    )
+
+    valid = results_df.dropna(subset=["ari"])
+    best_method = valid.sort_values("ari", ascending=False).iloc[0]["method"] if not valid.empty else None
+
+    if store_labels:
+        # Replace outputs of the previous analysis, including surplus ranks
+        # when fewer methods succeed in this run. Never score mixed runs.
+        stale = [c for c in adata.obs if re.match(rf"^{re.escape(key_added)}_top\d+_", c)
+                 or c in {f"{key_added}_cluster", f"{key_added}_label_quality"}]
+        adata.obs.drop(columns=stale, inplace=True)
+
+    # Store labels in adata.obs for easy downstream use
+    if store_labels and not valid.empty:
+        true_labels = adata.obs[cell_type_col].values
+
+        # Build kNN index for confusion scoring
+        if rep in adata.obsm:
+            X_rep = adata.obsm[rep]
+        else:
+            X_rep = get_matrix(adata, reason="kNN confusion scoring needs a dense matrix")
+        if adata.n_obs < 2:
+            raise ValueError("Confusion scoring requires at least two cells.")
+        nn = NearestNeighbors(n_neighbors=min(50, adata.n_obs - 1))
+        nn.fit(X_rep)
+        nn_indices = nn.kneighbors(return_distance=False)
+
+        top = valid.sort_values("ari", ascending=False).head(6)
+        for rank, (_, row) in enumerate(top.iterrows(), start=1):
+            full_key = f"{row['method']}_{row['params']}"
+            if full_key not in labels_dict:
+                continue
+            method_name = f"{row['method']}|{row['params']}"
+            # Store cluster labels with method name in column
+            col = f"{key_added}_top{rank}_{method_name}"
+            adata.obs[col] = pd.Categorical(labels_dict[full_key].astype(str))
+
+            # Compute per-cell confusion score vs cell type labels
+            clusters = labels_dict[full_key].astype(str)
+            celltypes = true_labels.astype(str)
+            k = nn_indices.shape[1]
+            scores = np.empty(len(clusters), dtype=np.float64)
+            for i, neighbors in enumerate(nn_indices):
+                same_cluster = clusters[neighbors] == clusters[i]
+                same_type = celltypes[neighbors] == celltypes[i]
+                scores[i] = np.sum(same_cluster & ~same_type) / k
+            adata.obs[f"{key_added}_top{rank}_confusion"] = scores
+
+            # Per-cell fragmentation: share of the cell's label lying outside its cluster.
+            # Confusion only sees labels sharing a cluster (over-splitting); fragmentation
+            # sees one label spread over several clusters (merged or contaminated labels).
+            # Its per-label mean is the Gini-Simpson impurity 1 - sum_c p_c^2.
+            pairs = pd.DataFrame({"type": celltypes, "cluster": clusters})
+            n_same = pairs.groupby(["type", "cluster"])["type"].transform("size").to_numpy()
+            n_type = pairs.groupby("type")["type"].transform("size").to_numpy()
+            adata.obs[f"{key_added}_top{rank}_fragmentation"] = 1.0 - n_same / n_type
+
+        # Also keep the overall best as the default column
+        best_row = top.iloc[0]
+        best_full_key = f"{best_row['method']}_{best_row['params']}"
+        if best_full_key in labels_dict:
+            adata.obs[f"{key_added}_cluster"] = pd.Categorical(labels_dict[best_full_key].astype(str))
+
+    record_params(
+        adata, "unsupervised", cell_type_col=cell_type_col, use_rep=rep, n_clusters=n_clusters,
+        run_pca_first=run_pca_first, n_pca_comps=n_pca_comps, random_state=random_state,
+        key_added=key_added, best_method=best_method,
+    )
+    return {
+        "adata": adata,
+        "results_df": results_df,
+        "labels_dict": labels_dict,
+        "best_method": best_method,
+    }

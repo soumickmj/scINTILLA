@@ -15,7 +15,6 @@ import numpy as np
 import pandas as pd
 import pytest
 
-
 # ── Consensus clustering: validated methods and a typed failures channel ──
 
 
@@ -151,7 +150,7 @@ def test_harmony_accepts_both_upstream_embedding_orientations(
     z_corr = cells_by_pcs.T if transposed else cells_by_pcs
     monkeypatch.setitem(sys.modules, "harmonypy", _harmony_stub(z_corr))
 
-    corrected = harmony_mod.harmony_correct(adata, "batch", n_components=2)
+    corrected = harmony_mod.harmony_correct(adata, "batch", n_components=2, copy=True)
 
     np.testing.assert_array_equal(corrected.obsm["X_pca_harmony"], cells_by_pcs)
 
@@ -228,7 +227,6 @@ def test_clustering_benchmark_marks_absent_backend_as_skipped(monkeypatch) -> No
     """Catch an uninstalled optional backend being reported as a failed method."""
     import builtins
 
-    from matplotlib import pyplot as plt
     from scintilla import AnalysisConfig
     from scintilla.clustering import benchmark
 
@@ -249,14 +247,13 @@ def test_clustering_benchmark_marks_absent_backend_as_skipped(monkeypatch) -> No
     )
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        results, _, figure = benchmark.benchmark_clustering_methods(
+        results, _ = benchmark.benchmark_clustering_methods(
             adata,
             "cell_type",
             use_rep="X",
             verbose=False,
             config=AnalysisConfig(clustering_methods=["louvain"]),
         )
-    plt.close(figure)
 
     row = results.iloc[0]
     assert row["method"] == "Louvain"

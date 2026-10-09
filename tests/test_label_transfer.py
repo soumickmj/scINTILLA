@@ -31,7 +31,7 @@ def test_transfer_aligns_named_genes_and_ignores_precomputed_pca() -> None:
     )
     query.obsm["X_pca"] = np.array([[100.0, 0.0], [0.0, 100.0]])
 
-    result = transfer_labels(reference, query, "cell_type", n_neighbors=1)
+    result = transfer_labels(reference, query, "cell_type", n_neighbors=1, copy=True)
 
     assert result.obs["cell_type_transferred"].tolist() == ["alpha", "beta"]
     assert "cell_type_transferred" not in query.obs
@@ -63,6 +63,21 @@ def test_transfer_validates_labels_and_one_cell_reference_neighbors() -> None:
         transfer_labels(reference, query, "missing", n_neighbors=1)
 
     single_reference = reference[:1].copy()
-    result = transfer_labels(single_reference, query, "cell_type", n_neighbors=1)
+    result = transfer_labels(single_reference, query, "cell_type", n_neighbors=1, copy=True)
 
     assert result.obs["cell_type_transferred"].tolist() == ["alpha"]
+
+
+def test_transfer_is_in_place_by_default_and_honours_key_added() -> None:
+    """The scanpy convention: modify the query, return None, write under ``key_added``."""
+    reference = _reference()
+    query = ad.AnnData(
+        X=np.array([[0.0] * 9 + [10.0], [0.0] * 8 + [10.0, 0.0]]),
+        var=pd.DataFrame(index=list(reversed(GENES))),
+    )
+
+    assert transfer_labels(reference, query, "cell_type", n_neighbors=1, key_added="mapped") is None
+
+    assert query.obs["mapped"].tolist() == ["alpha", "beta"]
+    assert "cell_type_transferred" not in query.obs
+    assert query.uns["scintilla"]["mapped"]["params"]["n_shared_genes"] == 10

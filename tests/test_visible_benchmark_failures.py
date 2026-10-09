@@ -1,7 +1,7 @@
 """Regression coverage for visible method failures in benchmarks."""
 
-import warnings
 import sys
+import warnings
 from types import SimpleNamespace
 
 import anndata as ad
@@ -84,8 +84,9 @@ def test_consensus_records_partial_method_failure_once(monkeypatch) -> None:
 
 def test_consensus_stability_probe_warns_once_per_method(monkeypatch) -> None:
     """Catch duplicate warnings from each failed pairwise stability calculation."""
-    from scintilla.clustering.consensus import consensus_clustering
     from sklearn import metrics
+
+    from scintilla.clustering.consensus import consensus_clustering
 
     def broken_ari(*_args, **_kwargs):
         raise ValueError("ARI unavailable")
@@ -106,7 +107,7 @@ def test_consensus_stability_probe_warns_once_per_method(monkeypatch) -> None:
 
 def test_dot632plus_keeps_optional_estimator_construction_failure(monkeypatch) -> None:
     """Catch optional-estimator imports that abort .632+ before a result row exists."""
-    from matplotlib import pyplot as plt
+
     from scintilla.classification import benchmark
 
     def missing_optional_estimator(*_args, **_kwargs):
@@ -116,7 +117,7 @@ def test_dot632plus_keeps_optional_estimator_construction_failure(monkeypatch) -
     monkeypatch.setattr(benchmark, "_get_model_instance", missing_optional_estimator)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        results, figure = benchmark._benchmark_632plus(
+        results = benchmark._benchmark_632plus(
             np.arange(24, dtype=float).reshape(6, 4),
             np.array([0, 0, 0, 1, 1, 1]),
             use_pca=False,
@@ -124,7 +125,6 @@ def test_dot632plus_keeps_optional_estimator_construction_failure(monkeypatch) -
             verbose=False,
             B=1,
         )
-    plt.close(figure)
 
     row = results.iloc[0]
     assert row["model"] == "XGBoost"
@@ -137,7 +137,7 @@ def test_dot632plus_keeps_optional_estimator_construction_failure(monkeypatch) -
 
 def test_clustering_benchmark_keeps_failed_grid_point(monkeypatch) -> None:
     """Catch failed clustering parameters disappearing from leaderboard."""
-    from matplotlib import pyplot as plt
+
     from scintilla import AnalysisConfig
     from scintilla.clustering import benchmark
 
@@ -153,12 +153,11 @@ def test_clustering_benchmark_keeps_failed_grid_point(monkeypatch) -> None:
     )
 
     with pytest.warns(UserWarning, match="KMeans init=random failed"):
-        results, _, figure = benchmark.benchmark_clustering_methods(
+        results, _ = benchmark.benchmark_clustering_methods(
             adata,
             cell_type_col="cell_type",
             config=AnalysisConfig(clustering_methods=["kmeans"], verbose=False),
         )
-    plt.close(figure)
 
     failed = results.loc[results["params"] == "init=random"].iloc[0]
     assert failed["status"] == "failed"

@@ -1,47 +1,84 @@
 [build-system]
-requires = ["setuptools>=77.0.3", "wheel"]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
+requires = ["hatchling"]
 
 [project]
 name = "scintilla-py"
-version = "0.1.0"
-description = "Single-Cell INTegrated Inference, Labelling, and Landscape Analysis pipeline"
+dynamic = ["version"]
+description = "Single-Cell INTegrated Inference, Labelling, and Landscape Analysis: cell-type label quality and method benchmarking for scRNA-seq"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-keywords = ["single-cell", "scrna-seq", "label-quality", "bioinformatics"]
-classifiers = [
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering :: Bio-Informatics",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
+requires-python = ">=3.11"
+authors = [
+    { name = "Sina Kanannejad" },
+    { name = "Noemi Bongiorni" },
+    { name = "Elisa Nordera" },
+    { name = "Sara Redaelli" },
+    { name = "Irene Rusconi" },
+    { name = "Rachele Zanin" },
+    { name = "Alice Giustacchini" },
+    { name = "Soumick Chatterjee" },
 ]
-requires-python = ">=3.9"
-dependencies = [
-    "numpy",
-    "pandas",
-    "scipy",
-    "scikit-learn",
+maintainers = [
+    { name = "Soumick Chatterjee" },
+]
+keywords = [
+    "single-cell",
+    "scrna-seq",
+    "scverse",
     "anndata",
     "scanpy",
-    "tqdm",
-    "statsmodels",
-    "matplotlib",
-    "seaborn",
-    "plotly",
-    "scikit-posthocs",
-    "pingouin",
-    "PyYAML",
+    "cell-type annotation",
+    "label quality",
+    "benchmarking",
+    "bioinformatics",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Typing :: Typed",
+]
+dependencies = [
+    "anndata>=0.10",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "PyYAML>=6",
+    "scanpy>=1.10.3",  # score_genes(ctrl_as_ref=...) first appears in 1.10.3
+    "scikit-learn>=1.3",
+    "scipy>=1.11",
+    "seaborn>=0.13",
+    "statsmodels>=0.14",
+    "tqdm>=4.66",
 ]
 
 [project.optional-dependencies]
+# Individual feature groups.
+stats = [
+    "scikit-posthocs>=0.9",
+]
+viz = [
+    "plotly>=5.18",
+]
+# Everything that makes more methods available. Kept as a single switch
+# because the benchmarks adapt to whichever backends are installed.
 full = [
+    "scintilla-py[stats,viz]",
     "shap",
-    "mudata",
+    "scikit-misc",  # scanpy's seurat_v3 HVG flavour (the default of select_hvg)
+    "mudata>=0.2",
     "leidenalg",
-    "louvain>=0.8.2",
-    # Louvain imports pkg_resources, removed from setuptools 82.
-    "setuptools<82",
+    "louvain>=0.8.2",  # imported through a pkg_resources stand-in, see clustering/_louvain_compat.py
     "python-igraph",
     "harmonypy",
     "bbknn",
@@ -55,25 +92,102 @@ full = [
     "psutil",
     "kneed",
 ]
+test = [
+    "pytest>=8",
+    "pytest-cov>=4",
+    "jsonschema>=4.18",
+    "scintilla-py[stats,viz]",
+]
+doc = [
+    "sphinx>=7",
+    "sphinx-autodoc-typehints",
+    "sphinx-book-theme>=1",
+    "sphinx-copybutton",
+    "sphinx-design",
+    "sphinxcontrib-bibtex>=2",
+    "myst-nb>=1",
+    "ipykernel",
+]
 
 [project.scripts]
 scintilla = "scintilla.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/soumickmj/scINTILLA"
-Documentation = "https://github.com/soumickmj/scINTILLA/blob/master/README.md"
+Documentation = "https://scintilla.readthedocs.io/"
 Source = "https://github.com/soumickmj/scINTILLA"
 Issues = "https://github.com/soumickmj/scINTILLA/issues"
+Changelog = "https://github.com/soumickmj/scINTILLA/blob/master/CHANGELOG.md"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.9", "twine>=6"]
+dev = ["pytest>=8", "pytest-cov", "ruff>=0.9", "twine>=6", "build"]
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["scintilla*"]
+[tool.hatch.version]
+path = "src/scintilla/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/scintilla"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/docs",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/CONTRIBUTING.md",
+    "/SECURITY.md",
+    "/scverse-registry",
+    "/CITATION.cff",
+    "/LICENSE",
+]
 
 [tool.pytest.ini_options]
-# Let a bare `pytest` find the package from a git checkout, without requiring
-# an editable install or a manually exported PYTHONPATH.
-pythonpath = ["."]
 testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "-m", "not slow"]
+markers = [
+    "slow: long-running benchmark sweeps (deselected by default; run with -m slow)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:pkg_resources",
+]
+
+[tool.coverage.run]
+source = ["scintilla"]
+omit = ["*/__main__.py"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests"]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E4", "E7", "E9",   # pycodestyle errors that are not formatting
+    "F",                # pyflakes
+    "B",                # flake8-bugbear
+    "UP",               # pyupgrade
+    "I",                # isort
+    "D",                # pydocstyle (numpydoc style)
+]
+ignore = [
+    "B008",  # function call in default argument (argparse/typer style)
+    "B905",  # zip without strict=
+    "E741",  # ambiguous variable name (X, l are conventional in numerical code)
+    "UP007", "UP045",  # keep Optional[...]/Union[...] where they already exist
+    "UP006", "UP035",  # keep typing.List/Dict where they already exist
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011", "D"]
+"src/scintilla/cli/commands/*" = ["D103"]  # add_args/run: documented by the --help text
+"src/scintilla/__init__.py" = ["F401"]

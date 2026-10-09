@@ -1,0 +1,11 @@
+name: Feature request
+description: Propose a new method, option or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description of the feature
+      description: What should scINTILLA be able to do, and what would you use it for?
+    validations:
+      required: true

@@ -1,0 +1,25 @@
+name: Bug report
+description: Something produces a wrong result, an error, or a surprising side effect
+labels: ["bug"]
+body:
+  - type: textarea
+    id: report
+    attributes:
+      label: Report
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Minimal code example
+      description: Ideally on a small synthetic AnnData or a scanpy example dataset.
+      render: python
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `python -c "import scintilla, scanpy, anndata; print(scintilla.__version__, scanpy.__version__, anndata.__version__)"` and `python --version`.
+      render: text
+    validations:
+      required: true

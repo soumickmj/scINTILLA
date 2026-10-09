@@ -9,7 +9,7 @@ from scintilla.differential_expression.benchmark import (
     _run_pseudobulk,
     benchmark_de_methods,
 )
-from scintilla.differential_expression.pseudobulk import pseudobulk_de
+from scintilla.differential_expression.pseudobulk import pseudobulk_de, pseudobulk_de_by_celltype
 
 
 def _adata_without_samples() -> ad.AnnData:
@@ -60,11 +60,11 @@ def test_cell_type_pseudobulk_exposes_insufficient_replicates() -> None:
         UserWarning,
         match="Pseudobulk DE failed for cell type 'T'",
     ):
-        result = pseudobulk_de(
+        result = pseudobulk_de_by_celltype(
             adata,
             "condition",
             "sample",
-            cell_type_col="cell_type",
+            "cell_type",
         )
 
     failed = result["T"]
@@ -76,3 +76,15 @@ def test_cell_type_pseudobulk_exposes_insufficient_replicates() -> None:
             "got control=1, treated=1"
         ),
     }
+
+
+def test_pseudobulk_cell_type_argument_is_deprecated_but_still_returns_a_dict() -> None:
+    """The union-returning form is kept for 0.1.0 callers, with a warning."""
+    adata = _adata_without_samples()
+    adata.obs["sample"] = ["control_1", "control_1", "treated_1", "treated_1"]
+    adata.obs["cell_type"] = ["T", "T", "T", "T"]
+
+    with pytest.warns(DeprecationWarning, match="pseudobulk_de_by_celltype"), pytest.warns(UserWarning):
+        result = pseudobulk_de(adata, "condition", "sample", cell_type_col="cell_type")
+
+    assert isinstance(result, dict) and set(result) == {"T"}

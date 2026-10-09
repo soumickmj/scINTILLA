@@ -1,0 +1,428 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/scverse/ecosystem-packages/main/scripts/src/ecosystem_scripts/schema.json",
+    "version": "2.0",
+    "title": "Scverse Ecosystem Packages",
+    "description": "An approved scverse ecosystem package that fulfils some minimal requirements",
+    "type": "object",
+    "properties": {
+        "name": {
+            "description": "The name of the package. Must be unique",
+            "type": "string"
+        },
+        "description": {
+            "description": "Summary of the purpose of the package (1-2 sentences).",
+            "type": "string"
+        },
+        "blurb": {
+            "description": "Tagline shown next to the package name in listings, e.g. \"Standard for annotated matrices\". A noun phrase, no trailing period. Required for core frameworks and data structures.",
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "[^.]$"
+        },
+        "project_home": {
+            "description": "Link to the source code of the project (Usually a GitHub project page)",
+            "type": "string",
+            "format": "uri"
+        },
+        "documentation_home": {
+            "descripton": "Link to the documentation of the package (e.g. readthedocs)",
+            "type": "string",
+            "format": "uri"
+        },
+        "tutorials_home": {
+            "descripton": "Link to the tutorials/vignette (often a subpage of the documentation)",
+            "type": "string",
+            "format": "uri"
+        },
+        "inventory": {
+            "description": "Root URL (with trailing slash) under which the package's Sphinx `objects.inv` is served, so other docs can `intersphinx` to it. Python-only. Omit it to have it derived from documentation_home at build time, which is what almost every package wants; only set it where that fails, e.g. to pin `https://<domain>/en/stable/` instead of the default version. Use null if the package publishes no inventory.",
+            "type": ["string", "null"],
+            "format": "uri",
+            "pattern": "^https://.*/$"
+        },
+        "install": {
+            "type": "object",
+            "properties": {
+                "pypi": {
+                    "description": "PyPI identifier",
+                    "type": "string"
+                },
+                "conda": {
+                    "description": "Conda identifier, including channel (e.g. conda-forge::scanpy)",
+                    "type": "string",
+                    "pattern": "(.*)::(.*)"
+                },
+                "cran": {
+                    "description": "CRAN identifier",
+                    "type": "string"
+                },
+                "bioconductor": {
+                    "description": "Bioconductor identifier",
+                    "type": "string"
+                }
+            },
+            "minProperties": 1
+        },
+        "license": {
+            "description": "The license of the code. Must be a OSI-approved SPDX license identifier (see https://spdx.org/licenses/)",
+            "comment": "import pandas as pd; from json import dumps; dumps(pd.read_html('https://spdx.org/licenses/')[0].loc[lambda x: x['OSI Approved?'] == 'Y']['Identifier'].tolist())",
+            "type": "string",
+            "enum": [
+                "0BSD",
+                "AAL",
+                "AFL-1.1",
+                "AFL-1.2",
+                "AFL-2.0",
+                "AFL-2.1",
+                "AFL-3.0",
+                "AGPL-3.0-only",
+                "AGPL-3.0-or-later",
+                "Apache-1.1",
+                "Apache-2.0",
+                "APL-1.0",
+                "APSL-1.0",
+                "APSL-1.1",
+                "APSL-1.2",
+                "APSL-2.0",
+                "Artistic-1.0",
+                "Artistic-1.0-cl8",
+                "Artistic-1.0-Perl",
+                "Artistic-2.0",
+                "BSD-1-Clause",
+                "BSD-2-Clause",
+                "BSD-2-Clause-Patent",
+                "BSD-3-Clause",
+                "BSD-3-Clause-LBNL",
+                "BSL-1.0",
+                "CAL-1.0",
+                "CAL-1.0-Combined-Work-Exception",
+                "CATOSL-1.1",
+                "CDDL-1.0",
+                "CECILL-2.1",
+                "CERN-OHL-P-2.0",
+                "CERN-OHL-S-2.0",
+                "CERN-OHL-W-2.0",
+                "CNRI-Python",
+                "CPAL-1.0",
+                "CPL-1.0",
+                "CUA-OPL-1.0",
+                "ECL-1.0",
+                "ECL-2.0",
+                "EFL-1.0",
+                "EFL-2.0",
+                "Entessa",
+                "EPL-1.0",
+                "EPL-2.0",
+                "EUDatagrid",
+                "EUPL-1.1",
+                "EUPL-1.2",
+                "Fair",
+                "Frameworx-1.0",
+                "GPL-2.0-only",
+                "GPL-2.0-or-later",
+                "GPL-3.0-only",
+                "GPL-3.0-or-later",
+                "HPND",
+                "Intel",
+                "IPA",
+                "IPL-1.0",
+                "ISC",
+                "Jam",
+                "LGPL-2.0-only",
+                "LGPL-2.0-or-later",
+                "LGPL-2.1-only",
+                "LGPL-2.1-or-later",
+                "LGPL-3.0-only",
+                "LGPL-3.0-or-later",
+                "LiLiQ-P-1.1",
+                "LiLiQ-R-1.1",
+                "LiLiQ-Rplus-1.1",
+                "LPL-1.0",
+                "LPL-1.02",
+                "LPPL-1.3c",
+                "MirOS",
+                "MIT",
+                "MIT-0",
+                "MIT-Modern-Variant",
+                "Motosoto",
+                "MPL-1.0",
+                "MPL-1.1",
+                "MPL-2.0",
+                "MPL-2.0-no-copyleft-exception",
+                "MS-PL",
+                "MS-RL",
+                "MulanPSL-2.0",
+                "Multics",
+                "NASA-1.3",
+                "Naumen",
+                "NCSA",
+                "NGPL",
+                "Nokia",
+                "NPOSL-3.0",
+                "NTP",
+                "OCLC-2.0",
+                "OFL-1.1",
+                "OFL-1.1-no-RFN",
+                "OFL-1.1-RFN",
+                "OGTSL",
+                "OLDAP-2.8",
+                "OSET-PL-2.1",
+                "OSL-1.0",
+                "OSL-2.0",
+                "OSL-2.1",
+                "OSL-3.0",
+                "PHP-3.0",
+                "PHP-3.01",
+                "PostgreSQL",
+                "Python-2.0",
+                "QPL-1.0",
+                "RPL-1.1",
+                "RPL-1.5",
+                "RPSL-1.0",
+                "RSCPL",
+                "SimPL-2.0",
+                "SISSL",
+                "Sleepycat",
+                "SPL-1.0",
+                "UCL-1.0",
+                "Unicode-DFS-2016",
+                "Unlicense",
+                "UPL-1.0",
+                "VSL-1.0",
+                "W3C",
+                "Watcom-1.0",
+                "Xnet",
+                "Zlib",
+                "ZPL-2.0",
+                "ZPL-2.1"
+            ]
+        },
+        "primary_category": {
+            "description": "The single category the package is listed under on scverse.org/packages. Pick the one a user looking for this package would browse first.",
+            "type": "string",
+            "enum": [
+                "Data structures",
+                "scRNA-seq",
+                "bulk RNA-seq",
+                "Spatial",
+                "Epigenomics",
+                "Proteomics",
+                "Adaptive immune cell receptor",
+                "Multimodal",
+                "Imaging",
+                "Infrastructure"
+            ]
+        },
+        "tags": {
+            "description": "What the package does, from a controlled vocabulary. Used for filtering and search on scverse.org/packages. Pick every tag that genuinely applies. If none of them fit, add a term to this enum in your pull request.",
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "scRNA-seq",
+                    "bulk RNA-seq",
+                    "spatial transcriptomics",
+                    "spatial proteomics",
+                    "proteomics",
+                    "flow cytometry",
+                    "ATAC-seq",
+                    "epigenomics",
+                    "immune receptor",
+                    "imaging",
+                    "multimodal",
+                    "preprocessing",
+                    "quality control",
+                    "denoising",
+                    "data integration",
+                    "cell-type annotation",
+                    "differential expression",
+                    "compositional analysis",
+                    "functional analysis",
+                    "gene regulatory networks",
+                    "cell-cell communication",
+                    "deconvolution",
+                    "clustering",
+                    "dimensionality reduction",
+                    "trajectory inference",
+                    "pseudotime",
+                    "RNA velocity",
+                    "lineage tracing",
+                    "perturbation",
+                    "spatially variable genes",
+                    "segmentation",
+                    "copy number variation",
+                    "visualization",
+                    "benchmarking",
+                    "deep learning",
+                    "foundation model",
+                    "large language models",
+                    "probabilistic modeling",
+                    "optimal transport",
+                    "GPU acceleration",
+                    "pipeline",
+                    "data structures",
+                    "interoperability",
+                    "file formats",
+                    "documentation"
+                ]
+            },
+            "minItems": 1,
+            "maxItems": 10,
+            "uniqueItems": true
+        },
+        "language": {
+            "description": "Language a user writes code in when using the package.",
+            "$ref": "#/$defs/language"
+        },
+        "bindings": {
+            "description": "Implementations of this package's objects or on-disk format in other languages, maintained under the scverse org. Drives the language filter and the per-language links on scverse.org/packages.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "language": {
+                        "description": "Language the implementation is written for.",
+                        "$ref": "#/$defs/language"
+                    },
+                    "name": {
+                        "description": "Name of the implementation, e.g. anndataR",
+                        "type": "string"
+                    },
+                    "url": {
+                        "description": "Link to its documentation or source",
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": ["language", "name", "url"],
+                "additionalProperties": false
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        },
+        "publications": {
+            "description": "DOIs of publications describing the package",
+            "type": "array",
+            "items": {
+                "type": "string",
+                "comment": "DOI regex from https://www.crossref.org/blog/dois-and-matching-regular-expressions/",
+                "pattern": "^10.\\d{4,9}\\/[-._;()\\/:A-Za-z0-9]+$"
+            }
+        },
+        "version": {
+            "description": "Latest released version, derived from the package index at build time. Do not set this in meta.yaml; it is overwritten.",
+            "type": "string",
+            "readOnly": true
+        },
+        "contact": {
+            "description": "Point of contact for this package. Does not need to be the full list of maintainers. Entries must be Github user IDs.",
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        },
+        "logo": {
+            "description": "Path to the logo (relative to meta.yaml). Should be either logo.png, logo.webp, or logo.svg. In case of a PNG image, it must fit in a bounding box of 512x512px and one dimension must be exactly 512px.",
+            "type": "string",
+            "pattern": "logo\\.(svg|png|webp)"
+        },
+        "test_command": {
+            "description": "A shell command to install the package and execute the tests, assuming you are inside a freshly cloned copy of the package repository. Often this will be `pip install \".[test]\" && pytest`",
+            "type": ["string"]
+        },
+        "category": {
+            "type": "string",
+            "enum": [
+                "core-framework",
+                "core-datastructure",
+                "core-infrastructure",
+                "ecosystem"
+            ],
+            "description": "Package category for the website and statistics."
+        }
+    },
+    "required": [
+        "name",
+        "description",
+        "project_home",
+        "documentation_home",
+        "license",
+        "tags",
+        "primary_category",
+        "language",
+        "category"
+    ],
+    "allOf": [
+        {
+            "if": {
+                "not": {
+                    "properties": {
+                        "category": {
+                            "const": "core-infrastructure"
+                        }
+                    }
+                }
+            },
+            "then": {
+                "required": ["install"]
+            }
+        },
+        {
+            "comment": "Core frameworks and data structures are listed with their blurb on scverse.org.",
+            "if": {
+                "properties": {
+                    "category": {
+                        "enum": ["core-framework", "core-datastructure"]
+                    }
+                },
+                "required": ["category"]
+            },
+            "then": {
+                "required": ["blurb"]
+            }
+        },
+        {
+            "comment": "Only Python packages can be intersphinx targets, so only they carry `inventory`.",
+            "if": {
+                "properties": {
+                    "language": {
+                        "const": "Python"
+                    }
+                },
+                "required": ["language"]
+            },
+            "else": {
+                "not": {
+                    "required": ["inventory"]
+                }
+            }
+        },
+        {
+            "comment": "ReadTheDocs always serves an inventory, so `null` there means the docs URL is wrong rather than that there is nothing to link to.",
+            "if": {
+                "properties": {
+                    "documentation_home": {
+                        "pattern": "^https?://[^/]*\\.readthedocs(\\.io|-hosted\\.com)(/|$)"
+                    }
+                },
+                "required": ["documentation_home"]
+            },
+            "then": {
+                "properties": {
+                    "inventory": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    ],
+    "$defs": {
+        "language": {
+            "type": "string",
+            "enum": ["Python", "R", "Julia", "Rust", "C++"]
+        }
+    }
+}
