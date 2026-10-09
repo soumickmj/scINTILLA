@@ -114,7 +114,7 @@ scintilla = "scintilla.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/soumickmj/scINTILLA"
-Documentation = "https://scintilla-py.readthedocs.io/"
+Documentation = "https://scintilla.readthedocs.io/"
 Source = "https://github.com/soumickmj/scINTILLA"
 Issues = "https://github.com/soumickmj/scINTILLA/issues"
 Changelog = "https://github.com/soumickmj/scINTILLA/blob/master/CHANGELOG.md"

@@ -47,6 +47,10 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   still sparse and allocates one dense copy instead of two.
 - Test dependencies have lower bounds (`pytest-cov>=4`, `jsonschema>=4.18`); without them the
   `lowest-direct` CI job resolved `jsonschema` to version 0.2, which is Python 2 era code and cannot be built.
+- The documentation address is now `https://scintilla.readthedocs.io/`, matching the import name and the
+  repository (the PyPI distribution stays `scintilla-py`). The README badge, the project URLs in
+  `pyproject.toml` and the registry entry were updated. The 0.2.0 release on PyPI still links to the
+  old `scintilla-py.readthedocs.io` address, so that address should redirect permanently to the new one.
 - The documentation no longer cross-links `mudata` through intersphinx: its inventory moved and neither the old
   nor the new address served an `objects.inv`, which failed the strict docs build. `MuData` now renders as plain text.
 - `scverse_plan.md`, the working document for this listing, was removed from the repository, together

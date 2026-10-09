@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/scintilla-py.svg)](https://pypi.org/project/scintilla-py/)
 [![Tests](https://github.com/soumickmj/scINTILLA/actions/workflows/test.yaml/badge.svg)](https://github.com/soumickmj/scINTILLA/actions/workflows/test.yaml)
-[![Docs](https://readthedocs.org/projects/scintilla-py/badge/?version=latest)](https://scintilla-py.readthedocs.io/)
+[![Docs](https://readthedocs.org/projects/scintilla/badge/?version=latest)](https://scintilla.readthedocs.io/)
 [![Codecov](https://codecov.io/gh/soumickmj/scINTILLA/graph/badge.svg)](https://codecov.io/gh/soumickmj/scINTILLA)
 [![Preprint](https://img.shields.io/badge/bioRxiv-10.64898%2F2026.07.27.740477-b31b1b.svg)](https://doi.org/10.64898/2026.07.27.740477)
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue.svg)](LICENSE)
@@ -89,7 +89,7 @@ scores["scintilla_composite_frag_silhouette"].nsmallest(5)   # the labels to rev
 ```
 
 The result has one row per label. Every score is oriented so that higher means a better label, and
-[the documentation](https://scintilla-py.readthedocs.io/en/latest/label_quality.html) explains what each
+[the documentation](https://scintilla.readthedocs.io/en/latest/label_quality.html) explains what each
 variant measures and how it was validated. The same analysis runs from the command line:
 
 ```bash
@@ -146,16 +146,16 @@ scintilla run-all data/pbmc3k.h5ad --target-col cell_type --fast --output-dir re
 Every analysis function accepts a dense or a sparse matrix. A few steps cannot avoid building a dense
 array (some classifiers, the per-gene tests and hierarchical clustering among them); scINTILLA warns before
 allocating more than `si.settings.dense_warning_gb` (4 GiB by default), and the usual remedy is to work on
-a PCA representation with `use_rep="X_pca"`. The [manual](https://scintilla-py.readthedocs.io/en/latest/manual.html)
+a PCA representation with `use_rep="X_pca"`. The [manual](https://scintilla.readthedocs.io/en/latest/manual.html)
 says which functions are affected.
 
 ## Documentation
 
-* [Tutorials](https://scintilla-py.readthedocs.io/en/latest/notebooks/index.html), executed on a scanpy example dataset: judging label quality, and choosing between clustering methods and classifiers
-* [User guide](https://scintilla-py.readthedocs.io/en/latest/guide.html), a task-by-task walkthrough
-* [Manual](https://scintilla-py.readthedocs.io/en/latest/manual.html), the full reference to each stage, the command-line interface and `AnalysisConfig`
-* [API reference](https://scintilla-py.readthedocs.io/en/latest/api.html)
-* [What each label-quality score means](https://scintilla-py.readthedocs.io/en/latest/label_quality.html)
+* [Tutorials](https://scintilla.readthedocs.io/en/latest/notebooks/index.html), executed on a scanpy example dataset: judging label quality, and choosing between clustering methods and classifiers
+* [User guide](https://scintilla.readthedocs.io/en/latest/guide.html), a task-by-task walkthrough
+* [Manual](https://scintilla.readthedocs.io/en/latest/manual.html), the full reference to each stage, the command-line interface and `AnalysisConfig`
+* [API reference](https://scintilla.readthedocs.io/en/latest/api.html)
+* [What each label-quality score means](https://scintilla.readthedocs.io/en/latest/label_quality.html)
 * [Changelog](CHANGELOG.md) and [contributing guide](CONTRIBUTING.md)
 
 ## Citation
