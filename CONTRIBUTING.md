@@ -48,6 +48,42 @@ note in the changelog.
 
 Docstrings use the numpydoc format.
 
-## Code of conduct
+## Releasing
 
-Participation is governed by the [Code of Conduct](https://github.com/soumickmj/scINTILLA/blob/master/CODE_OF_CONDUCT.md).
+Only maintainers need this section. The PyPI distribution is `scintilla-py`; the import name and the
+command-line tool stay `scintilla`. (The PyPI project called `scintilla` is unrelated, and changing the
+capitalisation does not make that name available.) Releases are published by the `release` GitHub
+workflow using PyPI trusted publishing, so no API token is stored anywhere.
+
+**One-off set-up**
+
+1. On PyPI, open the `scintilla-py` project, then *Publishing*, and add a trusted publisher: owner
+   `soumickmj`, repository `scINTILLA`, workflow `release.yaml`, environment `pypi`.
+2. In the GitHub repository, create an environment called `pypi` (optionally with required reviewers).
+3. Enable Read the Docs for the repository (it reads `.readthedocs.yaml`) and add the repository to
+   Codecov, putting its token in the `CODECOV_TOKEN` secret.
+
+**Making a release**
+
+1. Check that `CHANGELOG.md` has a section for the new version and that CI is green on `master`.
+2. Set the version in `src/scintilla/__init__.py`, the only place it is defined, and run `uv lock`.
+3. Check the artefacts locally:
+
+   ```bash
+   uv build --no-sources
+   uvx twine check --strict dist/*
+   uv run --with dist/*.whl --no-project python -c "import scintilla; print(scintilla.__version__)"
+   ```
+
+4. Tag and publish a GitHub release (for example `v0.2.1`). Publishing it starts the workflow, which
+   builds the sdist and wheel, runs `twine check` and uploads them to PyPI.
+5. Archive the release on Zenodo (enable the GitHub integration once) and add the software DOI to
+   `CITATION.cff`.
+
+A file name published to PyPI can never be reused, so correct a mistake with a new version.
+
+**Dependencies.** `uv.lock` reproduces the repository environment, while the wheel metadata declares the
+ranges that users resolve for themselves; commit the lock file with every dependency change. CI also
+installs the oldest versions that `pyproject.toml` allows
+(`uv pip install --resolution lowest-direct -e ".[test]"`), so a new lower bound must be one you have
+actually tested.

@@ -2,31 +2,32 @@
 
 > **Updated for scintilla-py 0.2.** The examples use the scanpy-style namespaces (`si.pp`, `si.tl`, `si.pl`, `si.stats`, `si.benchmark`): results are written to `adata` under `key_added`, `copy=True` returns a modified copy, and plots are drawn separately from computation. The older flat names (`si.run_pca`, `si.unsupervised_analysis`, ...) remain available. See the [API reference](api.md) and the [changelog](changelog.md) for what changed.
 
-**scINTILLA** - *Single-Cell INTegrated Inference, Labelling, and Landscape Analysis*
+**scINTILLA** (*Single-Cell INTegrated Inference, Labelling, and Landscape Analysis*)
 
-scINTILLA is an end-to-end single-cell RNA-seq analysis pipeline that automates data ingestion, preprocessing, normalisation benchmarking, feature selection, dimensionality reduction, unsupervised clustering, supervised classification, differential expression, cell-type annotation, batch correction, and comprehensive benchmarking - all through a unified Python API and a rich command-line interface (CLI).
+scINTILLA is a single-cell RNA-seq analysis package. It reads data, preprocesses and normalises it, selects features, reduces dimensions, clusters, classifies, tests for differential expression, annotates cell types and corrects batch effects, and it can benchmark the methods at each of those steps. Everything is available from a Python API and from a command-line interface (CLI).
 
 ---
 
-## Table of Contents
+## Table of contents
 
 1. [Installation](#installation)
-2. [Quick Start](#quick-start)
+2. [Quick start](#quick-start)
 3. [Data I/O](#data-io)
-4. [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-eda)
+4. [Exploratory data analysis (EDA)](#exploratory-data-analysis-eda)
 5. [Preprocessing & Normalisation](#preprocessing--normalisation)
-6. [Feature Selection](#feature-selection)
-7. [Dimensionality Reduction](#dimensionality-reduction)
+6. [Feature selection](#feature-selection)
+7. [Dimensionality reduction](#dimensionality-reduction)
 8. [Clustering](#clustering)
 9. [Classification](#classification)
-10. [Differential Expression](#differential-expression)
-11. [Cell-Type Annotation](#cell-type-annotation)
-12. [Batch Correction](#batch-correction)
-13. [Benchmarking Utilities](#benchmarking-utilities)
-14. [Robust Statistics](#robust-statistics)
-15. [CLI Reference](#cli-reference)
-16. [Configuration & AnalysisConfig](#configuration--analysisconfig)
-17. [Full Pipeline Walkthrough](#full-pipeline-walkthrough)
+10. [Differential expression](#differential-expression)
+11. [Cell-type annotation](#cell-type-annotation)
+12. [Batch correction](#batch-correction)
+13. [Benchmarking utilities](#benchmarking-utilities)
+14. [Robust statistics](#robust-statistics)
+15. [Memory and large datasets](#memory-and-large-datasets)
+16. [CLI reference](#cli-reference)
+17. [Configuration & AnalysisConfig](#configuration--analysisconfig)
+18. [Full pipeline walkthrough](#full-pipeline-walkthrough)
 
 ---
 
@@ -100,7 +101,6 @@ For development, use `uv sync --locked --python 3.11` and
 `uv run --locked pytest`. The default `dev` dependency group includes
 pytest, Ruff and Twine; use `--no-dev` for analysis-only installations.
 The `test` and `doc` extras install what the test suite and this documentation need.
-Publishing instructions: [PUBLISHING.md](https://github.com/soumickmj/scINTILLA/blob/master/PUBLISHING.md).
 
 ### Requirements
 
@@ -127,7 +127,7 @@ Publishing instructions: [PUBLISHING.md](https://github.com/soumickmj/scINTILLA/
 
 ---
 
-## Quick Start
+## Quick start
 
 ```python
 import scintilla as si
@@ -243,7 +243,7 @@ save_results_json({"best_model": "RF", "accuracy": 0.95}, "output/summary.json")
 
 ---
 
-## Exploratory Data Analysis (EDA)
+## Exploratory data analysis (EDA)
 
 ### Python API
 
@@ -412,7 +412,7 @@ si.pp.pca(adata, n_comps=30)
 
 ---
 
-## Feature Selection
+## Feature selection
 
 scINTILLA provides six feature-selection strategies plus a benchmarking wrapper that compares them by downstream classification accuracy.
 
@@ -516,7 +516,7 @@ scintilla feature-select data/pbmc3k.h5ad --n-per-pc 9 --output genes.csv
 
 ---
 
-## Dimensionality Reduction
+## Dimensionality reduction
 
 ### Methods
 
@@ -749,7 +749,7 @@ for name, res in result["all_results"].items():
 
 > `XGBoost` and `LightGBM` are offered only when their package is installed.
 > When it is not, the model is absent from `all_results` rather than present
-> with a failure — an uninstalled backend is not a failed method.
+> with a failure, because an uninstalled backend is not a failed method.
 
 > **Performance note:** `GradientBoosting` uses `HistGradientBoostingClassifier` internally which is orders of magnitude faster than the legacy `GradientBoostingClassifier` for large datasets (native support for missing values, multi-core computation).
 
@@ -806,7 +806,7 @@ scintilla classify data/pbmc3k.h5ad \
 
 ### Label-quality variants
 
-Original scoring, fragmentation scoring and all label-quality variants are included in this package on `master`.
+Original scoring, fragmentation scoring and all label-quality variants are included in this package.
 
 ```bash
 scintilla label-quality data/pbmc3k.h5ad \
@@ -814,11 +814,11 @@ scintilla label-quality data/pbmc3k.h5ad \
     --output results/label_quality.csv
 ```
 
-This writes per-label scores and review ranks. See [the label-quality guide](https://github.com/soumickmj/scINTILLA/blob/master/LABEL_QUALITY_VARIANTS.md) for the Python API, score definitions, and rerun options. For the original composite through `compute_label_quality_score`, pass `fragmentation_weight=0.0, force=True`.
+This writes per-label scores and review ranks. See [the label-quality page](label_quality.md) for the Python API, the score definitions and the rerun options. For the original composite through `compute_label_quality_score`, pass `fragmentation_weight=0.0, force=True`.
 
 ---
 
-## Differential Expression
+## Differential expression
 
 scINTILLA supports four DE methods plus rank-genes-groups analysis from scanpy.
 
@@ -909,7 +909,7 @@ scintilla de data/pbmc3k.h5ad \
 
 ---
 
-## Cell-Type Annotation
+## Cell-type annotation
 
 ### Strategies
 
@@ -993,7 +993,7 @@ scintilla annotate data/pbmc3k_clustered.h5ad \
 
 ---
 
-## Batch Correction
+## Batch correction
 
 scINTILLA benchmarks four batch correction strategies and selects the best one by batch-mixing ASW.
 
@@ -1068,7 +1068,7 @@ scintilla batch-correct data/pbmc3k.h5ad \
 
 ---
 
-## Benchmarking Utilities
+## Benchmarking utilities
 
 ### Method profiling
 
@@ -1164,9 +1164,9 @@ scintilla benchmark-all data/pbmc3k.h5ad \
 
 ---
 
-## Robust Statistics
+## Robust statistics
 
-scINTILLA includes a comprehensive suite of robust statistical methods that can be enabled across all benchmarking modules. These are collected in `scintilla.statistical_tests` and surfaced as top-level imports.
+scINTILLA includes a set of robust statistical methods that can be switched on in every benchmarking module. They live in `scintilla.statistical_tests` and are also importable from the top level.
 
 ### Key capabilities
 
@@ -1175,7 +1175,7 @@ scINTILLA includes a comprehensive suite of robust statistical methods that can 
 | **BCa bootstrap CIs** | Non-parametric confidence intervals for any metric (`method="bca"` or `"percentile"` fast-path for large *n*) |
 | **.632+ bootstrap** | Bias-corrected performance estimator with analytical no-information rate (`no_info_method="analytical"`) or averaged permutations |
 | **Rank aggregation** | Borda count for combining multiple metric rankings |
-| **Effect sizes** | Cohen's d, Hedges' g, rank-biserial, Cliff's delta - always included in DE output |
+| **Effect sizes** | Cohen's d, Hedges' g, rank-biserial, Cliff's delta, always included in DE output |
 | **Adaptive PCA** | Gavish-Donoho / Marchenko-Pastur thresholds for data-driven component selection (warns when γ > 0.8) |
 | **Adaptive resolution** | NVI-stability-based Leiden/Louvain resolution selection (normalise by `log(n)` or `max(H(A), H(B))`) |
 | **Auto DBSCAN eps** | Kneedle elbow on k-distance curve |
@@ -1214,11 +1214,48 @@ result = dot632plus_bootstrap(
 )
 ```
 
-See the [User Guide](https://github.com/soumickmj/scINTILLA/blob/master/GUIDE.md#robust-statistics) for detailed API documentation of all statistical functions.
+See the [user guide](guide.md#robust-statistics) for the API of each statistical function.
 
 ---
 
-## CLI Reference
+## Memory and large datasets
+
+Most of scINTILLA works on sparse matrices as they are, and the clustering, embedding and graph
+methods work on a PCA representation (`obsm["X_pca"]`), which is small whatever the number of genes.
+A handful of steps do need a dense array, and for those the cost is memory: a dense matrix takes
+`n_cells x n_genes x 8` bytes, so 500,000 cells and 30,000 genes would need about 120 GB. The results
+are the same as they would be with enough memory; nothing is approximated.
+
+The steps that build a dense array are:
+
+* the supervised pipeline and the classifier benchmark, when they work on `X` rather than on a
+  representation;
+* label transfer, ComBat, feature selection, PCA loadings and the normality checks;
+* the per-gene tests (ANOVA, Kruskal-Wallis, Dunn and Box's M), and differential expression, which
+  densifies only the two groups being compared;
+* DBSCAN, HDBSCAN, hierarchical and consensus clustering, when they are run on `X` and not on a
+  representation. Hierarchical clustering also forms an all-pairs distance matrix however it is fed.
+
+Most of these need the whole matrix for a reason: they scale or compare genes against one another,
+estimate covariance matrices, or hand the data to a library that densifies it. scINTILLA allocates a
+single dense copy, and warns before building one larger than `si.settings.dense_warning_gb`, which is
+4 GiB unless you change it:
+
+```python
+si.settings.dense_warning_gb = 16.0          # raise the threshold on a large machine
+si.settings.dense_warning_gb = float("inf")  # or switch the warning off
+```
+
+For a large dataset, the practical remedies are to pass `use_rep="X_pca"` to the clustering
+functions and to `supervised_analysis`, `supervised_use_rep="X_pca"` to `label_quality` (or
+`--supervised-use-rep X_pca` on the command line), and to benchmark a random subsample
+(`sc.pp.subsample`) when comparing methods. The supervised arm defaults to the full matrix
+so that its scores match the preprint; on a PCA representation it answers a different, reduced
+question, and its numbers will differ.
+
+---
+
+## CLI reference
 
 ### Overview
 
@@ -1285,7 +1322,7 @@ afterwards has no effect on code that already imported it.
 
 Every stochastic public function takes a `random_state` argument, and every
 pipeline entry point forwards its own `random_state` down to the methods it
-calls. This is the supported way to control seeding — it replaces the old
+calls. This is the supported way to control seeding. It replaces the old
 advice to reassign `scintilla.config.RANDOM_SEED`, which never worked for the
 modules that had already imported the constant.
 
@@ -1311,7 +1348,7 @@ aris = [
 
 Precedence is the same everywhere: **an explicit argument wins, then
 `config`, then the historical default**. Passing `random_state=None` is not a
-way to request "unseeded" — it means "not supplied", so the config value or
+way to request "unseeded": it means "not supplied", so the config value or
 the default applies.
 
 Functions exposing `random_state` include `run_pca`, `run_umap`, `run_tsne`,
@@ -1333,7 +1370,7 @@ Functions exposing `random_state` include `run_pca`, `run_umap`, `run_tsne`,
 > internal PCA inside `harmony_correct`/`bbknn_correct`, and the silhouette
 > subsample in `benchmark_transformations` for datasets above 1 000 cells.
 > Clustering, classification, differential expression and feature selection are
-> unaffected — they already used seed 42.
+> unaffected, as they already used seed 42.
 
 ---
 
@@ -1405,11 +1442,11 @@ cls_result = supervised_analysis(adata, target_col="cell_type", config=cfg)
 #### YAML workflow
 
 ```bash
-# Step 1 – generate a fully commented template
+# Step 1: generate a fully commented template
 scintilla generate-config --output my_config.yaml
 
-# Step 2 – edit the file to enable/disable methods
-# Step 3 – run any pipeline using the config
+# Step 2: edit the file to enable or disable methods
+# Step 3: run any pipeline using the config
 scintilla run-all data.h5ad --target-col cell_type --config my_config.yaml --output-dir results/
 ```
 
@@ -1440,9 +1477,9 @@ result = supervised_analysis(adata, target_col="cell_type",
 
 ---
 
-## Full Pipeline Walkthrough
+## Full pipeline walkthrough
 
-This end-to-end example shows a typical scINTILLA workflow starting from a raw count matrix.
+This example follows a typical workflow, starting from a raw count matrix.
 
 ### 1. Load data
 
@@ -1583,6 +1620,6 @@ scintilla run-all data/pbmc3k_raw.h5ad \
 
 ---
 
-## License
+## Licence
 
-See [LICENSE](https://github.com/soumickmj/scINTILLA/blob/master/LICENSE) for details.
+scINTILLA is released under the Apache License 2.0. See [LICENSE](https://github.com/soumickmj/scINTILLA/blob/master/LICENSE).

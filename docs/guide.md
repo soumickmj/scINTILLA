@@ -6,34 +6,34 @@ This guide covers every module in scINTILLA in depth: what it does, when to use 
 
 ---
 
-## Table of Contents
+## Table of contents
 
 1. [Overview](#overview)
 2. [Installation & Environments](#installation--environments)
 3. [Data I/O](#data-io)
-4. [Exploratory Data Analysis (EDA)](#exploratory-data-analysis-eda)
+4. [Exploratory data analysis (EDA)](#exploratory-data-analysis-eda)
 5. [Preprocessing & Normalisation](#preprocessing--normalisation)
-6. [Feature Selection](#feature-selection)
-7. [Dimensionality Reduction](#dimensionality-reduction)
-8. [Unsupervised Clustering](#unsupervised-clustering)
-9. [Supervised Classification](#supervised-classification)
-10. [Differential Expression](#differential-expression)
-11. [Cell-Type Annotation](#cell-type-annotation)
-12. [Batch Correction](#batch-correction)
-13. [Benchmarking Utilities](#benchmarking-utilities)
-14. [AnalysisConfig System](#analysisconfig-system)
-15. [Robust Statistics](#robust-statistics)
-16. [CLI Reference](#cli-reference)
-17. [Performance Tips](#performance-tips)
-18. [Full Worked Example](#full-worked-example)
+6. [Feature selection](#feature-selection)
+7. [Dimensionality reduction](#dimensionality-reduction)
+8. [Unsupervised clustering](#unsupervised-clustering)
+9. [Supervised classification](#supervised-classification)
+10. [Differential expression](#differential-expression)
+11. [Cell-type annotation](#cell-type-annotation)
+12. [Batch correction](#batch-correction)
+13. [Benchmarking utilities](#benchmarking-utilities)
+14. [AnalysisConfig system](#analysisconfig-system)
+15. [Robust statistics](#robust-statistics)
+16. [CLI reference](#cli-reference)
+17. [Performance tips](#performance-tips)
+18. [Full worked example](#full-worked-example)
 
 ---
 
 ## Overview
 
-scINTILLA (*Single-Cell INTegrated Inference, Labelling, and Landscape Analysis*) is an end-to-end Python pipeline for single-cell RNA-seq (scRNA-seq) analysis built on top of AnnData. It wraps the most common analysis steps — normalisation, feature selection, clustering, classification, differential expression, annotation, and batch correction — under a unified API and CLI.
+scINTILLA (*Single-Cell INTegrated Inference, Labelling, and Landscape Analysis*) is a Python package for single-cell RNA-seq (scRNA-seq) analysis, built on AnnData. It covers the usual steps of an analysis (normalisation, feature selection, clustering, classification, differential expression, annotation and batch correction) through one Python API and one command-line interface, and it can benchmark the methods used at each step.
 
-**Key design principles:**
+**Design principles**
 
 - All functions accept and return `AnnData` objects.
 - Every benchmark module returns a leaderboard DataFrame and (where applicable) a best AnnData.
@@ -78,8 +78,7 @@ After the first PyPI release, use `uv add "scintilla-py[full]"` in your own
 uv project, or `uv pip install "scintilla-py[full]"` in a virtual environment.
 The distribution name is `scintilla-py`; Python code still uses
 `import scintilla`. The PyPI package named `scintilla` is unrelated.
-See [installation instructions](index.md#installation) and
-[publishing instructions](https://github.com/soumickmj/scINTILLA/blob/master/PUBLISHING.md).
+See the [installation instructions](index.md#installation).
 
 ---
 
@@ -115,7 +114,7 @@ adata = ensure_anndata(df)
 | `path` | required | Path to file |
 | `index_col` | `0` | Column used as the row index (cell barcodes) |
 | `transpose` | `False` | Transpose so cells are rows |
-| `**kwargs` | — | Forwarded to `pandas.read_csv` |
+| `**kwargs` | none | Forwarded to `pandas.read_csv` |
 
 **`ensure_anndata` parameters**
 
@@ -144,7 +143,7 @@ save_results_json({"best_model": "RF", "accuracy": 0.95}, "output/summary.json")
 
 ---
 
-## Exploratory Data Analysis (EDA)
+## Exploratory data analysis (EDA)
 
 ### Python API
 
@@ -175,16 +174,16 @@ scintilla eda data/pbmc3k.h5ad --group-col cell_type --output results/eda.json
 
 ## Preprocessing & Normalisation
 
-### Available Transforms
+### Available transforms
 
 scINTILLA ships 14 normalisation strategies accessible via `TRANSFORM_REGISTRY`:
 
 | Key | Description |
 |---|---|
-| `log_shift_size_factor` | log(x / size_factor + 1) — standard scRNA-seq |
-| `arcsinh_transform` | arcsinh(α·x), α=0.05 — common for CyTOF / CITE-seq |
+| `log_shift_size_factor` | log(x / size_factor + 1), the standard choice for scRNA-seq |
+| `arcsinh_transform` | arcsinh(α·x) with α=0.05, common for CyTOF and CITE-seq |
 | `log_alpha_transform` | log(α·x + 1), α=0.05 |
-| `log_cpm_transform` | log(CPM + 1) — counts per million |
+| `log_cpm_transform` | log(CPM + 1), counts per million |
 | `log_shift_scale_by_std` | log1p then divide each gene by its standard deviation |
 | `log_shift_size_factor_hvg` | log-shift then top 35% most-variable genes |
 | `log_shift_size_factor_z` | log-shift then z-score per gene |
@@ -233,7 +232,7 @@ print(results_df[["transform", "status", "composite_score"]])
 
 Every transform gets a row. One that raised carries `status="failed"` and a
 `failure_reason` instead of vanishing. When *all* of them fail, `best_name` and
-`best_adata` are `None` and `results_df` still lists each failure — check
+`best_adata` are `None` and `results_df` still lists each failure, so check
 `best_name is not None` before using the returned object.
 
 **`benchmark_transformations` parameters**
@@ -307,7 +306,7 @@ is_normal, report = check_normality(adata, sample_size=500, threshold=0.3)
 si.pp.pca(adata, n_comps=30)
 # Result stored in adata.obsm["X_pca"]
 
-# Adaptive component selection — let the data decide how many components to keep
+# Adaptive component selection: let the data decide how many components to keep
 si.pp.pca(adata, n_comps=50, auto_components="gavish_donoho")
 # Components trimmed to the Gavish-Donoho optimal threshold
 ```
@@ -331,15 +330,15 @@ When `auto_components` is set, PCA is initially computed with `n_comps` componen
 
 ---
 
-## Feature Selection
+## Feature selection
 
 ### Methods
 
 | Method | Short name | Function | Notes |
 |---|---|---|---|
 | PCA loadings | `pca_loadings` | `extract_top_genes_per_pc` | Top genes per principal component |
-| Highly variable genes (Seurat v3) | — | `select_hvg(method="seurat_v3")` | Standard HVG selection |
-| HVG (Pearson residuals) | — | `select_hvg(method="pearson_residuals")` | — |
+| Highly variable genes (Seurat v3) | none | `select_hvg(method="seurat_v3")` | Standard HVG selection |
+| HVG (Pearson residuals) | none | `select_hvg(method="pearson_residuals")` | none |
 | Mutual information | `mutual_information` | `mi_feature_selection` | MI between each gene and labels |
 | Boruta | `boruta` | `boruta_selection` | Shadow-feature RF selection |
 | mRMR | `mrmr` | `mrmr_selection` | Min-Redundancy Max-Relevance |
@@ -429,7 +428,7 @@ Returns `(support_mask, ranking)`.
 | `max_iter` | `20` | Maximum shadow-feature iterations |
 | `random_state` | `42` | Seed for the internal Random Forest |
 
-> Requires `pip install Boruta`. Use with caution on datasets >10 000 cells — the algorithm is O(n_estimators × n_iter).
+> Requires `pip install Boruta`. Use with caution on datasets of more than 10,000 cells, because the algorithm is O(n_estimators × n_iter).
 
 ### mRMR
 
@@ -526,7 +525,7 @@ scintilla feature-select data/pbmc3k.h5ad --n-per-pc 9 --output genes.csv
 
 ---
 
-## Dimensionality Reduction
+## Dimensionality reduction
 
 ### Methods
 
@@ -605,7 +604,7 @@ scintilla reduce data/pbmc3k.h5ad --method diffmap --output embedded_dm.h5ad
 
 ---
 
-## Unsupervised Clustering
+## Unsupervised clustering
 
 ### Algorithms
 
@@ -668,7 +667,7 @@ row, so a dropped method is never merely absent:
 |---|---|
 | `"ok"` | The method ran; metric columns are populated |
 | `"failed"` | The method raised. `failure_reason` holds the message, metrics are `NaN`, and one warning was emitted |
-| `"skipped"` | The combination was never attempted — an invalid parameter pair such as `ward` linkage with a non-Euclidean metric, or an optional backend that is not installed. No warning is emitted, because this is not an error |
+| `"skipped"` | The combination was never attempted, either because the parameter pair is invalid, such as `ward` linkage with a non-Euclidean metric, or because an optional backend is not installed. No warning is emitted, since this is not an error |
 
 Rows without a valid `ari` are excluded from the best-method choice and from
 the figure, but remain in `results_df`.
@@ -709,7 +708,7 @@ Sweeps a grid and returns `(results_df, best_labels)`.
 | `metric` | `"euclidean"` | Distance metric |
 
 `results_df` carries one row per grid point with `status` and, when a grid
-point raised, a `failure_reason` plus `NaN` cluster counts — a failed fit is
+point raised, a `failure_reason` plus `NaN` cluster counts. A failed fit is
 never reported as an all-noise result.
 
 ### Consensus clustering
@@ -738,7 +737,7 @@ co_matrix, labels, stability = consensus_clustering(
 |---|---|---|
 | `consensus_matrix` | `np.ndarray` | `(n_cells, n_cells)` co-clustering frequency in `[0, 1]` |
 | `consensus_labels` | `np.ndarray` | Labels from the hierarchical cut of the consensus matrix |
-| `stability_scores` | `dict` | One `{method: float}` entry per requested method — the mean pairwise ARI between that method's runs, or `nan` when fewer than two runs succeeded |
+| `stability_scores` | `dict` | One `{method: float}` entry per requested method: the mean pairwise ARI between that method's runs, or `nan` when fewer than two runs succeeded |
 
 When any run fails, `stability_scores` gains the reserved key `"failures"`
 mapping `{method: first_error_message}`; it is absent when everything
@@ -831,21 +830,21 @@ scintilla cluster data/pbmc3k.h5ad --cell-type-col cell_type --fast
 
 ---
 
-## Supervised Classification
+## Supervised classification
 
 ### Classifiers
 
 | Short name | Model | Notes |
 |---|---|---|
-| `LogReg` | Logistic Regression | — |
+| `LogReg` | Logistic Regression | none |
 | `RF` | Random Forest | 100 estimators (sklearn default) |
-| `SVM` | SVM (RBF kernel) | — |
-| `MLP` | Multi-layer Perceptron | — |
-| `LDA` | Linear Discriminant Analysis | — |
-| `QDA` | Quadratic Discriminant Analysis | — |
-| `kNN` | k-Nearest Neighbours | — |
+| `SVM` | SVM (RBF kernel) | none |
+| `MLP` | Multi-layer Perceptron | none |
+| `LDA` | Linear Discriminant Analysis | none |
+| `QDA` | Quadratic Discriminant Analysis | none |
+| `kNN` | k-Nearest Neighbours | none |
 | `GradientBoosting` | Histogram Gradient Boosting | Multi-core, handles missing values |
-| `NaiveBayes` | Gaussian Naive Bayes | — |
+| `NaiveBayes` | Gaussian Naive Bayes | none |
 | `StackingEnsemble` | Stacking Ensemble | RF + LogReg; 2-fold CV |
 | `XGBoost` | XGBoost | Requires `xgboost` |
 | `LightGBM` | LightGBM | Requires `lightgbm` |
@@ -1024,7 +1023,7 @@ scintilla classify data/pbmc3k.h5ad --target-col cell_type --config my_config.ya
 
 ---
 
-## Differential Expression
+## Differential expression
 
 ### Methods
 
@@ -1143,7 +1142,7 @@ scintilla de data/pbmc3k.h5ad \
 
 ---
 
-## Cell-Type Annotation
+## Cell-type annotation
 
 ### Strategies
 
@@ -1219,7 +1218,7 @@ scintilla annotate data/pbmc3k_clustered.h5ad \
 
 ---
 
-## Batch Correction
+## Batch correction
 
 ### Methods
 
@@ -1308,7 +1307,7 @@ scintilla batch-correct data/pbmc3k.h5ad --batch-key batch --methods combat harm
 
 ---
 
-## Benchmarking Utilities
+## Benchmarking utilities
 
 ### Profiling a single function
 
@@ -1426,7 +1425,7 @@ report.export("results/benchmark_report/")
 
 ---
 
-## AnalysisConfig System
+## AnalysisConfig system
 
 `AnalysisConfig` is the central configuration object for scINTILLA. It controls which methods are included in each pipeline step and what hyperparameter grids are used, without requiring you to pass many individual parameters.
 
@@ -1506,7 +1505,7 @@ which in turn override the historical per-function default.
 
 Most such arguments default to `None`, which means "not supplied" rather than a
 literal `None`: passing `verbose=None` defers to `config.verbose`. Two arguments
-of `unsupervised_analysis` — `auto_pca_components` and `mp_sigma_method` — need
+of `unsupervised_analysis` (`auto_pca_components` and `mp_sigma_method`) need
 `None` itself to stay meaningful (it disables adaptive PCA), so they use a
 private omission sentinel instead. Omit them to defer to the config; pass
 `auto_pca_components=None` to force adaptive selection off even when the config
@@ -1516,7 +1515,7 @@ enables it.
 
 Set the seed through `random_state` on any single call, or through
 `AnalysisConfig(random_seed=...)` for a whole analysis. Reassigning
-`scintilla.config.RANDOM_SEED` after import does **not** work — the constant is
+`scintilla.config.RANDOM_SEED` after import does not work, because the constant is
 read once at import time by each module that uses it.
 
 ```python
@@ -1554,7 +1553,7 @@ stability = seed_stability_test(
 > `hvg_sensitivity_analysis`, `graph_connectivity`, the internal PCA inside
 > `harmony_correct`/`bbknn_correct`, and the silhouette subsample in
 > `benchmark_transformations` above 1 000 cells. Clustering, classification,
-> differential expression and feature selection are unaffected — they already
+> differential expression and feature selection are unaffected, as they already
 > used seed 42.
 
 ```python
@@ -1600,7 +1599,7 @@ cfg_fast_cluster = cfg.copy(leiden_resolutions=[0.5, 1.0], clustering_methods=["
 
 ---
 
-## Robust Statistics
+## Robust statistics
 
 scINTILLA includes a suite of robust statistical utilities that can be enabled across all benchmark modules. These are collected in the `scintilla.statistical_tests` package.
 
@@ -1616,7 +1615,7 @@ from scintilla import bca_bootstrap_ci, bootstrap_metric_ci
 ci = bca_bootstrap_ci(data, stat_fn=np.mean, B=2000, alpha=0.05)
 ci_lower, ci_upper = ci["ci_low"], ci["ci_high"]
 
-# Percentile bootstrap — faster for large n (> 5 000), skips the O(n) jackknife
+# Percentile bootstrap: faster for large n (> 5,000), skips the O(n) jackknife
 ci = bca_bootstrap_ci(
     data, stat_fn=np.mean, B=2000, method="percentile",
 )
@@ -1667,7 +1666,7 @@ estimate = dot632plus_bootstrap(
 | `metric_fn` | required | `metric_fn(y_true, y_pred) → float` (higher is better) |
 | `B` | `200` | Bootstrap iterations |
 | `seed` | `42` | Random seed |
-| `no_info_method` | `"analytical"` | `"analytical"` (sum of squared class proportions — exact for accuracy) or `"permutation"` (average over *n_permutations* random permutations — correct for any metric) |
+| `no_info_method` | `"analytical"` | `"analytical"` (sum of squared class proportions, which is exact for accuracy) or `"permutation"` (average over *n_permutations* random permutations, which is correct for any metric) |
 | `n_permutations` | `50` | Number of permutations when `no_info_method="permutation"` |
 
 > **Note:** The analytical no-information rate `sum(p_k²)` is the exact no-information accuracy but is only an approximation for other metrics (e.g. macro-F1).  On imbalanced datasets with non-accuracy metrics, prefer `no_info_method="permutation"` for an unbiased estimate.  A `UserWarning` is emitted when using `"analytical"` with a non-accuracy metric.
@@ -1723,7 +1722,7 @@ from scintilla import gavish_donoho_threshold, marchenko_pastur_cutoff
 k = gavish_donoho_threshold(singular_values, n_samples, n_features)
 
 # Marchenko-Pastur: noise eigenvalue upper edge
-# ⚠️ emits a warning when p/n > 0.8 — consider Gavish-Donoho in that regime
+# emits a warning when p/n > 0.8; consider Gavish-Donoho in that regime
 k = marchenko_pastur_cutoff(eigenvalues, n_samples, n_features)
 
 # Use trimmed-mean sigma² estimation for better accuracy:
@@ -1762,10 +1761,10 @@ best_resolution = search["best_resolution"]
 ```python
 from scintilla.statistical_tests.adaptive import nvi_stability
 
-# Default: normalise by log(n) — comparable across dataset sizes
+# Default: normalise by log(n), comparable across dataset sizes
 result = nvi_stability(labels_at_resolutions, normalise="log_n")
 
-# Max-entropy: normalise by max(H(A), H(B)) — comparable across cluster counts
+# Max-entropy: normalise by max(H(A), H(B)), comparable across cluster counts
 result = nvi_stability(labels_at_resolutions, normalise="max_entropy")
 ```
 
@@ -1808,7 +1807,7 @@ result = si.tl.unsupervised_analysis(adata, cell_type_col="cell_type", config=cf
 
 ---
 
-## CLI Reference
+## CLI reference
 
 ### Quick reference
 
@@ -1868,11 +1867,11 @@ scintilla generate-config --output custom_analysis.yaml
 
 ---
 
-## Performance Tips
+## Performance tips
 
-1. **Use `AnalysisConfig.fast()`** for exploratory runs. The fast preset runs only `kmeans` + `leiden` for clustering and `LogReg`, `RF`, `kNN` for classification — reducing runtime by 5–10×.
+1. **Use `AnalysisConfig.fast()`** for exploratory runs. The fast preset runs only `kmeans` + `leiden` for clustering and `LogReg`, `RF`, `kNN` for classification, which cuts the runtime by a factor of five to ten.
 
-2. **Skip SHAP for large datasets** — SHAP computation scales poorly: `include_shap=False` or `--no-shap`.
+2. **Skip SHAP for large datasets.** SHAP computation scales poorly; use `include_shap=False` or `--no-shap`.
 
 3. **Limit classifiers** via `models=["LogReg", "RF"]` or the config. `StackingEnsemble` and `SVM` are particularly slow at >50 000 cells.
 
@@ -1884,7 +1883,7 @@ scintilla generate-config --output custom_analysis.yaml
 
 7. **Normality testing subsamples per gene** to 500 cells by default. If you observe unexpected normality calls, adjust via `check_normality(adata, sample_size=200, threshold=0.2)`.
 
-8. **PCA once** — set `run_pca_first=False` in `unsupervised_analysis` if you already ran `run_pca` upstream.
+8. **Run PCA once.** Set `run_pca_first=False` in `unsupervised_analysis` if you already ran `run_pca` upstream.
 
 9. **Bootstrap CIs are resampling-intensive.** The default `n_bootstrap=2000` is a good balance of accuracy and speed. Reduce to 500 for quick exploratory runs; increase to 10 000+ for publication-quality intervals.
 
@@ -1892,7 +1891,7 @@ scintilla generate-config --output custom_analysis.yaml
 
 ---
 
-## Full Worked Example
+## Full worked example
 
 ```python
 import scintilla as si
@@ -1985,10 +1984,10 @@ save_results_json(
 ### Equivalent CLI pipeline
 
 ```bash
-# Step 1 – generate a config template and edit it
+# Step 1: generate a config template and edit it
 scintilla generate-config --output analysis.yaml
 
-# Step 2 – run everything
+# Step 2: run everything
 scintilla run-all data/pbmc3k_raw.h5ad \
     --target-col cell_type \
     --config analysis.yaml \

@@ -1,18 +1,15 @@
-# scINTILLA label-quality variants: how to run them and how to read the scores
+# Label-quality variants: how to run them and read the scores
 
-scINTILLA gives every cell-type label in a dataset a **quality score**. A low score means "this label may be wrong: have a look". The benchmark tested several versions (variants) of this score. This page explains what each variant is, how to compute all of them with one command, and how to read the output.
-
-Original scoring, fragmentation scoring and all label-quality variants are available together on `master`. The development branches remain in Git history.
+scINTILLA gives every cell-type label in a dataset a quality score. A low score means that the label may be wrong and is worth a look. The benchmark compared several versions (variants) of this score, and all of them are computed together. This page explains what each variant is, how to compute them with one command, and how to read the output.
 
 ---
 
 ## 1. The short version
 
 ```bash
-git checkout master
-uv sync --locked --python 3.11 --extra full --no-dev
+pip install "scintilla-py[full]"
 
-uv run --locked --extra full --no-dev scintilla label-quality my_data.h5ad \
+scintilla label-quality my_data.h5ad \
     --cell-type-col cell_type \
     --use-rep X_pca \
     --output my_scores.csv
@@ -25,12 +22,9 @@ You get two files:
 | `my_scores.csv` | One row per label, one column per variant. **Higher = better label.** |
 | `my_scores_ranks.csv` | The same table as ranks. **1 = lowest score = review this label first.** |
 
-The example runs from a Git checkout. After the first PyPI release, users
-can install `scintilla-py[full]` with `uv add` in their own analysis project
-and launch the same command with `uv run scintilla label-quality ...`.
-See [installation instructions](index.md#installation).
+In a uv project, `uv add "scintilla-py[full]"` followed by `uv run scintilla label-quality ...` does the same. See the [installation instructions](index.md#installation).
 
-If you only look at one column, use **`scintilla_composite_frag_silhouette`**. It did best overall in the benchmark (section 4).
+If you only look at one column, use `scintilla_composite_frag_silhouette`. It did best overall in the benchmark (section 4).
 
 ---
 
@@ -43,7 +37,7 @@ All of them come out of the same run. You do not need to run anything twice.
 | Column | Plain-language description |
 | --- | --- |
 | `scintilla_composite` | **Original scINTILLA**, the published score. It combines two things: whether a label's cells mix with other labels in the clusterings ("confusion"), and whether classifiers agree, are confident and have low entropy on that label ("supervised consistency"). |
-| `scintilla_composite_frag` | **scINTILLA + fragmentation.** The original score plus a third ingredient, *fragmentation*: whether one label is spread over several clusters. This catches merged or contaminated labels, which the original score mostly misses. Confusion, supervised consistency and fragmentation each carry about one third of the weight. |
+| `scintilla_composite_frag` | **scINTILLA + fragmentation.** The original score plus a third ingredient, *fragmentation*: whether one label is spread over several clusters. This catches merged or contaminated labels, which the original score largely misses. Confusion, supervised consistency and fragmentation each carry about one third of the weight. |
 | `scintilla_composite_frag_silhouette` | **scINTILLA + fragmentation, combined with Silhouette.** Within the dataset, each label gets a percentile rank for the fragmentation score and another for Silhouette, and the two are averaged. Best overall in the benchmark. |
 | `scintilla_composite_silhouette` | The same rank average, using the original score in place of the fragmentation score. |
 | `fusion_add` | **Learned fusion** of the original scINTILLA rank and the Silhouette rank. It is a logistic regression fitted once on the development perturbations and then frozen; it is never refitted on your data. |
@@ -95,7 +89,7 @@ The benchmark report also lists `scintilla_composite_old`. That was a check run 
 
 ## 4. How well each variant did (V4 benchmark)
 
-These are the benchmark results from `results_v4/SCINTILLA_FINAL_DETAILED_REPORT.md`. The setup was five atlases with 150 synthetic perturbations (merge / noise / split, 10 replicates each). AUROC measures how well the score ranks damaged labels below intact ones (0.5 = chance, 1 = perfect). "Balanced" gives merge, noise and split equal weight. Recall@3 is the share of damaged labels found if you review the 3 lowest-scoring labels.
+These are the results of the benchmark described in the preprint. The setup was five atlases with 150 synthetic perturbations (merge / noise / split, 10 replicates each). AUROC measures how well the score ranks damaged labels below intact ones (0.5 = chance, 1 = perfect). "Balanced" gives merge, noise and split equal weight. Recall@3 is the share of damaged labels found if you review the 3 lowest-scoring labels.
 
 | Variant | Balanced AUROC | Merge | Noise | Split | AP | Recall@3 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -120,7 +114,7 @@ What this means in practice:
 
 - **Original scINTILLA is excellent at over-split labels (split 0.97) and close to blind to merged labels (merge 0.42, below chance).**
 - **Fragmentation fixes most of that** (merge 0.42 → 0.64, balanced 0.71 → 0.82).
-- **Combined with Silhouette it is the best overall (0.874),** but its edge over Silhouette alone is small and not statistically reliable: +0.017, 95% interval −0.006 to +0.043. The honest summary is "complementary to Silhouette", not "better than Silhouette".
+- **Combined with Silhouette it is the best overall (0.874),** but its edge over Silhouette alone is small and not statistically reliable: +0.017, 95% interval −0.006 to +0.043. It is fair to call it complementary to Silhouette, but not better than it.
 - **Fragmentation alone cannot see over-splitting** (split 0.50, chance level). Do not use it on its own.
 
 ---
@@ -185,30 +179,20 @@ Use `--rerun` after changing labels, representations, or analysis settings. A re
 
 ---
 
-## 6. Ready-made scores for the five benchmark atlases
+## 6. Settings used for the benchmark
 
-The command above was run on the original (unperturbed) labels of the five benchmark atlases. It used the same cells, embedding, preset and seed as the benchmark:
-
-```
-/ssu/gassu/shared/soumick/sina/results_label_quality_variants/
-    <atlas>_label_quality_variants.csv        # scores, higher = better
-    <atlas>_label_quality_variants_ranks.csv  # 1 = review first
-    run_base_atlases.sh                       # exact SLURM job that produced them
-    logs/                                     # job logs and the git commit used
-```
-
-The atlases are `brain`, `eye`, `heoca`, `hnoca` and `lung`. Section 7 describes the check against the benchmark's own saved scores.
+The scores in the preprint came from the command above, run on the original (unperturbed) labels of the five benchmark atlases (`brain`, `eye`, `heoca`, `hnoca` and `lung`) with the default preset, seed 0, a shared 30-component embedding, and the classifiers trained on highly variable genes. Section 5.1 shows the command line that reproduces those settings.
 
 ---
 
-## 7. Check that the code reproduces the benchmark
+## 7. How closely the code reproduces the benchmark
 
-- **Unit tests** (`tests/test_label_quality_variants.py`) check that the composites equal `compute_label_quality_score` with the right weights. They also check that the rank fusions and learned fusions follow the V4 formulas exactly, and that rank 1 is the lowest score.
-- **Real data:** on the five base atlases, the original composite, its ablations, the components and Silhouette were compared with the benchmark's saved per-label scores (`results/base_scores_<atlas>.csv`). Full table: `results_label_quality_variants/VERIFICATION.md`.
-  - Silhouette, top-1 confusion and the whole `eye` atlas reproduce exactly.
-  - In the other four atlases the composite drifts by up to about 0.1 between reruns, because scINTILLA's clustering and classifier training are not fully deterministic. The same thing happens when rerunning the benchmark's own code.
-  - The ordering barely changes: Spearman ≥ 0.99 for the composite. At the review budget (bottom max(3, 10%) of labels), the composite and supervised-only flags match everywhere except one swapped label in lung (composite) and one in hnoca (supervised-only).
-  - **Practical consequence:** do not over-interpret small score differences between neighbouring labels. Ranks are stable; exact values move a little from run to run.
-- The frozen learned-fusion coefficients are copied verbatim from the benchmark's `frozen_fusion.json` (SHA-256 `e781a9f9…`).
+* **Unit tests** (`tests/test_label_quality_variants.py`) check that the composites equal `compute_label_quality_score` with the right weights, that the rank fusions and learned fusions follow the published formulas exactly, and that rank 1 is the lowest score. A second test, `tests/test_label_quality_baseline.py`, pins the per-label scores of a fixed synthetic dataset to the values produced by version 0.1.0.
+* **Real data.** On the five base atlases, the original composite, its ablations, the components and Silhouette were compared with the per-label scores saved by the benchmark.
+  * Silhouette, top-1 confusion and the whole `eye` atlas reproduce exactly.
+  * In the other four atlases the composite drifts by up to about 0.1 between reruns, because scINTILLA's clustering and classifier training are not fully deterministic. Rerunning the benchmark's own code does the same.
+  * The ordering hardly changes: Spearman correlation is at least 0.99 for the composite. At the review budget (the bottom max(3, 10%) of labels), the composite and supervised-only flags agree everywhere except one swapped label in lung (composite) and one in hnoca (supervised-only).
+  * **In practice**, do not read much into small differences between neighbouring labels. Ranks are stable; exact values move a little from run to run.
+* The frozen learned-fusion coefficients are copied verbatim from the benchmark's saved model file (SHA-256 `e781a9f9…`).
 
-The benchmark *evaluation* (AUROC, AP, Recall@k across the perturbations) is not part of this package. It lives in the separate benchmarking scripts (`Baselines/analyse_v4.py`, run through `launch_v4.sh`).
+The benchmark's own evaluation (AUROC, average precision and Recall@k across the perturbations) is not part of this package.

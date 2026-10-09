@@ -51,6 +51,26 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   nor the new address served an `objects.inv`, which failed the strict docs build. `MuData` now renders as plain text.
 - `scverse_plan.md`, the working document for this listing, was removed from the repository, together
   with its entry in `.gitignore`.
+- **Documentation.**
+  - The README now covers installation (pip and uv, with the optional methods listed), a quick start for
+    the label-quality score and for the step-by-step analysis, the presets, the namespaces and the
+    command line, so that it can be read on its own. The long-form reference stays in the documentation.
+  - The tutorial *Choosing methods* gained the explanation of the clustering and classifier benchmarks
+    that previously lived only in the 0.1 demonstration notebook, together with a classifier benchmark
+    run on the example dataset. The manual gained a section on memory and large datasets.
+  - The label-quality page no longer refers to a Git checkout of `master`, to the first PyPI release, or to
+    paths on the authors' computing cluster.
+  - Headings are in sentence case, dashes in running text were replaced by ordinary punctuation, and two
+    links that pointed at files on `master` now point at the matching documentation pages.
+
+### Removed
+
+- `CODE_OF_CONDUCT.md`. The scverse listing asks the author to agree to scverse's own code of conduct,
+  which is a tick-box in the registry pull request and not a file in the repository, and GitHub's
+  community checklist treats a project-level file as optional. It can be added back at any time.
+- `PUBLISHING.md`. The release steps now form the "Releasing" section of `CONTRIBUTING.md`, which is also
+  part of the documentation, and the note about a `setuptools<82` pin that it still carried was dropped.
+  Both files remain in the Git history.
 
 ### Fixed
 
@@ -89,7 +109,7 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   internally anyway (pairwise distances for linkage and DBSCAN are n x n regardless of input format).
   Graph-based clustering, embeddings and label quality from a representation already work from
   `obsm["X_pca"]` and stay small. For large data pass `use_rep="X_pca"` to clustering and
-  `supervised_use_rep="X_pca"` to the supervised arm; the latter is not the default because it changes the
+  `supervised_use_rep="X_pca"` to `label_quality` (or `use_rep` to `supervised_analysis`); the latter is not the default because it changes the
   scores relative to the preprint (they then describe a PCA-reduced problem). 0.2.1 adds the warning and
   the single-copy allocation. Making individual tests sparse-native (the per-gene tests are the obvious
   candidates) is possible but needs separate numerical validation and is left for a later release.
