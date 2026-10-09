@@ -82,6 +82,26 @@ workflow using PyPI trusted publishing, so no API token is stored anywhere.
 
 A file name published to PyPI can never be reused, so correct a mistake with a new version.
 
+The PyPI project page shows the README that was included in the uploaded release, so edits to the
+README on GitHub appear on PyPI only with the next release.
+
+**Publishing by hand.** The release workflow is the normal route. If you need to upload from your own
+machine, check the artefacts as above, then use an API token scoped to the existing `scintilla-py`
+project and enter it privately rather than writing it into a file:
+
+```bash
+read -rsp "PyPI API token: " UV_PUBLISH_TOKEN
+export UV_PUBLISH_TOKEN
+uv publish --trusted-publishing never dist/*
+unset UV_PUBLISH_TOKEN
+```
+
+To rehearse on TestPyPI first, use a TestPyPI token and its upload endpoint:
+
+```bash
+uv publish --trusted-publishing never --publish-url https://test.pypi.org/legacy/ dist/*
+```
+
 **Dependencies.** `uv.lock` reproduces the repository environment, while the wheel metadata declares the
 ranges that users resolve for themselves; commit the lock file with every dependency change. CI also
 installs the oldest versions that `pyproject.toml` allows

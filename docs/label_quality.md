@@ -22,7 +22,7 @@ You get two files:
 | `my_scores.csv` | One row per label, one column per variant. **Higher = better label.** |
 | `my_scores_ranks.csv` | The same table as ranks. **1 = lowest score = review this label first.** |
 
-In a uv project, `uv add "scintilla-py[full]"` followed by `uv run scintilla label-quality ...` does the same. See the [installation instructions](index.md#installation).
+In a uv project, `uv add "scintilla-py[full]"` (the [PyPI package](https://pypi.org/project/scintilla-py/)) followed by `uv run scintilla label-quality ...` does the same. See the [installation instructions](index.md#installation).
 
 If you only look at one column, use `scintilla_composite_frag_silhouette`. It did best overall in the benchmark (section 4).
 

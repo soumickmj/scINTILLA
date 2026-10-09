@@ -74,8 +74,9 @@ uv run --locked pytest
 
 ### PyPI installation
 
-After the first PyPI release, use `uv add "scintilla-py[full]"` in your own
-uv project, or `uv pip install "scintilla-py[full]"` in a virtual environment.
+scINTILLA is available on [PyPI](https://pypi.org/project/scintilla-py/).
+Use `uv add "scintilla-py[full]"` in your own uv project, or
+`uv pip install "scintilla-py[full]"` in a virtual environment.
 The distribution name is `scintilla-py`; Python code still uses
 `import scintilla`. The PyPI package named `scintilla` is unrelated.
 See the [installation instructions](index.md#installation).
