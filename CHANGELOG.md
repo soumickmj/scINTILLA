@@ -47,7 +47,8 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   still sparse and allocates one dense copy instead of two.
 - Test dependencies have lower bounds (`pytest-cov>=4`, `jsonschema>=4.18`); without them the
   `lowest-direct` CI job resolved `jsonschema` to version 0.2, which is Python 2 era code and cannot be built.
-- The documentation cross-links `mudata` through its new address, `mudata.scverse.org`.
+- The documentation no longer cross-links `mudata` through intersphinx: its inventory moved and neither the old
+  nor the new address served an `objects.inv`, which failed the strict docs build. `MuData` now renders as plain text.
 - `scverse_plan.md`, the working document for this listing, was removed from the repository, together
   with its entry in `.gitignore`.
 
@@ -69,8 +70,7 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   embeds the stored representation again and agrees with 0.1.0 exactly; `tests/test_contract_embeddings_clustering.py`
   has a regression test.
 - Import ordering in one test module that the current Ruff release rejects (CI lint job).
-- The documentation build failed in CI because the `mudata` inventory moved (HTTP 404 on the old
-  address); see *Changed*.
+- The documentation build failed in CI because the `mudata` intersphinx inventory returned HTTP 404; see *Changed*.
 
 ### Known limitations
 
