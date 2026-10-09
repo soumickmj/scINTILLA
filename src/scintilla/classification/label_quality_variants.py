@@ -48,8 +48,8 @@ FROZEN_FUSION: Dict[str, dict] = {
 VARIANTS: Dict[str, str] = {
     "scintilla_composite": "original composite (confusion x1 each, supervised x2 each)",
     "scintilla_composite_frag": "original composite + fragmentation columns (x1 each)",
-    "scintilla_composite__silhouette": "mean percentile rank of original composite and Silhouette",
-    "scintilla_composite_frag__silhouette": "mean percentile rank of fragmentation composite and Silhouette",
+    "scintilla_composite_silhouette": "mean percentile rank of original composite and Silhouette",
+    "scintilla_composite_frag_silhouette": "mean percentile rank of fragmentation composite and Silhouette",
     "fusion_add": "frozen logistic fusion of original composite and Silhouette ranks",
     "fusion_log": "frozen logistic fusion with rank interaction term",
     "scintilla_unsup_only": "ablation: confusion arm only",
@@ -180,7 +180,7 @@ def compute_label_quality_variants(
 
     r_g = quality_rank(out["silhouette"])
     for scorer in ["scintilla_composite", "scintilla_composite_frag"]:
-        out[f"{scorer}__silhouette"] = ((quality_rank(out[scorer]) + r_g) / 2).round(12)
+        out[f"{scorer}_silhouette"] = ((quality_rank(out[scorer]) + r_g) / 2).round(12)
     r_s = quality_rank(out["scintilla_composite"])
     features = {"r_s": r_s, "r_g": r_g, "r_sg": r_s * r_g}
     for name, model in (fusion_models or FROZEN_FUSION).items():

@@ -13,19 +13,19 @@ abstract: >-
   methods across the analysis workflow.
 authors:
   - family-names: Kanannejad
-    given-names: "S."
+    given-names: Sina
   - family-names: Bongiorni
-    given-names: "N."
+    given-names: Noemi
   - family-names: Nordera
-    given-names: "E."
+    given-names: Elisa
   - family-names: Redaelli
-    given-names: "S."
+    given-names: Sara
   - family-names: Rusconi
-    given-names: "I."
+    given-names: Irene
   - family-names: Zanin
-    given-names: "R."
+    given-names: Rachele
   - family-names: Giustacchini
-    given-names: "A."
+    given-names: Alice
   - family-names: Chatterjee
     given-names: Soumick
     affiliation: Human Technopole
@@ -40,21 +40,21 @@ preferred-citation:
   title: "scINTILLA: Single-Cell Integrated Inference, Labelling, and Landscape Analysis for Cell-Type Annotation Quality Assessment"
   authors:
     - family-names: Kanannejad
-      given-names: "S."
+      given-names: Sina
     - family-names: Bongiorni
-      given-names: "N."
+      given-names: Noemi
     - family-names: Nordera
-      given-names: "E."
+      given-names: Elisa
     - family-names: Redaelli
-      given-names: "S."
+      given-names: Sara
     - family-names: Rusconi
-      given-names: "I."
+      given-names: Irene
     - family-names: Zanin
-      given-names: "R."
+      given-names: Rachele
     - family-names: Giustacchini
-      given-names: "A."
+      given-names: Alice
     - family-names: Chatterjee
-      given-names: "S."
+      given-names: Soumick
   journal: bioRxiv
   year: 2026
   doi: "10.64898/2026.07.27.740477"

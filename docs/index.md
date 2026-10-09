@@ -11,7 +11,7 @@ RNA-seq dataset is, and benchmarks the methods used to get there. It works on
 import scintilla as si
 
 scores = si.tl.label_quality(adata, cell_type_col="cell_type")   # one row per label, higher = better
-scores["scintilla_composite_frag__silhouette"].nsmallest(5)      # the five labels to review first
+scores["scintilla_composite_frag_silhouette"].nsmallest(5)      # the five labels to review first
 ```
 
 The method is described in {cite:t}`Kanannejad2026`.

@@ -30,7 +30,7 @@ can install `scintilla-py[full]` with `uv add` in their own analysis project
 and launch the same command with `uv run scintilla label-quality ...`.
 See [installation instructions](index.md#installation).
 
-If you only look at one column, use **`scintilla_composite_frag__silhouette`**. It did best overall in the benchmark (section 4).
+If you only look at one column, use **`scintilla_composite_frag_silhouette`**. It did best overall in the benchmark (section 4).
 
 ---
 
@@ -44,8 +44,8 @@ All of them come out of the same run. You do not need to run anything twice.
 | --- | --- |
 | `scintilla_composite` | **Original scINTILLA**, the published score. It combines two things: whether a label's cells mix with other labels in the clusterings ("confusion"), and whether classifiers agree, are confident and have low entropy on that label ("supervised consistency"). |
 | `scintilla_composite_frag` | **scINTILLA + fragmentation.** The original score plus a third ingredient, *fragmentation*: whether one label is spread over several clusters. This catches merged or contaminated labels, which the original score mostly misses. Confusion, supervised consistency and fragmentation each carry about one third of the weight. |
-| `scintilla_composite_frag__silhouette` | **scINTILLA + fragmentation, combined with Silhouette.** Within the dataset, each label gets a percentile rank for the fragmentation score and another for Silhouette, and the two are averaged. Best overall in the benchmark. |
-| `scintilla_composite__silhouette` | The same rank average, using the original score in place of the fragmentation score. |
+| `scintilla_composite_frag_silhouette` | **scINTILLA + fragmentation, combined with Silhouette.** Within the dataset, each label gets a percentile rank for the fragmentation score and another for Silhouette, and the two are averaged. Best overall in the benchmark. |
+| `scintilla_composite_silhouette` | The same rank average, using the original score in place of the fragmentation score. |
 | `fusion_add` | **Learned fusion** of the original scINTILLA rank and the Silhouette rank. It is a logistic regression fitted once on the development perturbations and then frozen; it is never refitted on your data. |
 | `fusion_log` | Same as `fusion_add`, plus an interaction term between the two ranks. |
 
@@ -77,7 +77,7 @@ The benchmark report also lists `scintilla_composite_old`. That was a check run 
 3. **Use the ranks to decide what to review.** In `*_ranks.csv`, rank 1 is the most suspicious label. In practice, review the bottom 3 labels, or the bottom 10%.
 4. **What the range of each column means:**
    - `scintilla_composite`, `scintilla_composite_frag` and the `*_only` ablations: between 0 and 1.
-   - `*__silhouette`: between 0 and 1. It is an average of two percentile ranks, so 0.5 is typical, and close to 0 means both methods put the label at the bottom.
+   - `*_silhouette`: between 0 and 1. It is an average of two percentile ranks, so 0.5 is typical, and close to 0 means both methods put the label at the bottom.
    - `fusion_add` and `fusion_log`: unbounded numbers. They are the negative of the model's "this label is damaged" log-odds, so negative values point to damage. The models were trained with balanced classes, so **do not** read them as calibrated probabilities. Use them for ranking.
    - Raw components (`scintilla_confusion_*`, `scintilla_fragmentation_mean`, `scintilla_pred_*`): kept in their natural units. Fragmentation of −0.5 means the label is split roughly evenly across two clusters.
 5. **Low scores tell you what kind of problem a label might have.** Compare the component columns of a flagged label:
@@ -99,10 +99,10 @@ These are the benchmark results from `results_v4/SCINTILLA_FINAL_DETAILED_REPORT
 
 | Variant | Balanced AUROC | Merge | Noise | Split | AP | Recall@3 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `scintilla_composite_frag__silhouette` | **0.874** | 0.779 | 0.925 | 0.917 | 0.564 | 0.389 |
+| `scintilla_composite_frag_silhouette` | **0.874** | 0.779 | 0.925 | 0.917 | 0.564 | 0.389 |
 | `fusion_add` | 0.871 | 0.782 | 0.930 | 0.901 | 0.566 | 0.400 |
 | `fusion_log` | 0.870 | 0.774 | 0.931 | 0.905 | 0.557 | 0.411 |
-| `scintilla_composite__silhouette` | 0.824 | 0.625 | 0.889 | 0.957 | 0.518 | 0.363 |
+| `scintilla_composite_silhouette` | 0.824 | 0.625 | 0.889 | 0.957 | 0.518 | 0.363 |
 | `scintilla_composite_frag` | 0.816 | 0.641 | 0.867 | 0.941 | 0.490 | 0.322 |
 | `scintilla_unsup_frag_only` | 0.810 | 0.707 | 0.879 | 0.845 | 0.464 | 0.317 |
 | `scintilla_fragmentation_mean` | 0.749 | 0.859 | 0.886 | **0.501** | 0.448 | 0.356 |
@@ -173,7 +173,7 @@ scores = si.tl.label_quality(adata, cell_type_col="cell_type")
 ranks = review_ranks(scores)           # 1 = most suspicious
 
 # the 5 labels to look at first, by the best overall variant
-print(scores["scintilla_composite_frag__silhouette"].nsmallest(5))
+print(scores["scintilla_composite_frag_silhouette"].nsmallest(5))
 print(VARIANTS)                         # one-line description of every column
 ```
 

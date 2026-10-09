@@ -39,7 +39,7 @@ import scintilla as si
 
 adata = sc.datasets.pbmc68k_reduced()
 scores = si.tl.label_quality(adata, cell_type_col="bulk_labels", fast=True)
-scores["scintilla_composite_frag__silhouette"].nsmallest(5)   # the labels to review first
+scores["scintilla_composite_frag_silhouette"].nsmallest(5)   # the labels to review first
 ```
 
 Every score is oriented so that higher means a better label. The same analysis is available from

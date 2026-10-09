@@ -207,7 +207,6 @@ marimo/_lsp/
 __marimo__/
 graphify-out/*
 
-scverse_plan.md
 # Local analysis outputs
 results/
 *.h5ad

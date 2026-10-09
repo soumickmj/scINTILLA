@@ -8,7 +8,7 @@ import scintilla
 # -- Project information -----------------------------------------------------
 
 project = "scintilla-py"
-author = "S. Kanannejad, N. Bongiorni, E. Nordera, S. Redaelli, I. Rusconi, R. Zanin, A. Giustacchini, S. Chatterjee"
+author = "Sina Kanannejad, Noemi Bongiorni, Elisa Nordera, Sara Redaelli, Irene Rusconi, Rachele Zanin, Alice Giustacchini, Soumick Chatterjee"
 copyright = f"{datetime.now():%Y}, {author}"  # noqa: A001
 release = scintilla.__version__
 version = ".".join(release.split(".")[:2])

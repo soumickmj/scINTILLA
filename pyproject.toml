@@ -11,13 +11,13 @@ license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [
-    { name = "S. Kanannejad" },
-    { name = "N. Bongiorni" },
-    { name = "E. Nordera" },
-    { name = "S. Redaelli" },
-    { name = "I. Rusconi" },
-    { name = "R. Zanin" },
-    { name = "A. Giustacchini" },
+    { name = "Sina Kanannejad" },
+    { name = "Noemi Bongiorni" },
+    { name = "Elisa Nordera" },
+    { name = "Sara Redaelli" },
+    { name = "Irene Rusconi" },
+    { name = "Rachele Zanin" },
+    { name = "Alice Giustacchini" },
     { name = "Soumick Chatterjee" },
 ]
 maintainers = [
@@ -97,6 +97,7 @@ full = [
 test = [
     "pytest>=8",
     "pytest-cov",
+    "jsonschema",
     "scintilla-py[stats,viz]",
 ]
 doc = [
@@ -140,6 +141,7 @@ include = [
     "/CODE_OF_CONDUCT.md",
     "/SECURITY.md",
     "/PUBLISHING.md",
+    "/scverse-registry",
     "/CITATION.cff",
     "/LICENSE",
 ]

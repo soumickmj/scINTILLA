@@ -1,0 +1,25 @@
+name: scintilla-py
+blurb: Cell-type label quality scoring and method benchmarking
+description: |
+  scINTILLA scores how learnable and internally consistent each cell-type label in a scRNA-seq dataset is, by combining a panel of clustering algorithms with a panel of classifiers, and benchmarks the methods used at each stage of an analysis. Results are written back to the AnnData object.
+project_home: https://github.com/soumickmj/scINTILLA
+documentation_home: https://scintilla-py.readthedocs.io/
+tutorials_home: https://scintilla-py.readthedocs.io/en/latest/notebooks/index.html
+publications:
+  - 10.64898/2026.07.27.740477
+install:
+  pypi: scintilla-py
+primary_category: scRNA-seq
+tags:
+  - scRNA-seq
+  - cell-type annotation
+  - quality control
+  - benchmarking
+  - clustering
+  - data integration
+license: Apache-2.0
+language: Python
+contact:
+  - soumickmj
+test_command: pip install ".[test]" && pytest
+category: ecosystem

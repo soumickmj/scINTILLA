@@ -71,7 +71,7 @@ def test_fusions_follow_the_v4_formulas():
     sil = pd.Series({"a": 0.5, "b": 0.1, "c": 0.3, "d": 0.4})
     scores = compute_label_quality_variants(_adata(), silhouette=sil)
     r_s, r_g = quality_rank(scores.scintilla_composite), quality_rank(sil)
-    pd.testing.assert_series_equal(scores["scintilla_composite__silhouette"],
+    pd.testing.assert_series_equal(scores["scintilla_composite_silhouette"],
                                    ((r_s + r_g) / 2).round(12), check_names=False)
     add = FROZEN_FUSION["fusion_add"]
     expected = -(add["intercept"] + add["coef"]["r_s"] * r_s + add["coef"]["r_g"] * r_g)

@@ -37,8 +37,8 @@ label with every variant described in {doc}`../label_quality`. Every score is or
 
 ```{code-cell} ipython3
 scores = si.tl.label_quality(adata, cell_type_col="bulk_labels", fast=True, random_state=0)
-scores[["scintilla_composite", "scintilla_composite_frag__silhouette", "silhouette"]].round(3).sort_values(
-    "scintilla_composite_frag__silhouette"
+scores[["scintilla_composite", "scintilla_composite_frag_silhouette", "silhouette"]].round(3).sort_values(
+    "scintilla_composite_frag_silhouette"
 )
 ```
 
@@ -46,7 +46,7 @@ The labels to review first are the ones at the top of this table. `review_ranks`
 into ranks, where 1 means most suspicious:
 
 ```{code-cell} ipython3
-si.tl.review_ranks(scores)["scintilla_composite_frag__silhouette"].sort_values().head(5)
+si.tl.review_ranks(scores)["scintilla_composite_frag_silhouette"].sort_values().head(5)
 ```
 
 ## What was written to the object
