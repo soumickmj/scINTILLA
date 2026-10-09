@@ -15,6 +15,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
-      - run: uv sync --extra doc --extra full --no-dev
+      # Same command as .readthedocs.yaml, so this job catches what Read the Docs would hit.
+      - run: uv sync --extra doc --extra full --no-dev --no-install-package louvain
       - name: Build with warnings as errors
         run: uv run --no-sync sphinx-build -W --keep-going -b html docs docs/_build/html

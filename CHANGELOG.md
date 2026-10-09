@@ -50,6 +50,10 @@ result of any analysis function changed relative to 0.2.0, except the embedding 
   still sparse and allocates one dense copy instead of two.
 - Test dependencies have lower bounds (`pytest-cov>=4`, `jsonschema>=4.18`); without them the
   `lowest-direct` CI job resolved `jsonschema` to version 0.2, which is Python 2 era code and cannot be built.
+- **Read the Docs build.** The docs environment is installed without `louvain`
+  (`uv sync ... --no-install-package louvain`). Read the Docs has no wheel of `louvain` 0.8.2 for its
+  Python 3.12 image, so uv compiled it from source, which needs CMake, and the build failed. The tutorials do
+  not use Louvain. The GitHub `Docs` job uses the same command so that it catches this class of failure.
 - The GitHub Actions used by the workflows moved to their current major versions (`actions/checkout` 7,
   `astral-sh/setup-uv` 7, `codecov/codecov-action` 7), which also removes the Node.js 20 deprecation warning.
 - Dependabot now opens at most one pull request a month for each ecosystem, instead of weekly. It no longer
