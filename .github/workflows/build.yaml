@@ -3,7 +3,7 @@ name: Check build
 on:
   workflow_dispatch:
   push:
-    branches: [master, main, scverse]  # scverse: the pre-merge branch; drop after merging
+    branches: [master, main]
   pull_request:
     branches: [master, main]
 
@@ -11,8 +11,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
       - name: Build sdist and wheel
         run: uv build
       - name: Check metadata renders on PyPI

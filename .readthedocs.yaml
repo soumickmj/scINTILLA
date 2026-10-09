@@ -10,7 +10,9 @@ build:
       - asdf global uv latest
       - uv venv $READTHEDOCS_VIRTUALENV_PATH
     install:
-      - UV_PROJECT_ENVIRONMENT=$READTHEDOCS_VIRTUALENV_PATH uv sync --extra doc --extra full --no-dev
+      # louvain has no wheel for this image and its source build needs CMake, which the image lacks.
+      # The tutorials never call it (Leiden covers graph clustering), so it is left out of the docs environment.
+      - UV_PROJECT_ENVIRONMENT=$READTHEDOCS_VIRTUALENV_PATH uv sync --extra doc --extra full --no-dev --no-install-package louvain
 sphinx:
   configuration: docs/conf.py
   fail_on_warning: true

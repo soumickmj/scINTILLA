@@ -14,8 +14,16 @@ jobs:
     permissions:
       id-token: write  # PyPI trusted publishing, no API token stored in secrets
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Check that the tag matches the package version
+        # The version lives in src/scintilla/__init__.py only; a release tagged "v1" would publish 0.2.1.
+        run: |
+          version=$(python3 -c "import re,pathlib; print(re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('src/scintilla/__init__.py').read_text()).group(1))")
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::The release tag is '${GITHUB_REF_NAME}' but the package version is '${version}'. Tag the release v${version}."
+            exit 1
+          fi
       - run: uv build
       - run: uvx twine check --strict dist/*
       - uses: pypa/gh-action-pypi-publish@release/v1
