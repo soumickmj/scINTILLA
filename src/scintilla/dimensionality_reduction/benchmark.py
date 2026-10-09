@@ -50,9 +50,10 @@ def benchmark_embeddings(
 
     records = []
     adata = ensure_anndata(adata)
-    X_high = get_representation(adata, use_rep, random_state).astype(np.float64)
+    rep = get_representation(adata, use_rep, random_state)
+    X_high = rep.astype(np.float64)  # for the trustworthiness score only; embed the representation as stored
     # Embed a stand-in that holds only the representation: the caller's object is untouched.
-    work = stand_in(X_high, adata.obs_names)
+    work = stand_in(rep, adata.obs_names)
 
     runners = {
         "umap": (run_umap, "X_umap"),

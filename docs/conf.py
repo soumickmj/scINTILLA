@@ -64,7 +64,7 @@ else:
         "scipy": ("https://docs.scipy.org/doc/scipy/", None),
         "pandas": ("https://pandas.pydata.org/docs/", None),
         "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
-        "mudata": ("https://mudata.readthedocs.io/en/stable/", None),
+        "mudata": ("https://mudata.scverse.org/en/latest/", None),
         "scanpy": ("https://scanpy.readthedocs.io/en/stable/", None),
         "sklearn": ("https://scikit-learn.org/stable/", None),
         "matplotlib": ("https://matplotlib.org/stable/", None),

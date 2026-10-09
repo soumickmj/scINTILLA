@@ -94,8 +94,8 @@ full = [
 ]
 test = [
     "pytest>=8",
-    "pytest-cov",
-    "jsonschema",
+    "pytest-cov>=4",
+    "jsonschema>=4.18",
     "scintilla-py[stats,viz]",
 ]
 doc = [

@@ -28,7 +28,7 @@ API token is stored anywhere.
    uv run --with dist/*.whl --no-project python -c "import scintilla; print(scintilla.__version__)"
    ```
 
-4. Tag and publish a GitHub release (`v0.2.0`). Publishing the release triggers the workflow,
+4. Tag and publish a GitHub release (for example `v0.2.1`). Publishing the release triggers the workflow,
    which builds the sdist and wheel, runs `twine check` and uploads them to PyPI.
 5. Archive the release on Zenodo (enable the GitHub integration once) and add the software DOI to
    `CITATION.cff`.

@@ -47,7 +47,7 @@ from scintilla.classification.run import supervised_analysis
 from scintilla.clustering.dbscan import estimate_eps
 from scintilla.clustering.run import unsupervised_analysis
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from scintilla.config import (
     DEFAULT_N_PCA_COMPS,

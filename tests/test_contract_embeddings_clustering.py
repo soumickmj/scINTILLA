@@ -8,6 +8,7 @@ import pytest
 
 import scintilla as si
 
+
 def _require(module: str) -> None:
     """Skip unless the optional backend is installed (louvain is checked without importing it)."""
     import importlib.util
@@ -60,6 +61,17 @@ def test_embedding_benchmark_reports_unknown_methods_and_leaves_the_input_alone(
     assert table.set_index("method").loc["bogus", "status"] == "unknown"
     assert table.set_index("method").loc["umap", "status"] == "ok"
     assert set(adata_logged.obsm) == obsm
+
+
+def test_embedding_benchmark_embeds_the_representation_as_stored(adata_logged):
+    """0.2.0 cast the representation to float64 before embedding, which changed the UMAP and t-SNE scores."""
+    from scintilla.evaluation.embedding_metrics import trustworthiness
+
+    adata_logged.obsm["X_pca"] = adata_logged.obsm["X_pca"].astype(np.float32)
+    si.tl.umap(adata_logged, use_rep="X_pca", random_state=0)
+    expected = trustworthiness(adata_logged.obsm["X_pca"].astype(np.float64), adata_logged.obsm["X_umap"])
+    table = si.benchmark.benchmark_embeddings(adata_logged, methods=["umap"], random_state=0)
+    assert table.set_index("method").loc["umap", "trustworthiness"] == pytest.approx(expected, abs=1e-12)
 
 
 # ── clustering ──────────────────────────────────────────────────────────

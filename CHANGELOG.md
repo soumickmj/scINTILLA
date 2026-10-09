@@ -6,6 +6,127 @@ All notable changes to `scintilla-py` are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-09
+
+A follow-up to 0.2.0 that finishes the scverse listing work (author metadata, registry entry, dependency
+hygiene), fixes problems that the first run of the GitHub workflows turned up, and records a systematic
+comparison of 0.2.x against 0.1.0 (see [Equivalence with 0.1.0](#equivalence-with-010)).
+**One change affects downstream code:** two CSV column names changed (see *Changed*). No numerical
+result of any analysis function changed relative to 0.2.0, except the embedding benchmark described under
+*Fixed*, which now agrees with 0.1.0 again.
+
+### Added
+
+- **`scverse-registry/`**: the `meta.yaml` for the entry in
+  [`scverse/ecosystem-packages`](https://github.com/scverse/ecosystem-packages), the upstream
+  `schema.json` it is validated against, and a README that says how to submit it. `tests/test_registry_entry.py`
+  validates the entry against that schema on every test run and checks that it agrees with `pyproject.toml`
+  (name, licence, PyPI name, URLs) and with the DOI in `CITATION.cff`, so the entry cannot drift out of date.
+- **`.github/dependabot.yml`**: weekly, grouped updates for the `uv` lock file and for the GitHub Actions
+  used by the workflows. Semver-major updates are left for a person to decide.
+- **`settings.dense_warning_gb`** (default 4.0): a `UserWarning` is issued before a sparse matrix is converted to
+  a dense array larger than this many GiB. The message names the size, the reason (for instance
+  "classifier training") and the usual remedy (`use_rep="X_pca"` or `supervised_use_rep="X_pca"`). Raise
+  the threshold, or set it to `float("inf")`, to silence it on a machine with plenty of memory.
+- The workflows can now be started by hand (`workflow_dispatch`) and also run on pushes to the `scverse`
+  branch (to be removed once that branch is merged).
+
+### Changed
+
+- **Authors** are now given by full name in `pyproject.toml`, `CITATION.cff` (including `preferred-citation`)
+  and the documentation, in the order of the bioRxiv preprint: Sina Kanannejad, Noemi Bongiorni, Elisa
+  Nordera, Sara Redaelli, Irene Rusconi, Rachele Zanin, Alice Giustacchini and Soumick Chatterjee.
+- **Breaking for anything that reads the label-quality CSV files by column name.** The two silhouette
+  variants had a doubled underscore (`scintilla_composite__silhouette`,
+  `scintilla_composite_frag__silhouette`). The names are now `scintilla_composite_silhouette` and
+  `scintilla_composite_frag_silhouette`, in line with every other `scintilla_*` column. The values are
+  unchanged (the pinned baseline in `tests/data/label_quality_baseline.csv` was renamed, not recomputed).
+  Rename the columns in old result files with
+  `df.rename(columns=lambda c: c.replace("__silhouette", "_silhouette"))`.
+- `get_matrix` (the single place where sparse data is made dense) now converts the dtype while the matrix is
+  still sparse and allocates one dense copy instead of two.
+- Test dependencies have lower bounds (`pytest-cov>=4`, `jsonschema>=4.18`); without them the
+  `lowest-direct` CI job resolved `jsonschema` to version 0.2, which is Python 2 era code and cannot be built.
+- The documentation cross-links `mudata` through its new address, `mudata.scverse.org`.
+- `scverse_plan.md`, the working document for this listing, was removed from the repository, together
+  with its entry in `.gitignore`.
+
+### Fixed
+
+- **Louvain with setuptools 82 or later.** The `louvain` package (0.8.2, the latest) imports `pkg_resources`,
+  which setuptools 82 removed, so `scintilla.tl.louvain` failed with `ModuleNotFoundError` on a current
+  Python environment (it also failed that way in 0.1.0). 0.2.0 worked around this with a
+  `setuptools<82` pin in the `full` extra. That pin made the lock file carry setuptools 81, which has a
+  published advisory (GHSA-h35f-9h28-mq5c), and the Dependabot proposal to move it to `<84` would have installed
+  a setuptools without `pkg_resources` and broken Louvain again. `louvain` is now imported through a
+  small stand-in for the two `pkg_resources` names it uses (`get_distribution` and `DistributionNotFound`),
+  which exists only while the import runs and is removed afterwards, so nothing else in the process
+  sees a fake `pkg_resources`. The pin is gone, and a subprocess test checks both the import and the clean-up.
+  The stale Dependabot branch for the `<84` bump should be closed.
+- **`benchmark_embeddings` embedded a float64 copy of the representation** (0.2.0 only), whereas 0.1.0
+  embedded it as stored and used float64 only to compute trustworthiness. For a float32 `X_pca` this
+  changed the UMAP and t-SNE coordinates in the last digits and the scores by up to 0.003. It now
+  embeds the stored representation again and agrees with 0.1.0 exactly; `tests/test_contract_embeddings_clustering.py`
+  has a regression test.
+- Import ordering in one test module that the current Ruff release rejects (CI lint job).
+- The documentation build failed in CI because the `mudata` inventory moved (HTTP 404 on the old
+  address); see *Changed*.
+
+### Known limitations
+
+- **What still densifies, and whether that matters.** Dense conversion happens in: the supervised pipeline
+  and classifier benchmark (on `X`), label transfer, the per-gene tests (ANOVA, Kruskal-Wallis, Dunn,
+  Box's M, differential expression), ComBat, feature selection and PCA loadings, the transformation
+  benchmark, normality checks, and DBSCAN, HDBSCAN, hierarchical and consensus clustering when they are
+  run on `X` rather than on a representation. In every case the cost is memory of
+  `n_cells x n_genes x 8` bytes (500,000 cells and 30,000 genes would need about 120 GB), and it is a
+  cost of scale, not a correctness problem: results are identical to the sparse path. Most of these
+  steps need a dense array for a reason, either because the method works across all genes at once
+  (scaling, ComBat, covariance matrices, SHAP) or because scikit-learn / SciPy build a dense array
+  internally anyway (pairwise distances for linkage and DBSCAN are n x n regardless of input format).
+  Graph-based clustering, embeddings and label quality from a representation already work from
+  `obsm["X_pca"]` and stay small. For large data pass `use_rep="X_pca"` to clustering and
+  `supervised_use_rep="X_pca"` to the supervised arm; the latter is not the default because it changes the
+  scores relative to the preprint (they then describe a PCA-reduced problem). 0.2.1 adds the warning and
+  the single-copy allocation. Making individual tests sparse-native (the per-gene tests are the obvious
+  candidates) is possible but needs separate numerical validation and is left for a later release.
+
+### Equivalence with 0.1.0
+
+0.2.1 was compared with 0.1.0 on synthetic count data (four cell types, two batches, a few mislabelled
+cells), using the same environment, the same seeds and the same input, once with 160 cells and 80 genes
+(seed 3) and once with 240 cells (seed 11). The harness called, in both versions, PCA (including the
+Gavish-Donoho and Marchenko-Pastur rules and the variance threshold), all 14 transformations (v2 both
+through the transformation functions and through the public `pp` API, which writes a layer), normality
+checks, highly variable gene selection (Seurat v3 and Cell Ranger), UMAP, t-SNE and diffusion maps (with
+and without a stored representation), k-means (plain, spherical, bisecting), hierarchical, DBSCAN, HDBSCAN,
+spectral (single and grid), Leiden, Louvain and consensus clustering, the clustering benchmark, the full
+unsupervised and supervised pipelines (default and robust configuration, dense and sparse input), the
+classifier benchmark under cross-validation, hold-out and the .632+ bootstrap, all label-quality
+variants, differential expression (Wilcoxon, t-test, permutation, pseudobulk, `rank_genes_groups`,
+marker genes), over-representation analysis, marker-based annotation and label transfer, the feature
+selection benchmark, mutual information, PCA loadings and HVG sensitivity, batch correction (ComBat,
+Harmony, Scanorama and the batch benchmark), the statistics module (bootstrap intervals, paired and
+permutation tests, McNemar, effect sizes, p-value correction, rank aggregation, ANOVA, Kruskal-Wallis,
+Box's M, Dunn), clustering metrics, exploratory summaries, the transformation and embedding benchmarks
+and the seed-stability test.
+
+**Result: 98 of 102 comparable results (seed 3) and 97 of 101 (seed 11) are identical to 0.1.0 within
+1e-6. All remaining differences are intended and are bug fixes or additions made in 0.2.0:**
+
+| Result | 0.1.0 | 0.2.x | Reason |
+|---|---|---|---|
+| `benchmark_batch_correction` scores | Identical batch ASW and bio-conservation for ComBat, Harmony and Scanorama | Different per method, plus an `embed_key` column | 0.1.0 scored the uncorrected `X_pca` for every method; see 0.2.0 *Fixed*. The old leaderboards were wrong, not merely different. |
+| `marchenko_pastur_cutoff(sigma_method="trimmed_mean")` and PCA with `mp_sigma_method="trimmed_mean"` | 42 components retained by the cutoff; 28 or 32 in the PCA | 9; 8 or 16 | 0.1.0 under-estimated the noise level; see 0.2.0 *Fixed*. The default `"median"` rule is identical. |
+| `annotate_by_markers(method="threshold")` | Labels only | Same labels, plus the per-type scores in `obsm` | Addition; the labels are identical. |
+
+Differences that are not numerical, and therefore not visible to the comparison: 0.1.0 returned new
+objects and 0.2.x writes in place (or returns a copy with `copy=True`); outputs go to `layers`,
+`obsm` and `uns` under the `key_added` you choose instead of replacing `X`; 0.1.0 left a stray `leiden`
+column in `obs`; and the two silhouette column names changed as described above. All of these are in the
+migration table under 0.2.0. Louvain is the one function that did not run at all in 0.1.0 on a current
+setuptools (see *Fixed*); it was compared with a `pkg_resources` stand-in provided to 0.1.0.
+
 ## [0.2.0] - 2026-10-08
 
 This release prepares scINTILLA for listing in the [scverse](https://scverse.org) ecosystem. It
@@ -226,6 +347,7 @@ of the pre-release audit (label transfer by gene name, no fabricated pseudobulk 
 import-time Matplotlib backend change, visible benchmark failures, a working `AnalysisConfig`, per-call
 seeding), the per-label quality variants and the `scintilla label-quality` command.
 
-[Unreleased]: https://github.com/soumickmj/scINTILLA/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/soumickmj/scINTILLA/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/soumickmj/scINTILLA/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/soumickmj/scINTILLA/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/soumickmj/scINTILLA/releases/tag/v0.1.0
