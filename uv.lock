@@ -4110,7 +4110,6 @@ full = [
     { name = "scanorama" },
     { name = "scikit-misc" },
     { name = "scikit-posthocs" },
-    { name = "setuptools" },
     { name = "shap", version = "0.49.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.12' and platform_machine != 'x86_64') or (python_full_version < '3.12' and sys_platform != 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'darwin')" },
     { name = "shap", version = "0.52.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and platform_machine != 'x86_64') or (python_full_version >= '3.12' and sys_platform != 'darwin')" },
     { name = "umap-learn" },
@@ -4121,6 +4120,7 @@ stats = [
     { name = "scikit-posthocs" },
 ]
 test = [
+    { name = "jsonschema" },
     { name = "plotly" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -4147,6 +4147,7 @@ requires-dist = [
     { name = "harmonypy", marker = "extra == 'full'" },
     { name = "hdbscan", marker = "extra == 'full'" },
     { name = "ipykernel", marker = "extra == 'doc'" },
+    { name = "jsonschema", marker = "extra == 'test'" },
     { name = "kneed", marker = "extra == 'full'" },
     { name = "leidenalg", marker = "extra == 'full'" },
     { name = "lightgbm", marker = "extra == 'full'" },
@@ -4174,7 +4175,6 @@ requires-dist = [
     { name = "scikit-posthocs", marker = "extra == 'test'", specifier = ">=0.9" },
     { name = "scipy", specifier = ">=1.11" },
     { name = "seaborn", specifier = ">=0.13" },
-    { name = "setuptools", marker = "extra == 'full'", specifier = "<82" },
     { name = "shap", marker = "extra == 'full'" },
     { name = "sphinx", marker = "extra == 'doc'", specifier = ">=7" },
     { name = "sphinx-autodoc-typehints", marker = "extra == 'doc'" },
@@ -4468,15 +4468,6 @@ resolution-markers = [
 sdist = { url = "https://files.pythonhosted.org/packages/24/34/b13340d5b4793ad5cd80118e0ebd484ac70250069110746da8026c34768c/session_info2-0.4.2.tar.gz", hash = "sha256:d85d730621d6f75df60e15dad21258f2750f04c0c0ee5958a7bf92342c039d76", size = 25385, upload-time = "2026-08-04T09:02:04.087Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9b/41/b5af3c12d874fcbdb45abd67500aff8030de0d350a5d6163da45378609c4/session_info2-0.4.2-py3-none-any.whl", hash = "sha256:dbf5f58769115651fad28e8ffc930b6a848a629a242ce2ecd730d12f5e3e9315", size = 17665, upload-time = "2026-08-04T09:02:02.9Z" },
-]
-
-[[package]]
-name = "setuptools"
-version = "81.0.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/0d/1c/73e719955c59b8e424d015ab450f51c0af856ae46ea2da83eba51cc88de1/setuptools-81.0.0.tar.gz", hash = "sha256:487b53915f52501f0a79ccfd0c02c165ffe06631443a886740b91af4b7a5845a", size = 1198299, upload-time = "2026-02-06T21:10:39.601Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e1/e3/c164c88b2e5ce7b24d667b9bd83589cf4f3520d97cad01534cd3c4f55fdb/setuptools-81.0.0-py3-none-any.whl", hash = "sha256:fdd925d5c5d9f62e4b74b30d6dd7828ce236fd6ed998a08d81de62ce5a6310d6", size = 1062021, upload-time = "2026-02-06T21:10:37.175Z" },
 ]
 
 [[package]]

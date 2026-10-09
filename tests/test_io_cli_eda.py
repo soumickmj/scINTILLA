@@ -237,3 +237,28 @@ def test_cli_help_does_not_raise(capsys):
     with pytest.raises(SystemExit):
         main(["--help"])
     assert "label-quality" in capsys.readouterr().out
+
+
+# ── large densification warning ─────────────────────────────────────────
+
+
+def test_densifying_a_large_sparse_matrix_warns_with_advice(adata_csr):
+    from scintilla._compat import get_matrix
+
+    previous = si.settings.dense_warning_gb
+    si.settings.dense_warning_gb = 1e-6
+    try:
+        with pytest.warns(UserWarning, match=r"allocates .* GB .*use_rep='X_pca'"):
+            dense = get_matrix(adata_csr, reason="a test needs it", dtype=np.float64)
+        assert dense.dtype == np.float64 and not sparse.issparse(dense)
+        with pytest.warns(UserWarning):
+            si.tl.supervised_analysis(adata_csr, "cell_type", models=["LogReg"], include_shap=False, normality=True)
+    finally:
+        si.settings.dense_warning_gb = previous
+
+
+def test_densifying_below_the_threshold_is_silent(adata_csr, recwarn):
+    from scintilla._compat import get_matrix
+
+    get_matrix(adata_csr, reason="small")
+    assert not [w for w in recwarn if "Densifying" in str(w.message)]

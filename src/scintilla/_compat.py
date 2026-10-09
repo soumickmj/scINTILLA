@@ -11,6 +11,7 @@ single place they are implemented:
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import anndata as ad
@@ -89,13 +90,33 @@ def get_matrix(
     if sparse.issparse(X):
         if not dense:
             return X.astype(dtype) if dtype is not None else X
+        _warn_if_large(X, dtype, reason)
         if reason:
             logger.debug("densifying %s x %s matrix: %s", X.shape[0], X.shape[1], reason)
-        X = X.toarray()
+        # Cast while still sparse, so only one dense copy is ever allocated.
+        return (X.astype(dtype) if dtype is not None else X).toarray()
     elif hasattr(X, "toarray"):  # other sparse-like backends
         X = X.toarray()
     X = np.asarray(X)
     return X.astype(dtype) if dtype is not None else X
+
+
+def _warn_if_large(X: Any, dtype: Any, reason: str | None) -> None:
+    """Warn before allocating a dense copy larger than ``settings.dense_warning_gb``."""
+    from scintilla.settings import settings
+
+    itemsize = np.dtype(dtype).itemsize if dtype is not None else X.dtype.itemsize
+    size_gb = X.shape[0] * X.shape[1] * itemsize / 1024**3
+    if size_gb > settings.dense_warning_gb:
+        warnings.warn(
+            f"Densifying a {X.shape[0]} x {X.shape[1]} sparse matrix allocates {size_gb:.1f} GB"
+            + (f" ({reason})" if reason else "")
+            + ". Work on a low-dimensional representation (use_rep='X_pca', or "
+            "supervised_use_rep='X_pca' in label_quality) or subsample the cells. "
+            "Raise scintilla.settings.dense_warning_gb to silence this warning.",
+            UserWarning,
+            stacklevel=4,
+        )
 
 
 def as_dense(X: Any, dtype: Any = None) -> np.ndarray:

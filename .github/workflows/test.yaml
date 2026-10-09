@@ -1,8 +1,9 @@
 name: Test
 
 on:
+  workflow_dispatch:
   push:
-    branches: [master, main]
+    branches: [master, main, scverse]  # scverse: the pre-merge branch; drop after merging
   pull_request:
     branches: [master, main]
   schedule:

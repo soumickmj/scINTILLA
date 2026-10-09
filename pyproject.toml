@@ -78,9 +78,7 @@ full = [
     "scikit-misc",  # scanpy's seurat_v3 HVG flavour (the default of select_hvg)
     "mudata>=0.2",
     "leidenalg",
-    "louvain>=0.8.2",
-    # Louvain imports pkg_resources, removed from setuptools 82.
-    "setuptools<82",
+    "louvain>=0.8.2",  # imported through a pkg_resources stand-in, see clustering/_louvain_compat.py
     "python-igraph",
     "harmonypy",
     "bbknn",

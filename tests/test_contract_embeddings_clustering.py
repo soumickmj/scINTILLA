@@ -8,6 +8,14 @@ import pytest
 
 import scintilla as si
 
+def _require(module: str) -> None:
+    """Skip unless the optional backend is installed (louvain is checked without importing it)."""
+    import importlib.util
+
+    if importlib.util.find_spec(module) is None:
+        pytest.skip(f"{module} is not installed")
+
+
 EMBEDDINGS = [
     ("umap", "X_umap", {}),
     ("tsne", "X_tsne", {"perplexity": 10.0}),
@@ -59,7 +67,7 @@ def test_embedding_benchmark_reports_unknown_methods_and_leaves_the_input_alone(
 
 @pytest.mark.parametrize("name", ["leiden", "louvain"])
 def test_graph_clustering_does_not_touch_the_input(adata_logged, name):
-    pytest.importorskip("leidenalg" if name == "leiden" else "louvain")
+    _require("leidenalg" if name == "leiden" else "louvain")
     obs, obsp, uns = list(adata_logged.obs.columns), set(adata_logged.obsp), set(adata_logged.uns)
     labels = getattr(si.tl, name)(adata_logged, resolution=0.5, random_state=0)
     assert labels.shape == (adata_logged.n_obs,)
@@ -84,7 +92,7 @@ def test_leiden_finds_the_planted_cell_types(adata_logged):
 
 @pytest.mark.parametrize("name", ["leiden", "louvain"])
 def test_graph_clustering_is_reproducible(adata_logged, name):
-    pytest.importorskip("leidenalg" if name == "leiden" else "louvain")
+    _require("leidenalg" if name == "leiden" else "louvain")
     fn = getattr(si.tl, name)
     np.testing.assert_array_equal(fn(adata_logged, random_state=3), fn(adata_logged, random_state=3))
 
@@ -145,3 +153,33 @@ def test_array_level_clustering_accepts_an_anndata_with_use_rep_and_key_added(ad
         si.tl.kmeans(adata_logged, n_clusters=4, use_rep="missing")
     with pytest.raises(TypeError, match="requires an AnnData"):
         si.tl.kmeans(adata_logged.obsm["X_pca"], n_clusters=4, key_added="km")
+
+
+def test_louvain_imports_without_pkg_resources_and_leaves_no_stand_in_behind():
+    """setuptools >= 82 has no pkg_resources, which louvain 0.8.2 imports at import time."""
+    import subprocess
+    import sys
+    import textwrap
+
+    _require("louvain")
+    code = textwrap.dedent(
+        """
+        import sys
+        from importlib.abc import MetaPathFinder
+
+        class Block(MetaPathFinder):
+            def find_spec(self, name, path, target=None):
+                if name == "pkg_resources" or name.startswith("pkg_resources."):
+                    raise ModuleNotFoundError(name)
+
+        sys.meta_path.insert(0, Block())
+        from scintilla.clustering._louvain_compat import import_louvain
+
+        module = import_louvain()
+        assert module.__name__ == "louvain" and module.__version__
+        assert "pkg_resources" not in sys.modules, "the stand-in must not outlive the import"
+        print("ok")
+        """
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0 and result.stdout.strip().endswith("ok"), result.stderr

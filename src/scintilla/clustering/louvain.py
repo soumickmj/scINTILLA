@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from scintilla._compat import record_params
+from scintilla.clustering._louvain_compat import import_louvain
 from scintilla.config import DEFAULT_N_PCA_COMPS, RANDOM_SEED
 from scintilla.dimensionality_reduction._common import get_representation, stand_in
 from scintilla.io.loaders import ensure_anndata
@@ -56,7 +57,7 @@ def louvain_clustering(
         ) from exc
 
     try:
-        import louvain  # noqa: F401
+        import_louvain()
     except ImportError:
         pass  # scanpy will raise a more informative error if needed
     adata = ensure_anndata(adata)

@@ -34,7 +34,14 @@ class Settings:
         One of ``"error"``, ``"warning"`` (default), ``"info"`` or ``"debug"``.
         Controls the ``scintilla`` logger.  Library code is silent at the
         default level; set ``"info"`` to see progress messages.
+    dense_warning_gb
+        Algorithms that cannot work on sparse data densify the matrix they are given. A
+        :class:`UserWarning` is emitted before a dense copy larger than this many GiB
+        (default 4) is allocated.
     """
+
+    def __init__(self) -> None:
+        self.dense_warning_gb: float = 4.0
 
     @property
     def verbosity(self) -> str:
